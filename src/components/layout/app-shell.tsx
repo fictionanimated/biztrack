@@ -69,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     children: item.label,
                   }}
                 >
-                  <Link href={item.href}>
+                  <Link href={item.href} passHref>
                     <item.icon />
                     <span>{item.label}</span>
                   </Link>
@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
              <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <Link href="#">
+                  <Link href="#" passHref>
                     <HelpCircle />
                     <span>Help & Support</span>
                   </Link>
@@ -91,7 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </SidebarMenuItem>
             <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <Link href="#">
+                  <Link href="#" passHref>
                     <Settings />
                     <span>Settings</span>
                   </Link>
