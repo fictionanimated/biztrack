@@ -22,8 +22,35 @@ export function DashboardClient({
   recentOrders,
   aiInsights,
 }: DashboardData) {
+  // Grouping stats by type for better organization
+  const financialStats = stats.filter((s) =>
+    ["Total Revenue", "Total Expenses", "Net Profit"].includes(s.title)
+  );
+
+  const performanceStats = stats.filter((s) =>
+    [
+      "Target for June",
+      "Performance vs Target",
+      "Avg Daily Revenue (ADR)",
+      "Req. Daily Revenue (RDR)",
+      "Days Left in Month",
+    ].includes(s.title)
+  );
+
+  const customerAndOrderStats = stats.filter((s) =>
+    [
+      "Avg Order Value (AOV)",
+      "Total Orders (Completed)",
+      "Repeat Buyers",
+      "New Buyers",
+      "Cancelled Orders",
+      "% Orders with Reviews",
+      "All-Time Total Buyers",
+    ].includes(s.title)
+  );
+
   return (
-    <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+    <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
       <div className="flex items-center">
         <h1 className="font-headline text-lg font-semibold md:text-2xl">
           Dashboard
@@ -32,11 +59,34 @@ export function DashboardClient({
           <DateFilter />
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <StatCard key={stat.title} {...stat} />
-        ))}
-      </div>
+
+      <section>
+        <h2 className="text-xl font-semibold mb-4">Financial Overview</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {financialStats.map((stat) => (
+            <StatCard key={stat.title} {...stat} />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-semibold mb-4">Performance vs. Goals</h2>
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+          {performanceStats.map((stat) => (
+            <StatCard key={stat.title} {...stat} />
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-semibold mb-4">Customer & Order Metrics</h2>
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
+          {customerAndOrderStats.map((stat) => (
+            <StatCard key={stat.title} {...stat} />
+          ))}
+        </div>
+      </section>
+
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader>
@@ -65,7 +115,9 @@ export function DashboardClient({
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Recent Orders</CardTitle>
-            <CardDescription>An overview of your most recent orders.</CardDescription>
+            <CardDescription>
+              An overview of your most recent orders.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <RecentOrders orders={recentOrders} />
