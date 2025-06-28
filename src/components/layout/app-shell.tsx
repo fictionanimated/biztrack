@@ -13,6 +13,7 @@ import {
   SidebarFooter,
   SidebarTrigger,
   SidebarInset,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import {
   LayoutDashboard,
@@ -100,21 +101,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <div className="flex items-center gap-3 px-2 py-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
-                 <Avatar className="h-10 w-10">
-                    <AvatarImage src="https://placehold.co/100x100.png" alt="@shadcn" data-ai-hint="male avatar" />
-                    <AvatarFallback>JD</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-                    <span className="font-semibold text-sm">John Doe</span>
-                    <span className="text-xs text-muted-foreground">john.doe@example.com</span>
-                </div>
-                <div className="ml-auto">
-                    <ThemeToggle />
-                </div>
-              </div>
+              <ThemeToggle />
             </SidebarMenuItem>
           </SidebarMenu>
+          <SidebarSeparator className="my-2" />
+           <div className="flex items-center gap-3 px-2 py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src="https://placehold.co/100x100.png" alt="@shadcn" data-ai-hint="male avatar" />
+                <AvatarFallback>JD</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                  <span className="font-semibold text-sm">John Doe</span>
+                  <span className="text-xs text-muted-foreground">john.doe@example.com</span>
+              </div>
+            </div>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
