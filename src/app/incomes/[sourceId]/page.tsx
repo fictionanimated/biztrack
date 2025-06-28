@@ -133,12 +133,14 @@ export default function SourceAnalyticsPage({
     ].filter(d => d && !isNaN(d.getTime()));
 
     if (allDates.length > 0) {
-        const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
         const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-        setDate({ from: minDate, to: maxDate });
+        const fromDate = new Date(maxDate);
+        fromDate.setDate(fromDate.getDate() - 29);
+        setDate({ from: fromDate, to: maxDate });
     } else {
         const today = new Date();
-        const oneMonthAgo = new Date(new Date().setDate(today.getDate() - 30));
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setDate(today.getDate() - 30);
         setDate({ from: oneMonthAgo, to: today });
     }
   }, [source]);
