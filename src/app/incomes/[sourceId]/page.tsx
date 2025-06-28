@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, lazy, Suspense } from "react";
+import { useMemo, lazy, Suspense, useState, useEffect } from "react";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
@@ -44,6 +44,8 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import type { DateRange } from "react-day-picker";
+import { DateFilter } from "@/components/dashboard/date-filter";
 
 const performanceChartConfig = {
   impressions: { label: "Impressions", color: "hsl(var(--chart-1))" },
@@ -89,69 +91,104 @@ export default function SourceAnalyticsPage({
   params: { sourceId: string };
 }) {
   const source = initialIncomeSources.find((s) => s.id === params.sourceId);
+  const [date, setDate] = useState<DateRange | undefined>();
 
   if (!source) {
     notFound();
   }
+
+  useEffect(() => {
+    const allDates = [
+      ...(source.gigs.flatMap(g => g.analytics?.map(a => new Date(a.date)) ?? [])),
+      ...(source.dataPoints?.map(dp => new Date(dp.date)) ?? [])
+    ].filter(d => d && !isNaN(d.getTime()));
+
+    if (allDates.length > 0) {
+        const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+        const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
+        setDate({ from: minDate, to: maxDate });
+    } else {
+        const today = new Date();
+        const oneMonthAgo = new Date(new Date().setDate(today.getDate() - 30));
+        setDate({ from: oneMonthAgo, to: today });
+    }
+  }, [source]);
+
 
   const {
     aggregatedAnalytics,
     aggregatedMessages,
     totalImpressions,
     totalClicks,
-    totalMessagesFromGigs,
-    totalMessagesFromSource,
+    totalMessages,
   } = useMemo(() => {
-    let totalImpressions = 0;
-    let totalClicks = 0;
-    let totalMessagesFromGigs = 0;
-    let totalMessagesFromSource = 0;
-    const analyticsMap = new Map<string, { impressions: number; clicks: number }>();
-    const messagesMap = new Map<string, { messages: number }>();
+    const from = date?.from;
+    const to = date?.to;
+    
+    const isDateInRange = (itemDate: Date) => {
+        if (!from && !to) return true;
+        if (from && itemDate < from) return false;
+        if (to) {
+            const toDateEnd = new Date(to);
+            toDateEnd.setHours(23, 59, 59, 999);
+            if (itemDate > toDateEnd) return false;
+        }
+        return true;
+    }
 
-    source.gigs.forEach((gig) => {
-        totalMessagesFromGigs += gig.messages || 0;
-        gig.analytics?.forEach((analytic) => {
-            totalImpressions += analytic.impressions;
-            totalClicks += analytic.clicks;
-            const existing = analyticsMap.get(analytic.date) || { impressions: 0, clicks: 0 };
-            analyticsMap.set(analytic.date, {
-                impressions: existing.impressions + analytic.impressions,
-                clicks: existing.clicks + analytic.clicks,
-            });
+    const filteredGigAnalytics = source.gigs.flatMap(gig => gig.analytics ?? [])
+        .filter(analytic => isDateInRange(new Date(analytic.date)));
+    
+    const filteredSourceDataPoints = (source.dataPoints ?? [])
+        .filter(dp => isDateInRange(new Date(dp.date)));
+
+    const analyticsMap = new Map<string, { impressions: number; clicks: number }>();
+    let currentImpressions = 0;
+    let currentClicks = 0;
+    filteredGigAnalytics.forEach(analytic => {
+        currentImpressions += analytic.impressions;
+        currentClicks += analytic.clicks;
+        const existing = analyticsMap.get(analytic.date) || { impressions: 0, clicks: 0 };
+        analyticsMap.set(analytic.date, {
+            impressions: existing.impressions + analytic.impressions,
+            clicks: existing.clicks + analytic.clicks,
         });
     });
 
-    source.dataPoints?.forEach((dp) => {
-        totalMessagesFromSource += dp.messages;
+    const messagesMap = new Map<string, { messages: number }>();
+    let currentMessagesFromSource = 0;
+    filteredSourceDataPoints.forEach(dp => {
+        currentMessagesFromSource += dp.messages;
         const existing = messagesMap.get(dp.date) || { messages: 0 };
         messagesMap.set(dp.date, {
             messages: existing.messages + dp.messages,
         });
     });
 
-    const aggregatedAnalytics = Array.from(analyticsMap.entries())
+    // Gig messages are an all-time count, not tied to a date range
+    const totalMessagesFromGigs = source.gigs.reduce((acc, gig) => acc + (gig.messages || 0), 0);
+
+    const aggregatedAnalyticsData = Array.from(analyticsMap.entries())
         .map(([date, data]) => ({ date, ...data }))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    const aggregatedMessages = Array.from(messagesMap.entries())
+    const aggregatedMessagesData = Array.from(messagesMap.entries())
         .map(([date, data]) => ({ date, ...data }))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return {
-        aggregatedAnalytics,
-        aggregatedMessages,
-        totalImpressions,
-        totalClicks,
-        totalMessagesFromGigs,
-        totalMessagesFromSource,
+        aggregatedAnalytics: aggregatedAnalyticsData,
+        aggregatedMessages: aggregatedMessagesData,
+        totalImpressions: currentImpressions,
+        totalClicks: currentClicks,
+        totalMessages: totalMessagesFromGigs + currentMessagesFromSource,
     };
-  }, [source]);
+  }, [source, date]);
 
   const sourceStats = [
-    { icon: "Eye", title: "Total Impressions", value: totalImpressions.toLocaleString(), description: "Across all gigs in this source" },
-    { icon: "MousePointerClick", title: "Total Clicks", value: totalClicks.toLocaleString(), description: "Across all gigs in this source" },
-    { icon: "MessageSquare", title: "Total Messages", value: (totalMessagesFromGigs + totalMessagesFromSource).toLocaleString(), description: `from source & gigs` },
+    { icon: "Eye", title: "Total Impressions", value: totalImpressions.toLocaleString(), description: "For selected period" },
+    { icon: "MousePointerClick", title: "Total Clicks", value: totalClicks.toLocaleString(), description: "For selected period" },
+    { icon: "MessageSquare", title: "Total Messages", value: totalMessages.toLocaleString(), description: "Gig messages (all-time) + Source messages (filtered)" },
   ];
 
   return (
@@ -160,7 +197,8 @@ export default function SourceAnalyticsPage({
         <h1 className="font-headline text-lg font-semibold md:text-2xl">
           Source Analytics: <span className="text-primary">{source.name}</span>
         </h1>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <DateFilter date={date} setDate={setDate} />
           <NProgressLink href="/incomes" passHref>
             <Button variant="outline">
               <ArrowLeft className="mr-2 h-4 w-4" />
