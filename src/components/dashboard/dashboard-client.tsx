@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import {
   Card,
   CardContent,
@@ -9,14 +9,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { type DashboardData, type Stat } from "@/lib/placeholder-data";
-import RevenueChart from "./revenue-chart";
 import RecentOrders from "./recent-orders";
 import AiInsights from "./ai-insights";
-import TopClientsChart from "./top-clients-chart";
 import type { DateRange } from "react-day-picker";
-import IncomeChart from "./income-chart";
 import { DashboardHeader } from "./dashboard-header";
 import { StatsGrid } from "./stats-grid";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Lazy load heavy chart components to speed up initial page load
+const RevenueChart = lazy(() => import("./revenue-chart"));
+const TopClientsChart = lazy(() => import("./top-clients-chart"));
+const IncomeChart = lazy(() => import("./income-chart"));
 
 export function DashboardClient({
   stats: initialStats,
@@ -147,7 +150,9 @@ export function DashboardClient({
 
       <div className="grid gap-4 md:gap-8">
         <Card>
-           <RevenueChart data={revenueByDay} previousData={previousRevenueByDay} dailyTarget={dailyTarget} />
+           <Suspense fallback={<Skeleton className="h-[340px] w-full" />}>
+             <RevenueChart data={revenueByDay} previousData={previousRevenueByDay} dailyTarget={dailyTarget} />
+           </Suspense>
         </Card>
       </div>
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
@@ -162,7 +167,9 @@ export function DashboardClient({
             <RecentOrders orders={recentOrders} />
           </CardContent>
         </Card>
-        <TopClientsChart data={topClients} totalRevenue={totalRevenue} />
+        <Suspense fallback={<Skeleton className="h-[430px] w-full rounded-lg" />}>
+            <TopClientsChart data={topClients} totalRevenue={totalRevenue} />
+        </Suspense>
       </div>
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
         <Card>
@@ -173,7 +180,9 @@ export function DashboardClient({
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <IncomeChart data={incomeBySource} />
+            <Suspense fallback={<Skeleton className="mx-auto h-[250px] w-[250px] rounded-full" />}>
+              <IncomeChart data={incomeBySource} />
+            </Suspense>
           </CardContent>
         </Card>
         <AiInsights initialInsights={aiInsights} />
