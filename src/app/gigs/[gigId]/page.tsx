@@ -62,19 +62,23 @@ const gigData = {
       change: "+5",
       changeType: "increase" as const,
       description: (
-        <>
-          RB: 20
-          <span className="ml-1 inline-flex items-center text-green-600">
-            (40%
-            <ArrowUp className="inline h-3 w-3" />)
+        <div className="flex flex-wrap items-center gap-x-2">
+          <span>
+            RB: 20
+            <span className="ml-1 inline-flex items-center text-green-600">
+              (40%
+              <ArrowUp className="inline h-3 w-3" />)
+            </span>
           </span>
-          <span className="mx-1">|</span>
-          NB: 10
-          <span className="ml-1 inline-flex items-center text-red-600">
-            (50%
-            <ArrowDown className="inline h-3 w-3" />)
+          <span className="text-muted-foreground/50">|</span>
+          <span>
+            NB: 10
+            <span className="ml-1 inline-flex items-center text-red-600">
+              (50%
+              <ArrowDown className="inline h-3 w-3" />)
+            </span>
           </span>
-        </>
+        </div>
       ),
     },
     {

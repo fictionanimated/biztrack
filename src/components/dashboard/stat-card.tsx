@@ -69,7 +69,8 @@ export default function StatCard({
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
-        <div className="flex items-center text-xs text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
+          <div className="flex items-center">
             {change && (
                 <span
                 className={cn(
@@ -87,7 +88,9 @@ export default function StatCard({
                 {change}
                 </span>
             )}
-            <span className="ml-1">{description}</span>
+            {typeof description === "string" && <span className="ml-1">{description}</span>}
+          </div>
+          {typeof description !== "string" && <div className="mt-1">{description}</div>}
         </div>
       </CardContent>
     </Card>
