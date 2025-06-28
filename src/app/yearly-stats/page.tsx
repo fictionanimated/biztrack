@@ -1,5 +1,7 @@
+
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -61,10 +63,12 @@ const yearlyData = {
         { month: 'Dec', revenue: 40000, profit: 28000 },
     ],
 };
-
+type YearlyDataKeys = keyof typeof yearlyData;
 
 export default function YearlyStatsPage() {
-    const data = yearlyData["2023"];
+    const [selectedYear, setSelectedYear] = useState<YearlyDataKeys>("2023");
+    
+    const data = yearlyData[selectedYear] || [];
     const chartConfig = {
         revenue: {
             label: "Revenue",
@@ -83,7 +87,7 @@ export default function YearlyStatsPage() {
           Yearly Statistics
         </h1>
         <div className="ml-auto">
-          <Select defaultValue="2023">
+          <Select value={selectedYear} onValueChange={(value) => setSelectedYear(value as YearlyDataKeys)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Select Year" />
             </SelectTrigger>
@@ -99,35 +103,41 @@ export default function YearlyStatsPage() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Yearly Performance for 2023</CardTitle>
+          <CardTitle>Yearly Performance for {selectedYear}</CardTitle>
           <CardDescription>
-            Revenue and profit overview for the selected year.
+            Revenue and profit overview for {selectedYear}.
           </CardDescription>
         </CardHeader>
         <CardContent>
-           <ChartContainer config={chartConfig} className="h-[400px] w-full">
-            <BarChart data={data} accessibilityLayer>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    tickMargin={10}
-                    axisLine={false}
-                />
-                <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(value) => `$${value / 1000}k`}
-                />
-                 <Tooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                    />
-                <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
-                <Bar dataKey="profit" fill="var(--color-profit)" radius={4} />
-            </BarChart>
-          </ChartContainer>
+          {data.length > 0 ? (
+            <ChartContainer config={chartConfig} className="h-[400px] w-full">
+              <BarChart data={data} accessibilityLayer>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                      dataKey="month"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                  />
+                  <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      tickFormatter={(value) => `$${value / 1000}k`}
+                  />
+                  <Tooltip
+                      cursor={false}
+                      content={<ChartTooltipContent indicator="dot" />}
+                      />
+                  <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
+                  <Bar dataKey="profit" fill="var(--color-profit)" radius={4} />
+              </BarChart>
+            </ChartContainer>
+          ) : (
+            <div className="flex h-[400px] w-full items-center justify-center">
+              <p className="text-muted-foreground">No data available for {selectedYear}.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </main>

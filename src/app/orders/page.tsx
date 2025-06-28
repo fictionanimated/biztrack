@@ -145,7 +145,7 @@ type CancelOrderFormValues = z.infer<typeof cancelOrderFormSchema>;
 
 
 const cancellationReasonsList = [
-    "Canceled without requirements",
+    "Cancelled without requirements",
     "Expectations beyond requirements",
     "Not satisfied with design",
     "Not satisfied with animations",
@@ -177,27 +177,19 @@ export default function OrdersPage() {
     const searchParams = useSearchParams();
 
     const sortParam = searchParams.get('sort');
-    const fromParam = searchParams.get('from');
-    const toParam = searchParams.get('to');
 
     const [date, setDate] = useState<DateRange | undefined>(() => {
+        const fromParam = searchParams.get('from');
+        const toParam = searchParams.get('to');
         if (fromParam && toParam) {
-            const from = new Date(fromParam.replace(/-/g, '/'));
-            const to = new Date(toParam.replace(/-/g, '/'));
+            const from = new Date(fromParam);
+            const to = new Date(toParam);
             if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
                 return { from, to };
             }
         }
         return undefined;
     });
-
-    useEffect(() => {
-        if (!date) {
-            const today = new Date();
-            const startOfYear = new Date(today.getFullYear(), 0, 1);
-            setDate({ from: startOfYear, to: today });
-        }
-    }, [date]);
 
     const createQueryString = useCallback(
         (paramsToUpdate: Record<string, string | null>) => {
@@ -219,8 +211,16 @@ export default function OrdersPage() {
         router.push(`${pathname}?${createQueryString({
             from: newDate?.from ? newDate.from.toISOString().split('T')[0] : null,
             to: newDate?.to ? newDate.to.toISOString().split('T')[0] : null,
-        })}`);
+        })}`, { scroll: false });
     };
+
+    useEffect(() => {
+        if (!searchParams.has('from') || !searchParams.has('to')) {
+            const today = new Date();
+            const startOfYear = new Date(today.getFullYear(), 0, 1);
+            setDate({ from: startOfYear, to: today });
+        }
+    }, [searchParams]);
 
     const sortConfig = useMemo(() => {
         if (!sortParam) return { key: null, direction: 'ascending' as const };
@@ -386,7 +386,7 @@ export default function OrdersPage() {
             direction = 'descending';
         }
         const newSortParam = `${key}_${direction}`;
-        router.push(`${pathname}?${createQueryString({ sort: newSortParam })}`);
+        router.push(`${pathname}?${createQueryString({ sort: newSortParam })}`, { scroll: false });
     };
 
     const getSortIndicator = (key: keyof Order) => {
