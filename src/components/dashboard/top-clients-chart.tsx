@@ -5,8 +5,6 @@ import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { type TopClient } from "@/lib/placeholder-data";
-import { DateFilter } from './date-filter';
-import type { DateRange } from 'react-day-picker';
 
 interface TopClientsChartProps {
     data: TopClient[];
@@ -21,11 +19,6 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function TopClientsChart({ data, totalRevenue }: TopClientsChartProps) {
-    const [date, setDate] = React.useState<DateRange | undefined>({
-        from: new Date(2022, 0, 1),
-        to: new Date(2023, 11, 31),
-    });
-
     const formatter = (value: number) => {
         const percentage = totalRevenue > 0 ? ((value / totalRevenue) * 100).toFixed(1) : 0;
         return `$${value.toLocaleString()} (${percentage}%)`;
@@ -38,10 +31,9 @@ export default function TopClientsChart({ data, totalRevenue }: TopClientsChartP
           <div className="grid gap-1">
             <CardTitle>Top 5 Clients</CardTitle>
             <CardDescription>
-              Your most valuable clients for the selected period.
+              Your most valuable clients.
             </CardDescription>
           </div>
-          <DateFilter date={date} setDate={setDate} />
         </div>
       </CardHeader>
       <CardContent>
