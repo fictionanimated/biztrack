@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,7 +26,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateFilter } from "@/components/dashboard/date-filter";
 
 const expenses = [
     { id: "1", date: "2024-05-01", type: "Software Subscription", amount: 49.99 },
@@ -37,34 +38,38 @@ const expenses = [
     { id: "7", date: "2024-04-25", type: "Travel", amount: 350.00 },
     { id: "8", date: "2023-12-20", type: "Freelancer Payment", amount: 1500.00 },
     { id: "9", date: "2023-12-05", type: "Cloud Hosting", amount: 75.00 },
-];
-
-const allYears = Array.from(new Set(expenses.map(e => new Date(e.date).getFullYear()))).sort((a, b) => b - a);
-
-const months = [
-    { value: "all", label: "All Months" },
-    { value: "1", label: "January" }, { value: "2", label: "February" },
-    { value: "3", label: "March" }, { value: "4", label: "April" },
-    { value: "5", label: "May" }, { value: "6", label: "June" },
-    { value: "7", label: "July" }, { value: "8", label: "August" },
-    { value: "9", label: "September" }, { value: "10", label: "October" },
-    { value: "11", label: "November" }, { value: "12", label: "December" },
+    { id: "10", date: "2022-01-10", type: "Software Subscription", amount: 49.99 },
 ];
 
 
 export default function ExpensesPage() {
-  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [date, setDate] = useState<DateRange | undefined>({
+    from: new Date(new Date().getFullYear(), 0, 1),
+    to: new Date(),
+  });
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(expense => {
       if (!expense.date) return false;
       const expenseDate = new Date(expense.date);
-      const yearMatch = expenseDate.getFullYear().toString() === selectedYear;
-      const monthMatch = selectedMonth === "all" || (expenseDate.getMonth() + 1).toString() === selectedMonth;
-      return yearMatch && monthMatch;
+      
+      const from = date?.from;
+      const to = date?.to;
+
+      if (from && expenseDate < from) {
+        return false;
+      }
+      if (to) {
+        const toDateEnd = new Date(to);
+        toDateEnd.setHours(23, 59, 59, 999);
+        if (expenseDate > toDateEnd) {
+          return false;
+        }
+      }
+      
+      return true;
     });
-  }, [selectedYear, selectedMonth]);
+  }, [date]);
 
   const totalExpenses = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
 
@@ -75,26 +80,7 @@ export default function ExpensesPage() {
           Expenses
         </h1>
         <div className="ml-auto flex items-center gap-2">
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Month" />
-                </SelectTrigger>
-                <SelectContent>
-                    {months.map(month => (
-                        <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="Select Year" />
-                </SelectTrigger>
-                <SelectContent>
-                    {allYears.map(year => (
-                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+          <DateFilter date={date} setDate={setDate} />
           <Button>Add New Expense</Button>
         </div>
       </div>
@@ -122,7 +108,7 @@ export default function ExpensesPage() {
                 {filteredExpenses.length > 0 ? (
                     filteredExpenses.map((expense) => (
                         <TableRow key={expense.id}>
-                        <TableCell>{expense.date}</TableCell>
+                        <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
                         <TableCell className="font-medium">{expense.type}</TableCell>
                         <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
                         <TableCell>

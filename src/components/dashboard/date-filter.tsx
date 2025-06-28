@@ -14,14 +14,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
+interface DateFilterProps extends React.HTMLAttributes<HTMLDivElement> {
+  date: DateRange | undefined;
+  setDate: (date: DateRange | undefined) => void;
+}
+
 export function DateFilter({
   className,
-}: React.HTMLAttributes<HTMLDivElement>) {
-  const [date, setDate] = React.useState<DateRange | undefined>({
-    from: new Date(2022, 0, 1),
-    to: new Date(2023, 11, 31),
-  });
-
+  date,
+  setDate,
+}: DateFilterProps) {
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover>
