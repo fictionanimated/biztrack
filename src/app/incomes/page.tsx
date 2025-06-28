@@ -75,6 +75,12 @@ interface Gig {
   name: string;
   date: string;
   messages?: number;
+  analytics?: {
+    date: string;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+  }[];
 }
 
 interface SourceDataPoint {
@@ -94,37 +100,37 @@ const initialIncomeSources: IncomeSource[] = [
     id: "1",
     name: "Web Design",
     gigs: [
-      { id: "g1", name: "Acme Corp Redesign", date: "2023-01-15", messages: 125 },
-      { id: "g2", name: "Startup Landing Page", date: "2023-01-25", messages: 52 },
-      { id: "g3", name: "E-commerce Site for 'ShopEasy'", date: "2023-02-05", messages: 210 },
+      { id: "g1", name: "Acme Corp Redesign", date: "2023-01-15", messages: 125, analytics: [] },
+      { id: "g2", name: "Startup Landing Page", date: "2023-01-25", messages: 52, analytics: [] },
+      { id: "g3", name: "E-commerce Site for 'ShopEasy'", date: "2023-02-05", messages: 210, analytics: [] },
     ],
     dataPoints: [],
   },
   {
     id: "2",
     name: "Consulting",
-    gigs: [{ id: "g4", name: "Q1 Strategy Session", date: "2023-01-20", messages: 30 }],
+    gigs: [{ id: "g4", name: "Q1 Strategy Session", date: "2023-01-20", messages: 30, analytics: [] }],
     dataPoints: [],
   },
   {
     id: "3",
     name: "Logo Design",
     gigs: [
-      { id: "g5", name: "Brand Identity for 'Innovate'", date: "2023-02-01", messages: 15 },
+      { id: "g5", name: "Brand Identity for 'Innovate'", date: "2023-02-01", messages: 15, analytics: [] },
     ],
     dataPoints: [],
   },
   {
     id: "4",
     name: "SEO Services",
-    gigs: [{ id: "g6", name: "Monthly SEO Retainer", date: "2023-02-10", messages: 88 }],
+    gigs: [{ id: "g6", name: "Monthly SEO Retainer", date: "2023-02-10", messages: 88, analytics: [] }],
     dataPoints: [],
   },
   {
     id: "5",
     name: "Maintenance",
     gigs: [
-      { id: "g7", name: "Website Support Package", date: "2023-02-15", messages: 5 },
+      { id: "g7", name: "Website Support Package", date: "2023-02-15", messages: 5, analytics: [] },
     ],
     dataPoints: [],
   },
@@ -160,6 +166,14 @@ const addDataFormSchema = z.object({
 });
 type AddDataFormValues = z.infer<typeof addDataFormSchema>;
 
+const addGigDataFormSchema = z.object({
+    date: z.date({ required_error: "A date is required." }),
+    impressions: z.coerce.number().int().min(0, { message: "Impressions must be a non-negative number." }),
+    clicks: z.coerce.number().int().min(0, { message: "Clicks must be a non-negative number." }),
+    ctr: z.coerce.number().min(0, { message: "CTR must be a non-negative number." }),
+});
+type AddGigDataFormValues = z.infer<typeof addGigDataFormSchema>;
+
 
 export default function IncomesPage() {
   const [incomeSources, setIncomeSources] =
@@ -178,6 +192,9 @@ export default function IncomesPage() {
   
   const [isAddDataDialogOpen, setIsAddDataDialogOpen] = useState(false);
   const [updatingSourceId, setUpdatingSourceId] = useState<string | null>(null);
+  
+  const [isAddGigDataDialogOpen, setIsAddGigDataDialogOpen] = useState(false);
+  const [updatingGigInfo, setUpdatingGigInfo] = useState<{sourceId: string; gigId: string} | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -208,6 +225,15 @@ export default function IncomesPage() {
     },
   });
 
+  const addGigDataForm = useForm<AddGigDataFormValues>({
+    resolver: zodResolver(addGigDataFormSchema),
+    defaultValues: {
+        date: new Date(),
+        impressions: 0,
+        clicks: 0,
+        ctr: 0,
+    },
+  });
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     const newSource: IncomeSource = {
@@ -218,6 +244,7 @@ export default function IncomesPage() {
         name: gig.name,
         date: format(gig.date, "yyyy-MM-dd"),
         messages: 0,
+        analytics: [],
       })),
       dataPoints: [],
     };
@@ -240,6 +267,7 @@ export default function IncomesPage() {
       id: `g-${Date.now()}`,
       name: values.name,
       date: format(values.date, "yyyy-MM-dd"),
+      analytics: [],
     };
 
     setIncomeSources(prevSources => 
@@ -284,6 +312,45 @@ export default function IncomesPage() {
     });
     addDataForm.reset({ date: new Date(), messages: 0 });
     setIsAddDataDialogOpen(false);
+  }
+
+  function onAddGigDataSubmit(values: AddGigDataFormValues) {
+    if (!updatingGigInfo) return;
+
+    const { sourceId, gigId } = updatingGigInfo;
+
+    const newDataPoint = {
+        date: format(values.date, "yyyy-MM-dd"),
+        impressions: values.impressions,
+        clicks: values.clicks,
+        ctr: values.ctr,
+    };
+
+    setIncomeSources(prevSources => 
+      prevSources.map(source => {
+        if (source.id === sourceId) {
+          return { 
+              ...source, 
+              gigs: source.gigs.map(gig => {
+                  if (gig.id === gigId) {
+                      const updatedAnalytics = [...(gig.analytics || []), newDataPoint];
+                      updatedAnalytics.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                      return { ...gig, analytics: updatedAnalytics };
+                  }
+                  return gig;
+              })
+          };
+        }
+        return source;
+      })
+    );
+    
+    toast({
+      title: "Gig Data Added",
+      description: `Added new performance data to the gig.`,
+    });
+    addGigDataForm.reset({ date: new Date(), impressions: 0, clicks: 0, ctr: 0 });
+    setIsAddGigDataDialogOpen(false);
   }
 
 
@@ -524,7 +591,7 @@ export default function IncomesPage() {
                         addDataForm.reset();
                         setIsAddDataDialogOpen(true);
                      }}>
-                        Add Data
+                        Add Source Data
                     </Button>
                      <Button variant="outline" onClick={() => {
                         setAddingToSourceId(source.id);
@@ -596,6 +663,13 @@ export default function IncomesPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => {
+                                    setUpdatingGigInfo({ sourceId: source.id, gigId: gig.id });
+                                    addGigDataForm.reset();
+                                    setIsAddGigDataDialogOpen(true);
+                                }}>
+                                    Add Data
+                                </DropdownMenuItem>
                                 <DropdownMenuItem>Edit</DropdownMenuItem>
                                 <DropdownMenuItem>Delete</DropdownMenuItem>
                               </DropdownMenuContent>
@@ -773,6 +847,106 @@ export default function IncomesPage() {
                             </FormItem>
                         )}
                       />
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary">Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit">Add Data</Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddGigDataDialogOpen} onOpenChange={setIsAddGigDataDialogOpen}>
+        <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+                <DialogTitle>Add Gig Performance Data</DialogTitle>
+                <DialogDescription>
+                    Enter the performance metrics for this gig on a specific date.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...addGigDataForm}>
+                <form onSubmit={addGigDataForm.handleSubmit(onAddGigDataSubmit)} className="space-y-6 pt-4">
+                    <FormField
+                        control={addGigDataForm.control}
+                        name="date"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                            <FormLabel>Date</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                    )}
+                                    >
+                                    {field.value ? (
+                                        format(field.value, "PPP")
+                                    ) : (
+                                        <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <FormField
+                            control={addGigDataForm.control}
+                            name="impressions"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Impressions</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" min="0" placeholder="e.g., 12450" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={addGigDataForm.control}
+                            name="clicks"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Clicks</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" min="0" placeholder="e.g., 980" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={addGigDataForm.control}
+                            name="ctr"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>CTR (%)</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" min="0" step="0.01" placeholder="e.g., 7.87" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </div>
                     <DialogFooter>
                         <DialogClose asChild>
