@@ -298,6 +298,7 @@ export default function ExpensesPage() {
     largestSingleExpense,
     totalRecurringCost,
     fixedCostRatio,
+    previousPeriodDescription,
   } = useMemo(() => {
     // Current period calculations
     const currentTotal = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
@@ -310,10 +311,13 @@ export default function ExpensesPage() {
     // Previous period calculations
     let previousTotal = 0;
     let previousAvgBurn = 0;
+    let previousPeriodDescription = "vs. previous period";
     if (date?.from && date?.to) {
       const duration = date.to.getTime() - date.from.getTime();
       const prevTo = new Date(date.from.getTime() - 1);
       const prevFrom = new Date(prevTo.getTime() - duration);
+      
+      previousPeriodDescription = `vs. ${format(prevFrom, "MMM d")} - ${format(prevTo, "MMM d")}`;
 
       const previousPeriodExpenses = expenses.filter(expense => {
           const expenseDate = new Date(expense.date.replace(/-/g, '/'));
@@ -362,33 +366,13 @@ export default function ExpensesPage() {
         largestSingleExpense = { type: largest.type, amount: largest.amount };
     }
     
-    // MoM Expense Growth
+    // Period-over-Period Expense Growth (was MoM)
+    const momExpenseGrowth = totalExpensesChange;
+    
+    // Recurring Costs
     const thisMonthDate = date?.to ? new Date(date.to) : new Date();
     const currentMonth = thisMonthDate.getMonth();
     const currentYear = thisMonthDate.getFullYear();
-    
-    const lastMonthDate = new Date(thisMonthDate);
-    lastMonthDate.setMonth(currentMonth - 1);
-    const lastMonth = lastMonthDate.getMonth();
-    const lastMonthYear = lastMonthDate.getFullYear();
-
-    const thisMonthExpensesTotal = expenses
-        .filter(e => {
-            const expenseDate = new Date(e.date.replace(/-/g, '/'));
-            return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
-        })
-        .reduce((sum, e) => sum + e.amount, 0);
-
-    const lastMonthExpensesTotal = expenses
-        .filter(e => {
-            const expenseDate = new Date(e.date.replace(/-/g, '/'));
-            return expenseDate.getMonth() === lastMonth && expenseDate.getFullYear() === lastMonthYear;
-        })
-        .reduce((sum, e) => sum + e.amount, 0);
-
-    const momExpenseGrowth = calculateChange(thisMonthExpensesTotal, lastMonthExpensesTotal);
-    
-    // Recurring Costs
     const recurringExpensesInPeriod = filteredExpenses.filter(e => e.recurring);
     const totalRecurringInPeriod = recurringExpensesInPeriod.reduce((sum, e) => sum + e.amount, 0);
     const fixedCostRatioValue = currentTotal > 0 ? (totalRecurringInPeriod / currentTotal) * 100 : 0;
@@ -415,6 +399,7 @@ export default function ExpensesPage() {
       largestSingleExpense,
       totalRecurringCost: totalRecurringCostForMonth,
       fixedCostRatio,
+      previousPeriodDescription,
     };
   }, [date, expenses, filteredExpenses]);
 
@@ -709,7 +694,7 @@ export default function ExpensesPage() {
                                 {totalExpensesChange.type === 'increase' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                                 {totalExpensesChange.value}%
                             </span>
-                            <span className="ml-1">vs. previous period</span>
+                            <span className="ml-1">{previousPeriodDescription}</span>
                         </div>
                     )}
                 </CardContent>
@@ -730,7 +715,7 @@ export default function ExpensesPage() {
                                 {avgDailyBurnChange.type === 'increase' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                                 {avgDailyBurnChange.value}%
                             </span>
-                            <span className="ml-1">vs. previous period</span>
+                            <span className="ml-1">{previousPeriodDescription}</span>
                         </div>
                     )}
                 </CardContent>
@@ -760,7 +745,7 @@ export default function ExpensesPage() {
                         <span>{momExpenseGrowth.value}%</span>
                     </div>
                 ) : 'N/A'}
-                description="vs. previous month"
+                description={previousPeriodDescription}
                 invertChangeColor
             />
             <StatCard
