@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -18,6 +19,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import StatCard from "@/components/dashboard/stat-card";
 import GigAnalyticsChart from "@/components/gigs/analytics-chart";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 // Mock data for a single gig. In a real app, you'd fetch this.
 const gigData = {
@@ -88,10 +91,42 @@ const gigData = {
   ],
 };
 
+const chartConfig = {
+    impressions: {
+      label: "Impressions",
+      color: "hsl(var(--chart-1))",
+    },
+    clicks: {
+      label: "Clicks",
+      color: "hsl(var(--chart-2))",
+    },
+    messages: {
+      label: "Messages",
+      color: "hsl(var(--chart-3))",
+    },
+    orders: {
+      label: "Orders",
+      color: "hsl(var(--chart-4))",
+    },
+  } as const;
+
 
 export default function GigAnalyticsPage({ params }: { params: { gigId: string } }) {
   // In a real app, you would use params.gigId to fetch data.
   // For now, we'll use the mock data.
+  const [activeMetrics, setActiveMetrics] = useState<Record<string, boolean>>({
+    impressions: true,
+    clicks: true,
+    messages: true,
+    orders: true,
+  });
+
+  const handleMetricToggle = (metric: keyof typeof chartConfig) => {
+    setActiveMetrics((prev) => ({
+      ...prev,
+      [metric]: !prev[metric],
+    }));
+  };
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -114,11 +149,33 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
          <Card className="lg:col-span-2">
             <CardHeader>
-                <CardTitle>Impressions, Clicks, Messages & Orders</CardTitle>
-                <CardDescription>Performance over the last 30 days.</CardDescription>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <CardTitle>Impressions, Clicks, Messages & Orders</CardTitle>
+                        <CardDescription>Performance over the last 30 days.</CardDescription>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                        {(Object.keys(chartConfig) as Array<keyof typeof chartConfig>).map((metric) => (
+                            <div key={metric} className="flex items-center gap-2">
+                                <Checkbox
+                                    id={`metric-${metric}`}
+                                    checked={activeMetrics[metric]}
+                                    onCheckedChange={() => handleMetricToggle(metric)}
+                                    style={{
+                                        '--chart-color': chartConfig[metric].color,
+                                    } as React.CSSProperties}
+                                    className="data-[state=checked]:bg-[var(--chart-color)] data-[state=checked]:border-[var(--chart-color)] border-muted-foreground"
+                                />
+                                <Label htmlFor={`metric-${metric}`} className="capitalize">
+                                    {chartConfig[metric].label}
+                                </Label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
-                <GigAnalyticsChart data={gigData.analyticsData} />
+                <GigAnalyticsChart data={gigData.analyticsData} activeMetrics={activeMetrics} />
             </CardContent>
         </Card>
          <Card>

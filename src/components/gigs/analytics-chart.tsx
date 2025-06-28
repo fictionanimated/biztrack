@@ -14,8 +14,6 @@ import {
   ChartTooltipContent,
   ChartTooltip,
   ChartConfig,
-  ChartLegend,
-  ChartLegendContent,
 } from "@/components/ui/chart";
 
 interface AnalyticsData {
@@ -28,6 +26,7 @@ interface AnalyticsData {
 
 interface GigAnalyticsChartProps {
   data: AnalyticsData[];
+  activeMetrics: Record<string, boolean>;
 }
 
 const chartConfig = {
@@ -49,7 +48,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export default function GigAnalyticsChart({ data }: GigAnalyticsChartProps) {
+export default function GigAnalyticsChart({ data, activeMetrics }: GigAnalyticsChartProps) {
   return (
     <ChartContainer config={chartConfig} className="h-[300px] w-full">
       <LineChart
@@ -85,35 +84,42 @@ export default function GigAnalyticsChart({ data }: GigAnalyticsChartProps) {
           cursor={false}
           content={<ChartTooltipContent indicator="dot" />}
         />
-        <ChartLegend content={<ChartLegendContent />} />
-        <Line
-          dataKey="impressions"
-          type="natural"
-          stroke="var(--color-impressions)"
-          strokeWidth={2}
-          dot={false}
-        />
-        <Line
-          dataKey="clicks"
-          type="natural"
-          stroke="var(--color-clicks)"
-          strokeWidth={2}
-          dot={false}
-        />
-        <Line
-          dataKey="messages"
-          type="natural"
-          stroke="var(--color-messages)"
-          strokeWidth={2}
-          dot={false}
-        />
-        <Line
-          dataKey="orders"
-          type="natural"
-          stroke="var(--color-orders)"
-          strokeWidth={2}
-          dot={false}
-        />
+        {activeMetrics.impressions && (
+            <Line
+            dataKey="impressions"
+            type="natural"
+            stroke="var(--color-impressions)"
+            strokeWidth={2}
+            dot={false}
+            />
+        )}
+        {activeMetrics.clicks && (
+            <Line
+            dataKey="clicks"
+            type="natural"
+            stroke="var(--color-clicks)"
+            strokeWidth={2}
+            dot={false}
+            />
+        )}
+        {activeMetrics.messages && (
+            <Line
+            dataKey="messages"
+            type="natural"
+            stroke="var(--color-messages)"
+            strokeWidth={2}
+            dot={false}
+            />
+        )}
+        {activeMetrics.orders && (
+            <Line
+            dataKey="orders"
+            type="natural"
+            stroke="var(--color-orders)"
+            strokeWidth={2}
+            dot={false}
+            />
+        )}
       </LineChart>
     </ChartContainer>
   );
