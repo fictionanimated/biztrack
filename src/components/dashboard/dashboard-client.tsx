@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -102,8 +103,7 @@ export function DashboardClient({
     [
       "Avg Order Value (AOV)",
       "Total Orders (Completed)",
-      "Repeat Buyers",
-      "New Buyers",
+      "Total Buyers",
       "Cancelled Orders",
       "% Orders with Reviews",
       "All-Time Total Buyers",

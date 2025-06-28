@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 
 export interface Stat {
   icon: string;
@@ -8,12 +8,13 @@ export interface Stat {
   changeType?: "increase" | "decrease";
   description: ReactNode;
   progressValue?: number;
+  className?: string;
 }
 
 export interface RecentOrder {
   id: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail:string;
   amount: number;
 }
 
@@ -110,16 +111,16 @@ export const dashboardData: DashboardData = {
       description: "vs. last month",
     },
     {
-      icon: "Repeat",
-      title: "Repeat Buyers",
-      value: "117 (34%)",
-      description: "of total buyers this month",
-    },
-    {
-      icon: "UserPlus",
-      title: "New Buyers",
-      value: "227 (66%)",
-      description: "First-time buyers this month",
+      icon: "Users",
+      title: "Total Buyers",
+      value: "344",
+      description: React.createElement(
+        "div",
+        { className: "flex flex-wrap items-center gap-x-4" },
+        React.createElement("span", { key: "new" }, "New: 227 (66%)"),
+        React.createElement("span", { key: "repeat" }, "Repeat: 117 (34%)")
+      ),
+      className: "lg:col-span-2",
     },
     {
       icon: "Calendar",
