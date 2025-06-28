@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, lazy, Suspense } from "react";
-import { ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUp, ArrowDown, ArrowLeft } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -24,6 +24,8 @@ import { Label } from "@/components/ui/label";
 import type { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/dashboard/date-filter";
 import { Skeleton } from "@/components/ui/skeleton";
+import NProgressLink from "@/components/layout/nprogress-link";
+import { Button } from "@/components/ui/button";
 
 const GigAnalyticsChart = lazy(() => import("@/components/gigs/analytics-chart"));
 
@@ -188,7 +190,13 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
         <h1 className="font-headline text-lg font-semibold md:text-2xl">
           Gig Analytics: <span className="text-primary">{gigData.name}</span>
         </h1>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+            <NProgressLink href="/incomes" passHref>
+                <Button variant="outline">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Incomes
+                </Button>
+            </NProgressLink>
             <DateFilter date={date} setDate={setDate} />
         </div>
       </div>

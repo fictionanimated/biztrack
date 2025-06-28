@@ -1,6 +1,6 @@
 "use client";
 
-import NProgressLink from "@/components/layout/nprogress-link";
+import { useRouter } from "next/navigation";
 import { MoreHorizontal, Edit, Trash2, Globe, Facebook, Twitter, Linkedin, Github } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,12 @@ const SocialIcon = ({ platform }: { platform: string }) => {
 };
 
 export function ClientsTable({ clients, requestSort, getSortIndicator }: ClientsTableProps) {
+    const router = useRouter();
+
+    const handleRowClick = (clientId: string) => {
+        router.push(`/clients/${clientId}`);
+    };
+
     return (
         <Card>
             <CardHeader>
@@ -77,18 +83,22 @@ export function ClientsTable({ clients, requestSort, getSortIndicator }: Clients
                     </TableHeader>
                     <TableBody>
                         {clients.length > 0 ? (clients.map((client) => (
-                            <TableRow key={client.id}>
+                            <TableRow 
+                                key={client.id}
+                                onClick={() => handleRowClick(client.id)}
+                                className="cursor-pointer"
+                            >
                                 <TableCell>
-                                    <NProgressLink href={`/clients/${client.id}`} className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3">
                                         <Avatar className="h-10 w-10">
                                             <AvatarImage src={`https://placehold.co/100x100.png?text=${(client.name || client.username).charAt(0)}`} alt="Avatar" data-ai-hint="avatar person" />
                                             <AvatarFallback>{(client.name || client.username).charAt(0).toUpperCase()}</AvatarFallback>
                                         </Avatar>
                                         <div>
-                                            <div className="font-medium hover:underline">{client.name || client.username}</div>
+                                            <div className="font-medium">{client.name || client.username}</div>
                                             <div className="text-sm text-muted-foreground">@{client.username}</div>
                                         </div>
-                                    </NProgressLink>
+                                    </div>
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={client.clientType === 'New' ? 'secondary' : 'default'}>{client.clientType}</Badge>
@@ -112,7 +122,7 @@ export function ClientsTable({ clients, requestSort, getSortIndicator }: Clients
                                 <TableCell>
                                     <div className="flex items-center gap-2">
                                         {client.socialLinks?.map((link, i) => (
-                                            <a key={i} href={link.url} target="_blank" rel="noreferrer noopener" aria-label={link.platform}>
+                                            <a key={i} href={link.url} target="_blank" rel="noreferrer noopener" aria-label={link.platform} onClick={(e) => e.stopPropagation()}>
                                                 <SocialIcon platform={link.platform} />
                                             </a>
                                         ))}
@@ -121,7 +131,7 @@ export function ClientsTable({ clients, requestSort, getSortIndicator }: Clients
                                 <TableCell className="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                                            <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
                                                 <MoreHorizontal className="h-4 w-4" />
                                                 <span className="sr-only">Toggle menu</span>
                                             </Button>
@@ -143,7 +153,8 @@ export function ClientsTable({ clients, requestSort, getSortIndicator }: Clients
                         ))) : (
                             <TableRow>
                                 <TableCell colSpan={9} className="h-24 text-center">
-                                    No clients found.
+                                    <h3 className="font-semibold">No clients found</h3>
+                                    <p className="text-sm text-muted-foreground">Try adjusting your search or filter to find what you're looking for.</p>
                                 </TableCell>
                             </TableRow>
                         )}

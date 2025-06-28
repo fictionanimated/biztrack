@@ -1,13 +1,14 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { CalendarIcon, MoreHorizontal, Star, ArrowUpDown } from "lucide-react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -128,17 +129,62 @@ export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>(initialOrders);
     const [open, setOpen] = useState(false);
     const { toast } = useToast();
-    const [sortConfig, setSortConfig] = useState<{ key: keyof Order | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
-    const [date, setDate] = useState<DateRange | undefined>();
+    
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
 
+    const sortParam = searchParams.get('sort');
+    const fromParam = searchParams.get('from');
+    const toParam = searchParams.get('to');
+
+    const createQueryString = useCallback(
+        (paramsToUpdate: Record<string, string | null>) => {
+            const params = new URLSearchParams(searchParams.toString());
+            for (const [name, value] of Object.entries(paramsToUpdate)) {
+                if (value) {
+                    params.set(name, value);
+                } else {
+                    params.delete(name);
+                }
+            }
+            return params.toString();
+        },
+        [searchParams]
+    );
+
+    const date: DateRange | undefined = useMemo(() => {
+        const from = fromParam ? new Date(fromParam) : undefined;
+        const to = toParam ? new Date(toParam) : undefined;
+        if ((from && !isNaN(from.getTime())) || (to && !isNaN(to.getTime()))) {
+            return { from, to };
+        }
+        return undefined;
+    }, [fromParam, toParam]);
+    
     useEffect(() => {
-        const today = new Date();
-        const startOfYear = new Date(today.getFullYear(), 0, 1);
-        setDate({
-          from: startOfYear,
-          to: today,
-        });
-    }, []);
+        if (!fromParam || !toParam) {
+            const today = new Date();
+            const startOfYear = new Date(today.getFullYear(), 0, 1);
+            router.replace(`${pathname}?${createQueryString({ 
+                from: startOfYear.toISOString().split('T')[0],
+                to: today.toISOString().split('T')[0]
+            })}`, { scroll: false });
+        }
+    }, [fromParam, toParam, createQueryString, pathname, router]);
+
+    const setDate = (newDate: DateRange | undefined) => {
+        router.push(`${pathname}?${createQueryString({
+            from: newDate?.from ? newDate.from.toISOString().split('T')[0] : null,
+            to: newDate?.to ? newDate.to.toISOString().split('T')[0] : null,
+        })}`);
+    };
+
+    const sortConfig = useMemo(() => {
+        if (!sortParam) return { key: null, direction: 'ascending' as const };
+        const [key, direction] = sortParam.split('_');
+        return { key: key as keyof Order, direction: direction as 'ascending' | 'descending' };
+    }, [sortParam]);
 
     const form = useForm<OrderFormValues>({
         resolver: zodResolver(orderFormSchema),
@@ -191,7 +237,8 @@ export default function OrdersPage() {
         if (sortConfig.key === key && sortConfig.direction === 'ascending') {
             direction = 'descending';
         }
-        setSortConfig({ key, direction });
+        const newSortParam = `${key}_${direction}`;
+        router.push(`${pathname}?${createQueryString({ sort: newSortParam })}`);
     };
 
     const getSortIndicator = (key: keyof Order) => {
@@ -209,11 +256,11 @@ export default function OrdersPage() {
             const from = date?.from;
             const to = date?.to;
 
-            if (from && orderDate < from) {
+            if (from && !isNaN(from.getTime()) && orderDate < from) {
                 return false;
             }
 
-            if (to) {
+            if (to && !isNaN(to.getTime())) {
                 const toDateEnd = new Date(to);
                 toDateEnd.setHours(23, 59, 59, 999);
                 if (orderDate > toDateEnd) {
