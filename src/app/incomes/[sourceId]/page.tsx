@@ -9,6 +9,9 @@ import {
   MousePointerClick,
   MessageSquare,
   ShoppingCart,
+  DollarSign,
+  CreditCard,
+  Calendar,
 } from "lucide-react";
 import {
   Card,
@@ -152,7 +155,7 @@ export default function SourceAnalyticsPage({
   } = useMemo(() => {
     const calculateMetricsForPeriod = (periodFrom?: Date, periodTo?: Date) => {
         if (!periodFrom || !periodTo) {
-            return { impressions: 0, clicks: 0, orders: 0, sourceMessages: 0, aggregatedAnalytics: [], aggregatedMessages: [] };
+            return { impressions: 0, clicks: 0, orders: 0, revenue: 0, sourceMessages: 0, aggregatedAnalytics: [], aggregatedMessages: [] };
         }
         
         const isDateInRange = (itemDate: Date) => {
@@ -163,15 +166,16 @@ export default function SourceAnalyticsPage({
             return true;
         }
 
-        const analyticsMap = new Map<string, { impressions: number; clicks: number; orders: number }>();
+        const analyticsMap = new Map<string, { impressions: number; clicks: number; orders: number; revenue: number; }>();
         source.gigs.flatMap(gig => gig.analytics ?? [])
             .filter(analytic => isDateInRange(new Date(analytic.date)))
             .forEach(analytic => {
-                const existing = analyticsMap.get(analytic.date) || { impressions: 0, clicks: 0, orders: 0 };
+                const existing = analyticsMap.get(analytic.date) || { impressions: 0, clicks: 0, orders: 0, revenue: 0 };
                 analyticsMap.set(analytic.date, {
                     impressions: existing.impressions + analytic.impressions,
                     clicks: existing.clicks + analytic.clicks,
                     orders: existing.orders + (analytic.orders || 0),
+                    revenue: existing.revenue + (analytic.revenue || 0),
                 });
             });
         const aggregatedAnalyticsData = Array.from(analyticsMap.entries())
@@ -181,6 +185,7 @@ export default function SourceAnalyticsPage({
         const impressions = aggregatedAnalyticsData.reduce((acc, curr) => acc + curr.impressions, 0);
         const clicks = aggregatedAnalyticsData.reduce((acc, curr) => acc + curr.clicks, 0);
         const orders = aggregatedAnalyticsData.reduce((acc, curr) => acc + (curr.orders || 0), 0);
+        const revenue = aggregatedAnalyticsData.reduce((acc, curr) => acc + (curr.revenue || 0), 0);
 
         const messagesMap = new Map<string, { messages: number }>();
         (source.dataPoints ?? [])
@@ -197,12 +202,12 @@ export default function SourceAnalyticsPage({
 
         const sourceMessages = aggregatedMessagesData.reduce((acc, curr) => acc + curr.messages, 0);
         
-        return { impressions, clicks, orders, sourceMessages, aggregatedAnalytics: aggregatedAnalyticsData, aggregatedMessages: aggregatedMessagesData };
+        return { impressions, clicks, orders, revenue, sourceMessages, aggregatedAnalytics: aggregatedAnalyticsData, aggregatedMessages: aggregatedMessagesData };
     };
 
     const currentPeriodMetrics = calculateMetricsForPeriod(date?.from, date?.to);
 
-    let prevPeriodMetrics = { impressions: 0, clicks: 0, orders: 0, sourceMessages: 0, aggregatedAnalytics: [], aggregatedMessages: [] };
+    let prevPeriodMetrics = { impressions: 0, clicks: 0, orders: 0, revenue: 0, sourceMessages: 0, aggregatedAnalytics: [], aggregatedMessages: [] };
     if (date?.from && date.to) {
         const duration = date.to.getTime() - date.from.getTime();
         const prevTo = new Date(date.from.getTime() - 1);
@@ -229,8 +234,49 @@ export default function SourceAnalyticsPage({
     const clicksChange = calculateChange(currentPeriodMetrics.clicks, prevPeriodMetrics.clicks);
     const messagesChange = calculateChange(currentPeriodMetrics.sourceMessages, prevPeriodMetrics.sourceMessages);
     const ordersChange = calculateChange(currentPeriodMetrics.orders, prevPeriodMetrics.orders);
+    const revenueChange = calculateChange(currentPeriodMetrics.revenue, prevPeriodMetrics.revenue);
+    
+    const avgOrderValue = currentPeriodMetrics.orders > 0 ? currentPeriodMetrics.revenue / currentPeriodMetrics.orders : 0;
+    const prevAvgOrderValue = prevPeriodMetrics.orders > 0 ? prevPeriodMetrics.revenue / prevPeriodMetrics.orders : 0;
+    const aovChange = calculateChange(avgOrderValue, prevAvgOrderValue);
+
+    let avgMonthlyEarning = 0;
+    if (date?.from && date?.to && currentPeriodMetrics.revenue > 0) {
+        const days = (date.to.getTime() - date.from.getTime()) / (1000 * 60 * 60 * 24) + 1;
+        avgMonthlyEarning = (currentPeriodMetrics.revenue / days) * 30.44;
+    }
+    let prevAvgMonthlyEarning = 0;
+    if (date?.from && date?.to && prevPeriodMetrics.revenue > 0) {
+        const duration = date.to.getTime() - date.from.getTime();
+        const prevTo = new Date(date.from.getTime() - 1);
+        const prevFrom = new Date(prevTo.getTime() - duration);
+        const prevDays = (prevTo.getTime() - prevFrom.getTime()) / (1000 * 60 * 60 * 24) + 1;
+        prevAvgMonthlyEarning = (prevPeriodMetrics.revenue / prevDays) * 30.44;
+    }
+    const avgMonthlyEarningChange = calculateChange(avgMonthlyEarning, prevAvgMonthlyEarning);
     
     const finalSourceStats = [
+      { 
+        icon: "DollarSign", 
+        title: "Total Revenue", 
+        value: `$${currentPeriodMetrics.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 
+        description: "vs. previous period",
+        ...revenueChange
+      },
+      { 
+        icon: "CreditCard", 
+        title: "Avg. Order Value", 
+        value: `$${avgOrderValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 
+        description: "vs. previous period",
+        ...aovChange
+      },
+      { 
+        icon: "Calendar", 
+        title: "Avg. Monthly Earning", 
+        value: `$${avgMonthlyEarning.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 
+        description: "projected",
+        ...avgMonthlyEarningChange
+      },
       { 
         icon: "Eye", 
         title: "Total Impressions", 
