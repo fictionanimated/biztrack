@@ -47,6 +47,8 @@ import {
 } from "@/components/ui/chart";
 import type { DateRange } from "react-day-picker";
 import { DateFilter } from "@/components/dashboard/date-filter";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 const chartConfig = {
   impressions: { label: "Impressions", color: "hsl(var(--chart-1))" },
@@ -55,7 +57,7 @@ const chartConfig = {
   orders: { label: "Orders", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig;
 
-const ChartComponent = ({ data, config, lines, yAxisLabel }: { data: any[], config: ChartConfig, lines: {key: string, color: string}[], yAxisLabel?: string }) => {
+const ChartComponent = ({ data, config, activeMetrics, yAxisLabel }: { data: any[], config: ChartConfig, activeMetrics: Record<string, boolean>, yAxisLabel?: string }) => {
     if (!data || data.length === 0) {
         return (
             <div className="flex h-[300px] w-full items-center justify-center">
@@ -76,9 +78,10 @@ const ChartComponent = ({ data, config, lines, yAxisLabel }: { data: any[], conf
                 />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} label={yAxisLabel} />
                 <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                {lines.map(line => (
-                     <Line key={line.key} dataKey={line.key} type="natural" stroke={line.color} strokeWidth={2} dot={false} />
-                ))}
+                {activeMetrics.impressions && <Line dataKey="impressions" type="natural" stroke="var(--color-impressions)" strokeWidth={2} dot={false} />}
+                {activeMetrics.clicks && <Line dataKey="clicks" type="natural" stroke="var(--color-clicks)" strokeWidth={2} dot={false} />}
+                {activeMetrics.orders && <Line dataKey="orders" type="natural" stroke="var(--color-orders)" strokeWidth={2} dot={false} />}
+                {activeMetrics.messages && <Line dataKey="messages" type="natural" stroke="var(--color-messages)" strokeWidth={2} dot={false} />}
             </LineChart>
         </ChartContainer>
     );
@@ -91,10 +94,23 @@ export default function SourceAnalyticsPage({
 }) {
   const source = initialIncomeSources.find((s) => s.id === params.sourceId);
   const [date, setDate] = useState<DateRange | undefined>();
+  const [activeMetrics, setActiveMetrics] = useState({
+    impressions: true,
+    clicks: true,
+    orders: true,
+    messages: true,
+  });
 
   if (!source) {
     notFound();
   }
+  
+  const handleMetricToggle = (metric: keyof typeof activeMetrics) => {
+    setActiveMetrics((prev) => ({
+      ...prev,
+      [metric]: !prev[metric],
+    }));
+  };
 
   useEffect(() => {
     const allDates = [
@@ -276,20 +292,37 @@ export default function SourceAnalyticsPage({
       <div className="grid gap-4">
         <Card>
             <CardHeader>
-                <CardTitle>Source Performance</CardTitle>
-                <CardDescription>Impressions, clicks, orders, and messages from this source.</CardDescription>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <CardTitle>Source Performance</CardTitle>
+                        <CardDescription>Impressions, clicks, orders, and messages from this source.</CardDescription>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                        {(Object.keys(chartConfig) as Array<keyof typeof chartConfig>).map((metric) => (
+                            <div key={metric} className="flex items-center gap-2">
+                                <Checkbox
+                                    id={`metric-${metric}`}
+                                    checked={activeMetrics[metric as keyof typeof activeMetrics]}
+                                    onCheckedChange={() => handleMetricToggle(metric as keyof typeof activeMetrics)}
+                                    style={{
+                                        '--chart-color': chartConfig[metric as keyof typeof chartConfig].color,
+                                    } as React.CSSProperties}
+                                    className="data-[state=checked]:bg-[var(--chart-color)] data-[state=checked]:border-[var(--chart-color)] border-muted-foreground"
+                                />
+                                <Label htmlFor={`metric-${metric}`} className="capitalize">
+                                    {chartConfig[metric as keyof typeof chartConfig].label}
+                                </Label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </CardHeader>
             <CardContent className="pl-2">
                 <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
                    <ChartComponent 
                      data={combinedChartData} 
                      config={chartConfig}
-                     lines={[
-                         { key: "impressions", color: "var(--color-impressions)" },
-                         { key: "clicks", color: "var(--color-clicks)" },
-                         { key: "orders", color: "var(--color-orders)" },
-                         { key: "messages", color: "var(--color-messages)" },
-                     ]}
+                     activeMetrics={activeMetrics}
                    />
                 </Suspense>
             </CardContent>
