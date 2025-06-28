@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
-import { CalendarIcon, MoreHorizontal } from "lucide-react";
+import { CalendarIcon, MoreHorizontal, ArrowUp, ArrowDown } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -276,18 +276,64 @@ export default function ExpensesPage() {
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [date, expenses, filterCategory]);
 
-  const { totalExpenses, avgDailyBurn } = useMemo(() => {
-    const currentTotalExpenses = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
-    
-    let days = 0;
+  const {
+    totalExpenses,
+    avgDailyBurn,
+    totalExpensesChange,
+    avgDailyBurnChange,
+  } = useMemo(() => {
+    // Current period calculations
+    const currentTotal = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+    let currentDays = 0;
     if (date?.from && date?.to) {
-      days = (date.to.getTime() - date.from.getTime()) / (1000 * 60 * 60 * 24) + 1;
+      currentDays = (date.to.getTime() - date.from.getTime()) / (1000 * 60 * 60 * 24) + 1;
+    }
+    const currentAvgBurn = currentDays > 0 ? currentTotal / currentDays : 0;
+
+    // Previous period calculations
+    let previousTotal = 0;
+    let previousAvgBurn = 0;
+    if (date?.from && date?.to) {
+      const duration = date.to.getTime() - date.from.getTime();
+      const prevTo = new Date(date.from.getTime() - 1);
+      const prevFrom = new Date(prevTo.getTime() - duration);
+
+      const previousPeriodExpenses = expenses.filter(expense => {
+          const expenseDate = new Date(expense.date.replace(/-/g, '/'));
+          return expenseDate >= prevFrom && expenseDate <= prevTo;
+      });
+
+      previousTotal = previousPeriodExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+      const prevDays = (prevTo.getTime() - prevFrom.getTime()) / (1000 * 60 * 60 * 24) + 1;
+      previousAvgBurn = prevDays > 0 ? previousTotal / prevDays : 0;
     }
     
-    const currentAvgDailyBurn = days > 0 ? currentTotalExpenses / days : 0;
+    // Change calculations
+    const calculateChange = (current: number, previous: number) => {
+        if (previous === 0) {
+            return current > 0 ? { value: '+100.0', type: 'increase' as const } : null;
+        }
+        if (current === 0 && previous > 0) {
+            return { value: '-100.0', type: 'decrease' as const};
+        }
+        const diff = ((current - previous) / previous) * 100;
+        if (Math.abs(diff) < 0.1) return null;
+        return {
+            value: `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}`,
+            type: diff >= 0 ? 'increase' as const : 'decrease' as const,
+        };
+    };
 
-    return { totalExpenses: currentTotalExpenses, avgDailyBurn: currentAvgDailyBurn };
-  }, [filteredExpenses, date]);
+    const totalExpensesChange = calculateChange(currentTotal, previousTotal);
+    const avgDailyBurnChange = calculateChange(currentAvgBurn, previousAvgBurn);
+
+    return { 
+      totalExpenses: currentTotal, 
+      avgDailyBurn: currentAvgBurn,
+      totalExpensesChange,
+      avgDailyBurnChange,
+    };
+  }, [filteredExpenses, expenses, date]);
 
   const expensesByCategory = useMemo(() => {
     const categoryMap: Map<string, number> = new Map();
@@ -551,6 +597,18 @@ export default function ExpensesPage() {
                 </CardHeader>
                 <CardContent>
                     <p className="text-4xl font-bold">${totalExpenses.toFixed(2)}</p>
+                    {totalExpensesChange && (
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center">
+                            <span className={cn(
+                                "flex items-center gap-1 font-medium",
+                                totalExpensesChange.type === 'increase' ? 'text-red-600' : 'text-green-600'
+                            )}>
+                                {totalExpensesChange.type === 'increase' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                                {totalExpensesChange.value}%
+                            </span>
+                            <span className="ml-1">vs. previous period</span>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
             <Card>
@@ -560,6 +618,18 @@ export default function ExpensesPage() {
                 </CardHeader>
                 <CardContent>
                     <p className="text-4xl font-bold">${avgDailyBurn.toFixed(2)}</p>
+                    {avgDailyBurnChange && (
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center">
+                            <span className={cn(
+                                "flex items-center gap-1 font-medium",
+                                avgDailyBurnChange.type === 'increase' ? 'text-red-600' : 'text-green-600'
+                            )}>
+                                {avgDailyBurnChange.type === 'increase' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                                {avgDailyBurnChange.value}%
+                            </span>
+                            <span className="ml-1">vs. previous period</span>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
