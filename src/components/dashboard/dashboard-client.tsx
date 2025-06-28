@@ -9,13 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { type DashboardData, type Stat } from "@/lib/placeholder-data";
-import { DateFilter } from "./date-filter";
+import { SetTargetDialog } from "./set-target-dialog";
 import StatCard from "./stat-card";
 import RevenueChart from "./revenue-chart";
 import IncomeChart from "./income-chart";
 import RecentOrders from "./recent-orders";
 import AiInsights from "./ai-insights";
-import { SetTargetDialog } from "./set-target-dialog";
 import TopClientsChart from "./top-clients-chart";
 
 export function DashboardClient({
@@ -86,7 +85,6 @@ export function DashboardClient({
           Dashboard
         </h1>
         <div className="ml-auto flex items-center gap-2">
-          <DateFilter />
           <SetTargetDialog
             currentTarget={currentTarget}
             onSetTarget={handleSetTarget}
@@ -157,17 +155,7 @@ export function DashboardClient({
             <RecentOrders orders={recentOrders} />
           </CardContent>
         </Card>
-        <Card>
-           <CardHeader>
-            <CardTitle>Top 5 Clients</CardTitle>
-            <CardDescription>
-              Your most valuable clients in the selected period.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <TopClientsChart data={topClients} totalRevenue={totalRevenue} />
-          </CardContent>
-        </Card>
+        <TopClientsChart data={topClients} totalRevenue={totalRevenue} />
       </div>
       <div className="grid gap-4 md:gap-8">
          <AiInsights initialInsights={aiInsights} />
