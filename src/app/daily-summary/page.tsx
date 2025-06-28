@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -71,7 +70,13 @@ const summaryFormSchema = z.object({
 type SummaryFormValues = z.infer<typeof summaryFormSchema>;
 
 function DayWithSummary({ date, summaries, onEdit, onDelete }: { date: Date; summaries: DailySummary[]; onEdit: (summary: DailySummary) => void; onDelete: (summary: DailySummary) => void; }) {
-  const summary = summaries.find(s => s.date === format(date, "yyyy-MM-dd"));
+  const summary = summaries.find(s => {
+    // Robustly compare dates by their components to avoid timezone issues.
+    const [year, month, day] = s.date.split('-').map(Number);
+    return date.getFullYear() === year &&
+           date.getMonth() === month - 1 &&
+           date.getDate() === day;
+  });
 
   if (summary) {
     return (
@@ -162,7 +167,9 @@ export default function DailySummaryPage() {
       setSummaries(summaries.map(s => s.id === editingSummary.id ? newSummary : s));
       toast({ title: "Summary Updated" });
     } else {
-      setSummaries([newSummary, ...summaries]);
+      const updatedSummaries = [...summaries, newSummary];
+      updatedSummaries.sort((a,b) => new Date(b.date.replace(/-/g, '/')).getTime() - new Date(a.date.replace(/-/g, '/')).getTime());
+      setSummaries(updatedSummaries);
       toast({ title: "Summary Added" });
     }
 
