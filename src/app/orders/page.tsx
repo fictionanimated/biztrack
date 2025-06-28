@@ -121,6 +121,19 @@ const orderFormSchema = z.object({
 
 type OrderFormValues = z.infer<typeof orderFormSchema>;
 
+const cancelOrderFormSchema = z.object({
+  cancellationReasons: z.array(z.string()).optional(),
+  customCancellationReason: z.string().optional(),
+}).refine(
+  (data) => (data.cancellationReasons?.length ?? 0) > 0 || (data.customCancellationReason?.trim() ?? "") !== "",
+  {
+    message: "At least one cancellation reason must be provided.",
+    path: ["cancellationReasons"],
+  }
+);
+type CancelOrderFormValues = z.infer<typeof cancelOrderFormSchema>;
+
+
 const cancellationReasonsList = [
     "Canceled without requirements",
     "Expectations beyond requirements",
@@ -144,6 +157,7 @@ const StarDisplay = ({ rating }: { rating?: number }) => {
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>(initialOrders);
     const [open, setOpen] = useState(false);
+    const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
     const { toast } = useToast();
     
     const router = useRouter();
@@ -218,6 +232,14 @@ export default function OrdersPage() {
         }
     });
 
+    const cancelForm = useForm<CancelOrderFormValues>({
+        resolver: zodResolver(cancelOrderFormSchema),
+        defaultValues: {
+            cancellationReasons: [],
+            customCancellationReason: "",
+        },
+    });
+
     const isCancelled = form.watch("isCancelled");
     const selectedSource = form.watch("source");
 
@@ -280,6 +302,32 @@ export default function OrdersPage() {
         setOpen(false);
     }
     
+    function onCancelSubmit(values: CancelOrderFormValues) {
+        if (!orderToCancel) return;
+
+        let finalCancellationReasons: string[] = [];
+        if (values.cancellationReasons) {
+            finalCancellationReasons = [...values.cancellationReasons];
+        }
+        if (values.customCancellationReason && values.customCancellationReason.trim()) {
+            finalCancellationReasons.push(values.customCancellationReason.trim());
+        }
+
+        setOrders(prevOrders => 
+            prevOrders.map(o => 
+                o.id === orderToCancel.id 
+                ? { ...o, status: 'Cancelled', cancellationReasons: finalCancellationReasons } 
+                : o
+            )
+        );
+        toast({
+            title: "Order Cancelled",
+            description: `Order ${orderToCancel.id} has been marked as cancelled.`,
+        });
+        setOrderToCancel(null);
+        cancelForm.reset();
+    }
+
     const requestSort = (key: keyof Order) => {
         let direction: 'ascending' | 'descending' = 'ascending';
         if (sortConfig.key === key && sortConfig.direction === 'ascending') {
@@ -715,7 +763,17 @@ export default function OrdersPage() {
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem>View Details</DropdownMenuItem>
                             <DropdownMenuItem>Edit</DropdownMenuItem>
-                            <DropdownMenuItem>Mark as Cancelled</DropdownMenuItem>
+                            {order.status !== 'Cancelled' && (
+                                <DropdownMenuItem
+                                    onClick={() => {
+                                        cancelForm.reset();
+                                        setOrderToCancel(order);
+                                    }}
+                                    className="text-destructive focus:text-destructive"
+                                >
+                                    Mark as Cancelled
+                                </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                         </DropdownMenu>
                     </TableCell>
@@ -732,6 +790,77 @@ export default function OrdersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!orderToCancel} onOpenChange={(isOpen) => { if (!isOpen) setOrderToCancel(null); }}>
+        <DialogContent>
+            <DialogHeader>
+            <DialogTitle>Cancel Order: {orderToCancel?.id}</DialogTitle>
+            <DialogDescription>
+                Please provide the reason(s) for cancelling this order. This action cannot be undone.
+            </DialogDescription>
+            </DialogHeader>
+            <Form {...cancelForm}>
+            <form onSubmit={cancelForm.handleSubmit(onCancelSubmit)} className="space-y-4">
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1 pr-4">
+                <FormField
+                    control={cancelForm.control}
+                    name="cancellationReasons"
+                    render={() => (
+                    <FormItem>
+                        <div className="mb-4">
+                        <FormLabel className="text-base">Reason for Cancellation</FormLabel>
+                        <FormDescription>Select any applicable reasons.</FormDescription>
+                        </div>
+                        <div className="space-y-2">
+                        {cancellationReasonsList.map((reason) => (
+                            <FormField
+                            key={reason}
+                            control={cancelForm.control}
+                            name="cancellationReasons"
+                            render={({ field }) => (
+                                <FormItem key={reason} className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                    <Checkbox
+                                    checked={field.value?.includes(reason)}
+                                    onCheckedChange={(checked) => {
+                                        return checked
+                                        ? field.onChange([...(field.value || []), reason])
+                                        : field.onChange(field.value?.filter((value) => value !== reason));
+                                    }}
+                                    />
+                                </FormControl>
+                                <FormLabel className="font-normal">{reason}</FormLabel>
+                                </FormItem>
+                            )}
+                            />
+                        ))}
+                        </div>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={cancelForm.control}
+                    name="customCancellationReason"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Other Reason</FormLabel>
+                        <FormControl>
+                        <Textarea placeholder="If other, please specify reason for cancellation..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                </div>
+                <DialogFooter>
+                <Button type="button" variant="secondary" onClick={() => setOrderToCancel(null)}>Cancel</Button>
+                <Button type="submit" variant="destructive">Confirm Cancellation</Button>
+                </DialogFooter>
+            </form>
+            </Form>
+        </DialogContent>
+        </Dialog>
     </main>
   );
 }
