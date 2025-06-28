@@ -117,7 +117,7 @@ export const dashboardData: DashboardData = {
     },
     {
       icon: "Users",
-      title: "Total Buyers",
+      title: "Buyers",
       value: "344",
       change: "+12.5%",
       changeType: "increase",

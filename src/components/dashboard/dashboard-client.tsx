@@ -104,7 +104,7 @@ export function DashboardClient({
     [
       "Avg Order Value (AOV)",
       "Total Orders (Completed)",
-      "Total Buyers",
+      "Buyers",
       "Cancelled Orders",
       "% Orders with Reviews",
       "All-Time Total Buyers",
