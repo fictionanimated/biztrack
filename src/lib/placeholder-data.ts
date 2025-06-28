@@ -7,6 +7,7 @@ export interface Stat {
   change?: string;
   changeType?: "increase" | "decrease";
   description: ReactNode;
+  progressValue?: number;
 }
 
 export interface RecentOrder {
@@ -78,6 +79,7 @@ export const dashboardData: DashboardData = {
       title: "Performance vs Target",
       value: "90.5%",
       description: "Progress towards your goal",
+      progressValue: 90.5,
     },
     {
       icon: "DollarSign",
