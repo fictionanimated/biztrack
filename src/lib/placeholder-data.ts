@@ -25,12 +25,18 @@ export interface RevenueByDay {
   revenue: number;
 }
 
+export interface TopClient {
+  name: string;
+  amount: number;
+}
+
 export interface DashboardData {
   stats: Stat[];
   revenueByDay: RevenueByDay[];
   incomeBySource: IncomeBySource[];
   recentOrders: RecentOrder[];
   aiInsights: string;
+  topClients: TopClient[];
 }
 
 export const dashboardData: DashboardData = {
@@ -181,6 +187,13 @@ export const dashboardData: DashboardData = {
       clientEmail: "sofia.davis@email.com",
       amount: 499.0,
     },
+  ],
+  topClients: [
+    { name: "Liam Johnson", amount: 4500 },
+    { name: "Noah Williams", amount: 3200 },
+    { name: "Olivia Martin", amount: 2800 },
+    { name: "Emma Brown", amount: 2500 },
+    { name: "Ava Jones", amount: 1900 },
   ],
   aiInsights:
     "Your revenue is trending positively, driven by Web Design services. Consider offering tiered packages for Consulting to increase average order value. Client acquisition is strong, but focus on strategies to improve the repeat client rate, such as loyalty discounts or follow-up services.",

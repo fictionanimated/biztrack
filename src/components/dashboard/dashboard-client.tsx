@@ -16,6 +16,7 @@ import IncomeChart from "./income-chart";
 import RecentOrders from "./recent-orders";
 import AiInsights from "./ai-insights";
 import { SetTargetDialog } from "./set-target-dialog";
+import TopClientsChart from "./top-clients-chart";
 
 export function DashboardClient({
   stats: initialStats,
@@ -23,6 +24,7 @@ export function DashboardClient({
   incomeBySource,
   recentOrders,
   aiInsights,
+  topClients,
 }: DashboardData) {
   const [stats, setStats] = useState<Stat[]>(initialStats);
 
@@ -49,7 +51,6 @@ export function DashboardClient({
     stats.find((s) => s.title === "Target for June")?.value.replace(/[^0-9.-]+/g, "") || "0"
   );
   
-  // Grouping stats by type for better organization
   const financialStats = stats.filter((s) =>
     ["Total Revenue", "Total Expenses", "Net Profit"].includes(s.title)
   );
@@ -142,8 +143,8 @@ export function DashboardClient({
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
+      <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle>Recent Orders</CardTitle>
             <CardDescription>
@@ -154,7 +155,20 @@ export function DashboardClient({
             <RecentOrders orders={recentOrders} />
           </CardContent>
         </Card>
-        <AiInsights initialInsights={aiInsights} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 5 Clients</CardTitle>
+            <CardDescription>
+              Your most valuable clients this month.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <TopClientsChart data={topClients} />
+          </CardContent>
+        </Card>
+      </div>
+      <div className="grid gap-4 md:gap-8">
+         <AiInsights initialInsights={aiInsights} />
       </div>
     </main>
   );
