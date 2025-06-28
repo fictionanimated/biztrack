@@ -191,7 +191,7 @@ export default function OrdersPage() {
                                 control={form.control}
                                 name="date"
                                 render={({ field }) => (
-                                    <FormItem className="flex flex-col">
+                                    <FormItem>
                                     <FormLabel>Order Date*</FormLabel>
                                     <Popover>
                                         <PopoverTrigger asChild>
@@ -199,7 +199,7 @@ export default function OrdersPage() {
                                             <Button
                                             variant={"outline"}
                                             className={cn(
-                                                "pl-3 text-left font-normal",
+                                                "w-full pl-3 text-left font-normal",
                                                 !field.value && "text-muted-foreground"
                                             )}
                                             >
