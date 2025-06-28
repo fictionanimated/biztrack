@@ -48,14 +48,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   return (
     <SidebarProvider>
-      <Sidebar>
-        <SidebarHeader className="p-4">
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <LayoutDashboard className="size-8 text-primary" />
-            <div className="flex flex-col">
+            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
               <h2 className="text-lg font-semibold font-headline">BizTrack Pro</h2>
             </div>
           </div>
+           <SidebarTrigger className="hidden md:flex" />
         </SidebarHeader>
 
         <SidebarContent>
@@ -71,7 +72,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <Link href={item.href} passHref>
                     <item.icon />
-                    <span>{item.label}</span>
+                    <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -82,28 +83,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarFooter>
           <SidebarMenu>
              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild tooltip={{children: 'Help & Support'}}>
                   <Link href="#" passHref>
                     <HelpCircle />
-                    <span>Help & Support</span>
+                    <span className="group-data-[collapsible=icon]:hidden">Help & Support</span>
                   </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild tooltip={{children: 'Settings'}}>
                   <Link href="#" passHref>
                     <Settings />
-                    <span>Settings</span>
+                    <span className="group-data-[collapsible=icon]:hidden">Settings</span>
                   </Link>
                 </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <div className="flex items-center gap-3 px-2 py-4">
+              <div className="flex items-center gap-3 px-2 py-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
                  <Avatar className="h-10 w-10">
                     <AvatarImage src="https://placehold.co/100x100.png" alt="@shadcn" data-ai-hint="male avatar" />
                     <AvatarFallback>JD</AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col">
+                <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                     <span className="font-semibold text-sm">John Doe</span>
                     <span className="text-xs text-muted-foreground">john.doe@example.com</span>
                 </div>
@@ -113,6 +114,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
+        <div className="p-2 md:hidden">
+          <SidebarTrigger />
+        </div>
         {children}
       </SidebarInset>
     </SidebarProvider>
