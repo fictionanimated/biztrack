@@ -274,7 +274,7 @@ export default function SourceAnalyticsPage({
         icon: "Calendar", 
         title: "Avg. Monthly Earning", 
         value: `$${avgMonthlyEarning.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 
-        description: "projected",
+        description: "vs. previous period",
         ...avgMonthlyEarningChange
       },
       { 
