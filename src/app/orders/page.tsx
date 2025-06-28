@@ -6,6 +6,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import { CalendarIcon, MoreHorizontal, Star } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -80,11 +85,11 @@ interface Order {
 }
 
 const initialOrders: Order[] = [
-    { id: 'ORD001', clientUsername: 'olivia.m', date: '2024-05-20', amount: 1999.00, source: 'Web Design', gig: 'Acme Corp Redesign', status: 'Completed', rating: 5 },
+    { id: 'ORD001', clientUsername: 'olivia.m', date: '2024-05-20', amount: 1999.00, source: 'Comprehensive Web Design & Development for Enterprise', gig: 'Acme Corp Redesign', status: 'Completed', rating: 5 },
     { id: 'ORD002', clientUsername: 'jackson.l', date: '2024-05-21', amount: 399.00, source: 'Consulting', gig: 'Q1 Strategy Session', status: 'Completed', rating: 4 },
     { id: 'ORD003', clientUsername: 'isabella.n', date: '2024-05-22', amount: 299.00, source: 'Logo Design', gig: "Brand Identity for 'Innovate'", status: 'Cancelled', rating: 1 },
     { id: 'ORD004', clientUsername: 'will.k', date: '2024-05-23', amount: 999.00, source: 'Web Design', gig: 'Startup Landing Page', status: 'In Progress' },
-    { id: 'ORD005', clientUsername: 'sofia.d', date: '2024-05-24', amount: 499.00, source: 'SEO Services', gig: 'Monthly SEO Retainer', status: 'Completed', rating: 5 },
+    { id: 'ORD005', clientUsername: 'sofia.d', date: '2024-05-24', amount: 499.00, source: 'SEO Services and Digital Marketing Campaigns', gig: 'Monthly SEO Retainer', status: 'Completed', rating: 5 },
 ];
 
 const clients = [
@@ -95,7 +100,7 @@ const clients = [
   { username: "sofia.d", name: "Sofia Davis" },
 ];
 
-const incomeSources = ["Web Design", "Consulting", "Logo Design", "SEO Services", "Maintenance"];
+const incomeSources = ["Comprehensive Web Design & Development for Enterprise", "Consulting", "Logo Design", "Web Design", "SEO Services and Digital Marketing Campaigns", "Maintenance"];
 
 const orderFormSchema = z.object({
     orderId: z.string().min(1, "Order ID is required."),
@@ -394,7 +399,18 @@ export default function OrdersPage() {
                   <TableCell className="font-medium">{order.id}</TableCell>
                   <TableCell>{clients.find(c => c.username === order.clientUsername)?.name || order.clientUsername}</TableCell>
                   <TableCell>${order.amount.toFixed(2)}</TableCell>
-                  <TableCell>{order.source}</TableCell>
+                  <TableCell>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-block max-w-[120px] truncate">
+                          {order.source}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{order.source}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableCell>
                   <TableCell>{order.gig || <span className="text-muted-foreground">N/A</span>}</TableCell>
                   <TableCell>
                     {order.rating ? <StarDisplay rating={order.rating} /> : <span className="text-muted-foreground">N/A</span>}
