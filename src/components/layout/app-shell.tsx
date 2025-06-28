@@ -27,7 +27,6 @@ import {
   Calendar,
   Settings,
   Notebook,
-  HelpCircle,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from "./theme-toggle";
@@ -84,14 +83,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <SidebarFooter>
           <SidebarMenu>
-             <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip={{children: 'Help & Support'}}>
-                  <NProgressLink href="#" passHref>
-                    <HelpCircle />
-                    <span className="group-data-[collapsible=icon]:hidden">Help & Support</span>
-                  </NProgressLink>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
             <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip={{children: 'Settings'}}>
                   <NProgressLink href="#" passHref>
