@@ -77,10 +77,16 @@ interface Gig {
   messages?: number;
 }
 
+interface SourceDataPoint {
+  date: string;
+  messages: number;
+}
+
 interface IncomeSource {
   id: string;
   name: string;
   gigs: Gig[];
+  dataPoints?: SourceDataPoint[];
 }
 
 const initialIncomeSources: IncomeSource[] = [
@@ -92,11 +98,13 @@ const initialIncomeSources: IncomeSource[] = [
       { id: "g2", name: "Startup Landing Page", date: "2023-01-25", messages: 52 },
       { id: "g3", name: "E-commerce Site for 'ShopEasy'", date: "2023-02-05", messages: 210 },
     ],
+    dataPoints: [],
   },
   {
     id: "2",
     name: "Consulting",
     gigs: [{ id: "g4", name: "Q1 Strategy Session", date: "2023-01-20", messages: 30 }],
+    dataPoints: [],
   },
   {
     id: "3",
@@ -104,11 +112,13 @@ const initialIncomeSources: IncomeSource[] = [
     gigs: [
       { id: "g5", name: "Brand Identity for 'Innovate'", date: "2023-02-01", messages: 15 },
     ],
+    dataPoints: [],
   },
   {
     id: "4",
     name: "SEO Services",
     gigs: [{ id: "g6", name: "Monthly SEO Retainer", date: "2023-02-10", messages: 88 }],
+    dataPoints: [],
   },
   {
     id: "5",
@@ -116,6 +126,7 @@ const initialIncomeSources: IncomeSource[] = [
     gigs: [
       { id: "g7", name: "Website Support Package", date: "2023-02-15", messages: 5 },
     ],
+    dataPoints: [],
   },
 ];
 
@@ -144,6 +155,13 @@ const addGigFormSchema = z.object({
 });
 type AddGigFormValues = z.infer<typeof addGigFormSchema>;
 
+const addDataFormSchema = z.object({
+    date: z.date({ required_error: "A date is required." }),
+    messages: z.coerce.number().int().min(0, { message: "Number of messages must be a non-negative number." }),
+});
+type AddDataFormValues = z.infer<typeof addDataFormSchema>;
+
+
 export default function IncomesPage() {
   const [incomeSources, setIncomeSources] =
     useState<IncomeSource[]>(initialIncomeSources);
@@ -158,6 +176,9 @@ export default function IncomesPage() {
 
   const [addGigDialogOpen, setAddGigDialogOpen] = useState(false);
   const [addingToSourceId, setAddingToSourceId] = useState<string | null>(null);
+  
+  const [isAddDataDialogOpen, setIsAddDataDialogOpen] = useState(false);
+  const [updatingSourceId, setUpdatingSourceId] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -181,6 +202,15 @@ export default function IncomesPage() {
     },
   });
 
+  const addDataForm = useForm<AddDataFormValues>({
+    resolver: zodResolver(addDataFormSchema),
+    defaultValues: {
+        date: new Date(),
+        messages: 0,
+    },
+  });
+
+
   function onSubmit(values: z.infer<typeof formSchema>) {
     const newSource: IncomeSource = {
       id: `source-${Date.now()}`,
@@ -191,6 +221,7 @@ export default function IncomesPage() {
         date: format(gig.date, "yyyy-MM-dd"),
         messages: 0,
       })),
+      dataPoints: [],
     };
 
     setIncomeSources([newSource, ...incomeSources]);
@@ -230,6 +261,34 @@ export default function IncomesPage() {
     addGigForm.reset({ name: "", date: new Date(), messages: 0 });
     setAddGigDialogOpen(false);
   }
+
+  function onAddDataSubmit(values: AddDataFormValues) {
+    if (!updatingSourceId) return;
+
+    const newDataPoint: SourceDataPoint = {
+        date: format(values.date, "yyyy-MM-dd"),
+        messages: values.messages,
+    };
+
+    setIncomeSources(prevSources => 
+      prevSources.map(source => {
+        if (source.id === updatingSourceId) {
+          const updatedDataPoints = [...(source.dataPoints || []), newDataPoint];
+          updatedDataPoints.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          return { ...source, dataPoints: updatedDataPoints };
+        }
+        return source;
+      })
+    );
+    
+    toast({
+      title: "Data Added",
+      description: `Added new data point to the income source.`,
+    });
+    addDataForm.reset({ date: new Date(), messages: 0 });
+    setIsAddDataDialogOpen(false);
+  }
+
 
   const handleCancelMerge = () => {
     setMergingSourceId(null);
@@ -464,6 +523,13 @@ export default function IncomesPage() {
                       </Button>
                     )}
                      <Button variant="outline" onClick={() => {
+                        setUpdatingSourceId(source.id);
+                        addDataForm.reset();
+                        setIsAddDataDialogOpen(true);
+                     }}>
+                        Add Data
+                    </Button>
+                     <Button variant="outline" onClick={() => {
                         setAddingToSourceId(source.id);
                         addGigForm.reset();
                         setAddGigDialogOpen(true);
@@ -657,6 +723,80 @@ export default function IncomesPage() {
                             <Button type="button" variant="secondary">Cancel</Button>
                         </DialogClose>
                         <Button type="submit">Add Gig</Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAddDataDialogOpen} onOpenChange={setIsAddDataDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Add Data to Income Source</DialogTitle>
+                <DialogDescription>
+                    Add a new data point for messages and date for this source.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...addDataForm}>
+                <form onSubmit={addDataForm.handleSubmit(onAddDataSubmit)} className="space-y-6 pt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                          control={addDataForm.control}
+                          name="date"
+                          render={({ field }) => (
+                              <FormItem className="flex flex-col">
+                              <FormLabel>Date</FormLabel>
+                              <Popover>
+                                  <PopoverTrigger asChild>
+                                  <FormControl>
+                                      <Button
+                                      variant={"outline"}
+                                      className={cn(
+                                          "pl-3 text-left font-normal",
+                                          !field.value && "text-muted-foreground"
+                                      )}
+                                      >
+                                      {field.value ? (
+                                          format(field.value, "PPP")
+                                      ) : (
+                                          <span>Pick a date</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                      </Button>
+                                  </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                      mode="single"
+                                      selected={field.value}
+                                      onSelect={field.onChange}
+                                      initialFocus
+                                  />
+                                  </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                      <FormField
+                        control={addDataForm.control}
+                        name="messages"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>No. of Messages</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="e.g., 150" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                      />
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary">Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit">Add Data</Button>
                     </DialogFooter>
                 </form>
             </Form>
