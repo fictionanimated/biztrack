@@ -1,51 +1,65 @@
 "use client";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import * as React from "react";
+import { format } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 
-export function DateFilter() {
-  const years = Array.from({ length: 10 }, (_, i) => 2021 + i);
-  const currentYear = new Date().getFullYear().toString();
-  const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+export function DateFilter({
+  className,
+}: React.HTMLAttributes<HTMLDivElement>) {
+  const [date, setDate] = React.useState<DateRange | undefined>({
+    from: new Date(2022, 0, 1),
+    to: new Date(2023, 11, 31),
+  });
 
   return (
-    <div className="flex items-center gap-2">
-      <Select defaultValue={currentMonth}>
-        <SelectTrigger className="w-[130px]">
-          <SelectValue placeholder="Month" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="January">January</SelectItem>
-          <SelectItem value="February">February</SelectItem>
-          <SelectItem value="March">March</SelectItem>
-          <SelectItem value="April">April</SelectItem>
-          <SelectItem value="May">May</SelectItem>
-          <SelectItem value="June">June</SelectItem>
-          <SelectItem value="July">July</SelectItem>
-          <SelectItem value="August">August</SelectItem>
-          <SelectItem value="September">September</SelectItem>
-          <SelectItem value="October">October</SelectItem>
-          <SelectItem value="November">November</SelectItem>
-          <SelectItem value="December">December</SelectItem>
-        </SelectContent>
-      </Select>
-      <Select defaultValue={currentYear}>
-        <SelectTrigger className="w-[100px]">
-          <SelectValue placeholder="Year" />
-        </SelectTrigger>
-        <SelectContent>
-          {years.map((year) => (
-            <SelectItem key={year} value={year.toString()}>
-              {year}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className={cn("grid gap-2", className)}>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            id="date"
+            variant={"outline"}
+            className={cn(
+              "w-[260px] justify-start text-left font-normal",
+              !date && "text-muted-foreground"
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date?.from ? (
+              date.to ? (
+                <>
+                  {format(date.from, "LLL dd, y")} -{" "}
+                  {format(date.to, "LLL dd, y")}
+                </>
+              ) : (
+                format(date.from, "LLL dd, y")
+              )
+            ) : (
+              <span>Pick a date range</span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="end">
+          <Calendar
+            initialFocus
+            mode="range"
+            defaultMonth={date?.from}
+            selected={date}
+            onSelect={setDate}
+            numberOfMonths={2}
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

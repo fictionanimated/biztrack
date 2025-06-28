@@ -158,14 +158,11 @@ export function DashboardClient({
           </CardContent>
         </Card>
         <Card>
-           <CardHeader className="flex flex-row items-start justify-between">
-            <div className="space-y-1.5">
-              <CardTitle>Top 5 Clients</CardTitle>
-              <CardDescription>
-                Your most valuable clients this month.
-              </CardDescription>
-            </div>
-            <DateFilter />
+           <CardHeader>
+            <CardTitle>Top 5 Clients</CardTitle>
+            <CardDescription>
+              Your most valuable clients in the selected period.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <TopClientsChart data={topClients} totalRevenue={totalRevenue} />
