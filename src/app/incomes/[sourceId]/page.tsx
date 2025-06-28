@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, lazy, Suspense, useState, useEffect } from "react";
+import { useMemo, lazy, Suspense, useState } from "react";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
@@ -32,7 +32,7 @@ import StatCard from "@/components/dashboard/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import NProgressLink from "@/components/layout/nprogress-link";
 import { Button } from "@/components/ui/button";
-import { initialIncomeSources } from "@/lib/data/incomes-data";
+import { initialIncomeSources, type IncomeSource } from "@/lib/data/incomes-data";
 import { format } from "date-fns";
 import {
   Line,
@@ -102,34 +102,7 @@ const ChartComponent = ({ data, config, activeMetrics, yAxisLabel, showCompariso
     );
 }
 
-export default function SourceAnalyticsPage({
-  params,
-}: {
-  params: { sourceId: string };
-}) {
-  const source = initialIncomeSources.find((s) => s.id === params.sourceId);
-  const [date, setDate] = useState<DateRange | undefined>();
-  const [activeMetrics, setActiveMetrics] = useState({
-    impressions: true,
-    clicks: true,
-    orders: true,
-    messages: true,
-  });
-  const [showComparison, setShowComparison] = useState(false);
-
-
-  if (!source) {
-    notFound();
-  }
-  
-  const handleMetricToggle = (metric: keyof typeof activeMetrics) => {
-    setActiveMetrics((prev) => ({
-      ...prev,
-      [metric]: !prev[metric],
-    }));
-  };
-
-  useEffect(() => {
+const getInitialDateRangeForSource = (source: IncomeSource): DateRange => {
     const allDates = [
       ...(source.gigs.flatMap(g => g.analytics?.map(a => new Date(a.date)) ?? [])),
       ...(source.dataPoints?.map(dp => new Date(dp.date)) ?? [])
@@ -139,15 +112,41 @@ export default function SourceAnalyticsPage({
         const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
         const fromDate = new Date(maxDate);
         fromDate.setDate(fromDate.getDate() - 29);
-        setDate({ from: fromDate, to: maxDate });
-    } else {
-        const today = new Date();
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setDate(today.getDate() - 30);
-        setDate({ from: oneMonthAgo, to: today });
+        return { from: fromDate, to: maxDate };
     }
-  }, [source]);
+    
+    const today = new Date();
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setDate(today.getDate() - 30);
+    return { from: oneMonthAgo, to: today };
+};
 
+export default function SourceAnalyticsPage({
+  params,
+}: {
+  params: { sourceId: string };
+}) {
+  const source = initialIncomeSources.find((s) => s.id === params.sourceId);
+
+  if (!source) {
+    notFound();
+  }
+  
+  const [date, setDate] = useState<DateRange | undefined>(() => getInitialDateRangeForSource(source));
+  const [activeMetrics, setActiveMetrics] = useState({
+    impressions: true,
+    clicks: true,
+    orders: true,
+    messages: true,
+  });
+  const [showComparison, setShowComparison] = useState(false);
+
+  const handleMetricToggle = (metric: keyof typeof activeMetrics) => {
+    setActiveMetrics((prev) => ({
+      ...prev,
+      [metric]: !prev[metric],
+    }));
+  };
 
   const {
     chartDataForRender,
