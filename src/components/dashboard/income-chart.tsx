@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo } from "react";
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Legend, Cell } from "recharts";
 import {
   ChartContainer,
@@ -5,6 +8,7 @@ import {
   ChartTooltip,
   ChartLegend,
   ChartLegendContent,
+  type ChartConfig,
 } from "@/components/ui/chart";
 import { type IncomeBySource } from "@/lib/placeholder-data";
 
@@ -13,15 +17,41 @@ interface IncomeChartProps {
 }
 
 export default function IncomeChart({ data }: IncomeChartProps) {
+  const totalIncome = useMemo(() => {
+    return data.reduce((acc, curr) => acc + curr.amount, 0);
+  }, [data]);
+
+  const chartConfig = useMemo(() => {
+    return data.reduce((acc, { source, fill }) => {
+      acc[source] = {
+        label: source,
+        color: fill,
+      };
+      return acc;
+    }, {} as ChartConfig);
+  }, [data]);
+
   return (
     <ChartContainer
-      config={{}}
+      config={chartConfig}
       className="mx-auto aspect-square h-[250px]"
     >
       <PieChart>
         <Tooltip
           cursor={false}
-          content={<ChartTooltipContent hideLabel />}
+          content={
+            <ChartTooltipContent
+              hideLabel
+              nameKey="source"
+              valueFormatter={(value) => {
+                const percentage =
+                  totalIncome > 0
+                    ? ((Number(value) / totalIncome) * 100).toFixed(1)
+                    : 0;
+                return `$${Number(value).toLocaleString()} (${percentage}%)`;
+              }}
+            />
+          }
         />
         <Pie
           data={data}
