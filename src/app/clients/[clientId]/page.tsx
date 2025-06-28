@@ -1,6 +1,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -20,9 +21,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import StatCard from "@/components/dashboard/stat-card";
-import { Facebook, Twitter, Linkedin, Github, Globe, DollarSign, ShoppingCart, BarChart, Calendar } from "lucide-react";
+import { Facebook, Twitter, Linkedin, Github, Globe, DollarSign, ShoppingCart, BarChart, Calendar, ArrowLeft } from "lucide-react";
 import type { Stat } from "@/lib/placeholder-data";
 import ClientOrderHistoryChart from "@/components/clients/client-order-history-chart";
+import { Button } from "@/components/ui/button";
 
 
 // Mock data - in a real app, this would be fetched from a database
@@ -123,27 +125,35 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-      <div className="flex items-start gap-4">
-        <Avatar className="h-20 w-20 border">
-          <AvatarImage src={`https://placehold.co/100x100.png?text=${(client.name || client.username).charAt(0)}`} alt="Avatar" data-ai-hint="avatar person" />
-          <AvatarFallback>{(client.name || client.username).charAt(0).toUpperCase()}</AvatarFallback>
-        </Avatar>
-        <div>
-            <h1 className="font-headline text-2xl font-semibold md:text-3xl">
-                {client.name || client.username}
-            </h1>
-            <p className="text-muted-foreground">@{client.username}</p>
-            <div className="mt-2 flex items-center gap-2">
-                <Badge variant={client.clientType === 'New' ? 'secondary' : 'default'}>
-                    {client.clientType} Client
-                </Badge>
-                {client.socialLinks?.map((link, i) => (
-                    <a key={i} href={link.url} target="_blank" rel="noreferrer noopener" aria-label={link.platform}>
-                        <SocialIcon platform={link.platform} />
-                    </a>
-                ))}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+            <Avatar className="h-20 w-20 border">
+            <AvatarImage src={`https://placehold.co/100x100.png?text=${(client.name || client.username).charAt(0)}`} alt="Avatar" data-ai-hint="avatar person" />
+            <AvatarFallback>{(client.name || client.username).charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div>
+                <h1 className="font-headline text-2xl font-semibold md:text-3xl">
+                    {client.name || client.username}
+                </h1>
+                <p className="text-muted-foreground">@{client.username}</p>
+                <div className="mt-2 flex items-center gap-2">
+                    <Badge variant={client.clientType === 'New' ? 'secondary' : 'default'}>
+                        {client.clientType} Client
+                    </Badge>
+                    {client.socialLinks?.map((link, i) => (
+                        <a key={i} href={link.url} target="_blank" rel="noreferrer noopener" aria-label={link.platform}>
+                            <SocialIcon platform={link.platform} />
+                        </a>
+                    ))}
+                </div>
             </div>
         </div>
+        <Link href="/clients" passHref>
+          <Button variant="outline">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+        </Link>
       </div>
       
       <section>
