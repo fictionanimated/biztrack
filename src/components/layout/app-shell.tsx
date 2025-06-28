@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import NProgressLink from "@/components/layout/nprogress-link";
 import { usePathname } from "next/navigation";
 import {
   SidebarProvider,
@@ -70,10 +70,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     children: item.label,
                   }}
                 >
-                  <Link href={item.href} passHref>
+                  <NProgressLink href={item.href} passHref>
                     <item.icon />
                     <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                  </Link>
+                  </NProgressLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -84,18 +84,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
              <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip={{children: 'Help & Support'}}>
-                  <Link href="#" passHref>
+                  <NProgressLink href="#" passHref>
                     <HelpCircle />
                     <span className="group-data-[collapsible=icon]:hidden">Help & Support</span>
-                  </Link>
+                  </NProgressLink>
                 </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip={{children: 'Settings'}}>
-                  <Link href="#" passHref>
+                  <NProgressLink href="#" passHref>
                     <Settings />
                     <span className="group-data-[collapsible=icon]:hidden">Settings</span>
-                  </Link>
+                  </NProgressLink>
                 </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
