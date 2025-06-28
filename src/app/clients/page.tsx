@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { MoreHorizontal, PlusCircle, Trash2, Facebook, Twitter, Linkedin, Github, Globe } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, Facebook, Twitter, Linkedin, Github, Globe, Edit } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,15 +13,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,6 +50,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 const socialLinkSchema = z.object({
   platform: z.string().min(1, "Platform is required."),
@@ -80,17 +74,23 @@ interface Client {
     email?: string;
     source: string;
     socialLinks?: { platform: string; url: string }[];
+    clientType: 'New' | 'Repeat';
+    clientSince: string;
+    totalOrders: number;
+    totalEarning: number;
+    lastOrder: string;
 }
 
 const initialClients: Client[] = [
-  { id: "1", name: "Olivia Martin", username: "olivia.m", email: "olivia.martin@email.com", source: "Web Design" },
-  { id: "2", name: "Jackson Lee", username: "jackson.l", email: "jackson.lee@email.com", source: "Consulting" },
-  { id: "3", name: "Isabella Nguyen", username: "isabella.n", email: "isabella.nguyen@email.com", source: "Logo Design" },
-  { id: "4", name: "William Kim", username: "will.k", email: "will@email.com", source: "Web Design" },
-  { id: "5", name: "Sofia Davis", username: "sofia.d", email: "sofia.davis@email.com", source: "SEO Services" },
+  { id: "1", name: "Olivia Martin", username: "olivia.m", email: "olivia.martin@email.com", source: "Web Design", clientType: "Repeat", clientSince: "2023-01-15", totalOrders: 5, totalEarning: 8500, lastOrder: "2024-05-20", socialLinks: [{platform: "LinkedIn", url: "#"}, {platform: "Twitter", url: "#"}] },
+  { id: "2", name: "Jackson Lee", username: "jackson.l", email: "jackson.lee@email.com", source: "Consulting", clientType: "New", clientSince: "2024-03-10", totalOrders: 1, totalEarning: 1200, lastOrder: "2024-05-21", socialLinks: [{platform: "GitHub", url: "#"}] },
+  { id: "3", name: "Isabella Nguyen", username: "isabella.n", email: "isabella.nguyen@email.com", source: "Logo Design", clientType: "Repeat", clientSince: "2022-11-05", totalOrders: 8, totalEarning: 4500, lastOrder: "2024-05-18", socialLinks: [] },
+  { id: "4", name: "William Kim", username: "will.k", email: "will@email.com", source: "Web Design", clientType: "Repeat", clientSince: "2023-08-20", totalOrders: 3, totalEarning: 6200, lastOrder: "2024-04-30", socialLinks: [{platform: "Website", url: "#"}] },
+  { id: "5", name: "Sofia Davis", username: "sofia.d", email: "sofia.davis@email.com", source: "SEO Services", clientType: "New", clientSince: "2024-04-01", totalOrders: 2, totalEarning: 1800, lastOrder: "2024-05-24", socialLinks: [{platform: "Facebook", url: "#"}, {platform: "Twitter", url: "#"}] },
 ];
 
 const incomeSources = ["Web Design", "Consulting", "Logo Design", "SEO Services", "Maintenance"];
+
 const socialPlatforms = [
     { value: "Facebook", icon: Facebook },
     { value: "Twitter", icon: Twitter },
@@ -98,6 +98,21 @@ const socialPlatforms = [
     { value: "GitHub", icon: Github },
     { value: "Website", icon: Globe },
 ];
+
+const SocialIcon = ({ platform }: { platform: string }) => {
+    const platformConfig = socialPlatforms.find(p => p.value === platform);
+    if (!platformConfig) return <Globe className="h-5 w-5 text-muted-foreground" />;
+    const Icon = platformConfig.icon;
+    return <Icon className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />;
+}
+
+const ClientStat = ({ label, value }: { label: string; value: string | number }) => (
+    <div className="flex flex-col">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="font-semibold">{value}</span>
+    </div>
+);
+
 
 export default function ClientsPage() {
     const [clients, setClients] = useState<Client[]>(initialClients);
@@ -124,6 +139,11 @@ export default function ClientsPage() {
         const newClient: Client = {
             id: `client-${Date.now()}`,
             ...values,
+            clientType: 'New',
+            clientSince: new Date().toISOString().split('T')[0],
+            totalOrders: 0,
+            totalEarning: 0,
+            lastOrder: 'N/A',
         };
         setClients([newClient, ...clients]);
         toast({
@@ -307,61 +327,58 @@ export default function ClientsPage() {
           </Dialog>
         </div>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Manage Your Clients</CardTitle>
-          <CardDescription>
-            A list of all your clients.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Income Source</TableHead>
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {clients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-4">
-                      <Avatar className="hidden h-9 w-9 sm:flex">
-                        <AvatarImage src={`https://placehold.co/100x100.png?text=${(client.name || client.username).charAt(0)}`} alt="Avatar" data-ai-hint="avatar person" />
-                        <AvatarFallback>{(client.name || client.username).charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div className="grid gap-1">
-                        <p className="text-sm font-medium leading-none">{client.name || client.username}</p>
-                        <p className="text-sm text-muted-foreground">{client.email || `@${client.username}`}</p>
-                      </div>
+      
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {clients.map((client) => (
+            <Card key={client.id} className="flex flex-col">
+                <CardHeader>
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-4">
+                            <Avatar className="h-12 w-12">
+                                <AvatarImage src={`https://placehold.co/100x100.png?text=${(client.name || client.username).charAt(0)}`} alt="Avatar" data-ai-hint="avatar person" />
+                                <AvatarFallback>{(client.name || client.username).charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <CardTitle className="text-xl">{client.name || client.username}</CardTitle>
+                                <CardDescription>@{client.username}</CardDescription>
+                            </div>
+                        </div>
+                         <Badge variant={client.clientType === 'New' ? 'secondary' : 'default'}>
+                            {client.clientType}
+                        </Badge>
                     </div>
-                  </TableCell>
-                  <TableCell>{client.source}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <DropdownMenuItem>Delete</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </CardHeader>
+                <CardContent className="flex-grow space-y-6">
+                    {client.socialLinks && client.socialLinks.length > 0 && (
+                        <div className="flex items-center gap-3">
+                            {client.socialLinks.map(link => (
+                                <a key={`${link.platform}-${link.url}`} href={link.url} target="_blank" rel="noopener noreferrer">
+                                    <SocialIcon platform={link.platform} />
+                                </a>
+                            ))}
+                        </div>
+                    )}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
+                        <ClientStat label="Income Source" value={client.source} />
+                        <ClientStat label="Client Since" value={client.clientSince} />
+                        <ClientStat label="Last Order" value={client.lastOrder} />
+                        <ClientStat label="Total Orders" value={client.totalOrders} />
+                        <ClientStat label="Total Earning" value={`$${client.totalEarning.toLocaleString()}`} />
+                    </div>
+                </CardContent>
+                <CardFooter className="flex justify-end gap-2 bg-muted/30 p-4">
+                    <Button variant="outline" size="sm">
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                    </Button>
+                    <Button variant="destructive" size="sm">
+                         <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                    </Button>
+                </CardFooter>
+            </Card>
+        ))}
+      </div>
     </main>
   );
 }
