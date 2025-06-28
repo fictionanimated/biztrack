@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 export interface Stat {
   icon: string;
   title: string;
-  value: string;
+  value: ReactNode;
   change?: string;
   changeType?: "increase" | "decrease";
   description: ReactNode;

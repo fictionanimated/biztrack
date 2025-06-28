@@ -55,6 +55,7 @@ import {
 import {
     Form,
     FormControl,
+    FormDescription,
     FormField,
     FormItem,
     FormLabel,
@@ -79,6 +80,8 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import StatCard from "@/components/dashboard/stat-card";
+import { Switch } from "@/components/ui/switch";
 
 const ExpenseChart = lazy(() => import("@/components/expenses/expense-chart"));
 const ExpenseTrendChart = lazy(() => import("@/components/expenses/expense-trend-chart"));
@@ -89,6 +92,7 @@ const expenseFormSchema = z.object({
   type: z.string().min(2, { message: "Type must be at least 2 characters." }),
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   category: z.string().min(1, { message: "Please select a category." }),
+  recurring: z.boolean().default(false),
 });
 
 type ExpenseFormValues = z.infer<typeof expenseFormSchema>;
@@ -99,14 +103,15 @@ interface Expense {
     type: string;
     amount: number;
     category: string;
+    recurring?: boolean;
 }
 
 const initialExpenses: Expense[] = [
   // May 2024
-  { id: "1", date: "2024-05-01", type: "Figma Subscription", amount: 49.99, category: "Software" },
-  { id: "2", date: "2024-05-05", type: "New Monitors", amount: 125.50, category: "Office Supplies" },
+  { id: "1", date: "2024-05-01", type: "Figma Subscription", amount: 49.99, category: "Software", recurring: true },
+  { id: "2", date: "2024-05-05", type: "New Monitors", amount: 599.00, category: "Hardware" },
   { id: "3", date: "2024-05-10", type: "Google Ads", amount: 500.00, category: "Marketing" },
-  { id: "4", date: "2024-05-15", type: "Vercel Hosting", amount: 75.00, category: "Cloud Hosting" },
+  { id: "4", date: "2024-05-15", type: "Vercel Hosting", amount: 75.00, category: "Cloud Hosting", recurring: true },
   { id: "5", date: "2024-05-20", type: "Contractor John", amount: 1200.00, category: "Freelancer Payment" },
   { id: "11", date: "2024-05-25", type: "Lunch with client", amount: 85.00, category: "Travel" },
   { id: "12", date: "2024-05-28", type: "Stock Photos", amount: 99.00, category: "Software" },
@@ -114,21 +119,23 @@ const initialExpenses: Expense[] = [
   // April 2024
   { id: "6", date: "2024-04-15", type: "Stationery", amount: 80.00, category: "Office Supplies" },
   { id: "7", date: "2024-04-25", type: "Flight to Conference", amount: 350.00, category: "Travel" },
-  { id: "13", date: "2024-04-01", type: "Figma Subscription", amount: 49.99, category: "Software" },
+  { id: "13", date: "2024-04-01", type: "Figma Subscription", amount: 49.99, category: "Software", recurring: true },
   { id: "14", date: "2024-04-10", type: "LinkedIn Ads", amount: 450.00, category: "Marketing" },
   { id: "15", date: "2024-04-20", type: "Contractor Sarah", amount: 1100.00, category: "Freelancer Payment" },
-  { id: "16", date: "2024-04-28", type: "New Keyboard", amount: 150.00, category: "Office Supplies" },
+  { id: "16", date: "2024-04-28", type: "New Keyboard", amount: 150.00, category: "Hardware" },
+  { id: "21", date: "2024-04-15", type: "Vercel Hosting", amount: 75.00, category: "Cloud Hosting", recurring: true },
 
   // March 2024
-  { id: "17", date: "2024-03-01", type: "Figma Subscription", amount: 49.99, category: "Software" },
-  { id: "18", date: "2024-03-12", type: "Webinar Software", amount: 200.00, category: "Software" },
+  { id: "17", date: "2024-03-01", type: "Figma Subscription", amount: 49.99, category: "Software", recurring: true },
+  { id: "18", date: "2024-03-12", type: "Webinar Software", amount: 200.00, category: "Software", recurring: true },
   { id: "19", date: "2024-03-18", type: "Facebook Ads", amount: 300.00, category: "Marketing" },
   { id: "20", date: "2024-03-25", type: "Contractor Mike", amount: 950.00, category: "Freelancer Payment" },
+  { id: "22", date: "2024-03-15", type: "Vercel Hosting", amount: 75.00, category: "Cloud Hosting", recurring: true },
   
   // Old data
   { id: "8", date: "2023-12-20", type: "Contractor Jane", amount: 1500.00, category: "Freelancer Payment" },
-  { id: "9", date: "2023-12-05", type: "AWS Bill", amount: 75.00, category: "Cloud Hosting" },
-  { id: "10", date: "2022-01-10", type: "Adobe Creative Cloud", amount: 49.99, category: "Software" },
+  { id: "9", date: "2023-12-05", type: "AWS Bill", amount: 75.00, category: "Cloud Hosting", recurring: true },
+  { id: "10", date: "2022-01-10", type: "Adobe Creative Cloud", amount: 49.99, category: "Software", recurring: true },
 ];
 
 
@@ -154,6 +161,7 @@ export default function ExpensesPage() {
     "Software", 
     "Subscription",
     "Office Supplies", 
+    "Hardware",
     "Marketing", 
     "Cloud Hosting", 
     "Freelancer Payment", 
@@ -169,6 +177,7 @@ export default function ExpensesPage() {
         type: "",
         amount: 0,
         category: "",
+        recurring: false,
     },
   });
 
@@ -180,6 +189,7 @@ export default function ExpensesPage() {
         type: expense.type,
         amount: expense.amount,
         category: expense.category,
+        recurring: expense.recurring || false,
       });
     } else {
       setEditingExpense(null);
@@ -188,6 +198,7 @@ export default function ExpensesPage() {
         type: "",
         amount: 0,
         category: "",
+        recurring: false,
       });
     }
     setOpen(true);
@@ -200,6 +211,7 @@ export default function ExpensesPage() {
       type: values.type,
       amount: values.amount,
       category: values.category,
+      recurring: values.recurring,
     };
 
     if (editingExpense) {
@@ -281,6 +293,11 @@ export default function ExpensesPage() {
     avgDailyBurn,
     totalExpensesChange,
     avgDailyBurnChange,
+    topSpendingCategory,
+    momExpenseGrowth,
+    largestSingleExpense,
+    totalRecurringCost,
+    fixedCostRatio,
   } = useMemo(() => {
     // Current period calculations
     const currentTotal = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
@@ -308,7 +325,6 @@ export default function ExpensesPage() {
       previousAvgBurn = prevDays > 0 ? previousTotal / prevDays : 0;
     }
     
-    // Change calculations
     const calculateChange = (current: number, previous: number) => {
         if (previous === 0) {
             return current > 0 ? { value: '+100.0', type: 'increase' as const } : null;
@@ -326,14 +342,81 @@ export default function ExpensesPage() {
 
     const totalExpensesChange = calculateChange(currentTotal, previousTotal);
     const avgDailyBurnChange = calculateChange(currentAvgBurn, previousAvgBurn);
+    
+    // Top Spending Category
+    const categoryTotals = filteredExpenses.reduce((acc, expense) => {
+        acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+        return acc;
+    }, {} as Record<string, number>);
+
+    let topSpendingCategory = { name: "N/A", amount: 0 };
+    if (Object.keys(categoryTotals).length > 0) {
+        const topCategoryName = Object.keys(categoryTotals).reduce((a, b) => categoryTotals[a] > categoryTotals[b] ? a : b);
+        topSpendingCategory = { name: topCategoryName, amount: categoryTotals[topCategoryName] };
+    }
+
+    // Largest Single Expense
+    let largestSingleExpense = { type: 'N/A', amount: 0 };
+    if (filteredExpenses.length > 0) {
+        const largest = filteredExpenses.reduce((max, expense) => expense.amount > max.amount ? expense : max, filteredExpenses[0]);
+        largestSingleExpense = { type: largest.type, amount: largest.amount };
+    }
+    
+    // MoM Expense Growth
+    const thisMonthDate = date?.to ? new Date(date.to) : new Date();
+    const currentMonth = thisMonthDate.getMonth();
+    const currentYear = thisMonthDate.getFullYear();
+    
+    const lastMonthDate = new Date(thisMonthDate);
+    lastMonthDate.setMonth(currentMonth - 1);
+    const lastMonth = lastMonthDate.getMonth();
+    const lastMonthYear = lastMonthDate.getFullYear();
+
+    const thisMonthExpensesTotal = expenses
+        .filter(e => {
+            const expenseDate = new Date(e.date.replace(/-/g, '/'));
+            return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+        })
+        .reduce((sum, e) => sum + e.amount, 0);
+
+    const lastMonthExpensesTotal = expenses
+        .filter(e => {
+            const expenseDate = new Date(e.date.replace(/-/g, '/'));
+            return expenseDate.getMonth() === lastMonth && expenseDate.getFullYear() === lastMonthYear;
+        })
+        .reduce((sum, e) => sum + e.amount, 0);
+
+    const momExpenseGrowth = calculateChange(thisMonthExpensesTotal, lastMonthExpensesTotal);
+    
+    // Recurring Costs
+    const recurringExpensesInPeriod = filteredExpenses.filter(e => e.recurring);
+    const totalRecurringInPeriod = recurringExpensesInPeriod.reduce((sum, e) => sum + e.amount, 0);
+    const fixedCostRatioValue = currentTotal > 0 ? (totalRecurringInPeriod / currentTotal) * 100 : 0;
+    
+    const fixedCostRatio = {
+        value: `${fixedCostRatioValue.toFixed(1)}%`,
+    };
+
+    const totalRecurringCostForMonth = expenses
+      .filter(e => e.recurring)
+      .filter(e => {
+          const expenseDate = new Date(e.date.replace(/-/g, '/'));
+          return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+      })
+      .reduce((sum, e) => sum + e.amount, 0);
 
     return { 
       totalExpenses: currentTotal, 
       avgDailyBurn: currentAvgBurn,
       totalExpensesChange,
       avgDailyBurnChange,
+      topSpendingCategory,
+      momExpenseGrowth,
+      largestSingleExpense,
+      totalRecurringCost: totalRecurringCostForMonth,
+      fixedCostRatio,
     };
-  }, [filteredExpenses, expenses, date]);
+  }, [date, expenses, filteredExpenses]);
 
   const expensesByCategory = useMemo(() => {
     const categoryMap: Map<string, number> = new Map();
@@ -576,6 +659,26 @@ export default function ExpensesPage() {
                                 </FormItem>
                             )}
                         />
+                        <FormField
+                            control={form.control}
+                            name="recurring"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                    <div className="space-y-0.5">
+                                        <FormLabel>Recurring Expense</FormLabel>
+                                        <FormDescription>
+                                            Mark this if it's a regular, predictable cost.
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
                         <DialogFooter>
                             <DialogClose asChild>
                                 <Button type="button" variant="secondary" onClick={() => setEditingExpense(null)}>Cancel</Button>
@@ -634,6 +737,46 @@ export default function ExpensesPage() {
             </Card>
         </div>
 
+        <h2 className="text-xl font-semibold mb-[-8px] mt-4">Expense Analysis</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+                icon="BarChart"
+                title="Top Spending Category"
+                value={topSpendingCategory.name}
+                description={`$${topSpendingCategory.amount.toFixed(2)} of total`}
+            />
+             <StatCard
+                icon="CreditCard"
+                title="Largest Single Expense"
+                value={`$${largestSingleExpense.amount.toFixed(2)}`}
+                description={`(${largestSingleExpense.type})`}
+            />
+            <StatCard
+                icon="TrendingUp"
+                title="MoM Expense Growth"
+                value={momExpenseGrowth ? (
+                    <div className={cn("flex items-center", momExpenseGrowth.type === 'increase' ? 'text-red-600' : 'text-green-600')}>
+                        {momExpenseGrowth.type === 'increase' ? <ArrowUp className="h-6 w-6 mr-1" /> : <ArrowDown className="h-6 w-6 mr-1" />}
+                        <span>{momExpenseGrowth.value}%</span>
+                    </div>
+                ) : 'N/A'}
+                description="vs. previous month"
+                invertChangeColor
+            />
+            <StatCard
+                icon="Repeat"
+                title="Total Recurring Costs"
+                value={`$${totalRecurringCost.toFixed(2)} / month`}
+                description="Based on current month's recurring expenses"
+            />
+            <StatCard
+                icon="Percent"
+                title="Fixed Cost Ratio"
+                value={fixedCostRatio.value}
+                description="of total spending in period is recurring"
+            />
+        </div>
+
         <Card>
             <CardHeader>
             <CardTitle>Manage Expenses</CardTitle>
@@ -648,6 +791,7 @@ export default function ExpensesPage() {
                     <TableHead>Date</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Category</TableHead>
+                    <TableHead>Recurring</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>
                     <span className="sr-only">Actions</span>
@@ -661,6 +805,7 @@ export default function ExpensesPage() {
                         <TableCell>{format(new Date(expense.date.replace(/-/g, '/')), "PPP")}</TableCell>
                         <TableCell className="font-medium">{expense.type}</TableCell>
                         <TableCell>{expense.category}</TableCell>
+                        <TableCell>{expense.recurring ? 'Yes' : 'No'}</TableCell>
                         <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
                         <TableCell className="text-right">
                             <DropdownMenu>
@@ -681,7 +826,7 @@ export default function ExpensesPage() {
                     ))
                 ) : (
                     <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">No expenses found for the selected period.</TableCell>
+                        <TableCell colSpan={6} className="h-24 text-center">No expenses found for the selected period.</TableCell>
                     </TableRow>
                 )}
                 </TableBody>
