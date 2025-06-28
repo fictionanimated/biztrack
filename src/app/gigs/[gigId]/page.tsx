@@ -88,6 +88,20 @@ const gigData = {
       changeType: "decrease" as const,
       description: "from last month",
     },
+    {
+      icon: "DollarSign",
+      title: "Revenue",
+      value: "$2,250",
+      change: "+15%",
+      changeType: "increase" as const,
+      description: "from last month",
+    },
+    {
+      icon: "ShoppingCart",
+      title: "Total Source Orders",
+      value: "120",
+      description: "All orders from Web Design",
+    },
   ],
   analyticsData: [
     { date: "2024-05-01", impressions: 300, clicks: 20, messages: 5, orders: 2 },
@@ -180,7 +194,7 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
 
       <section>
         <h2 className="text-xl font-semibold mb-4">Performance Overview</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
           {gigData.stats.map((stat) => (
             <StatCard key={stat.title} {...stat} />
           ))}
