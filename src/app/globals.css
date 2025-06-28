@@ -110,6 +110,10 @@
 }
 
 @layer utilities {
+  .summary-calendar .rdp-table {
+    width: 100%;
+    table-layout: fixed;
+  }
   .summary-calendar .rdp-row {
     height: 6rem;
   }

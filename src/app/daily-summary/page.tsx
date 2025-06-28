@@ -90,7 +90,7 @@ function DayWithSummary({ date, summaries, onEdit, onDelete }: { date: Date; sum
         <PopoverContent className="w-80">
           <div className="grid gap-4">
             <div className="space-y-2">
-              <h4 className="font-medium leading-none">{format(date, "PPPP")}</h4>
+              <h4 className="font-medium leading-none">{format(new Date(summary.date.replace(/-/g, '/')), "PPPP")}</h4>
               <p className="text-sm text-muted-foreground whitespace-pre-line">{summary.content}</p>
             </div>
             <div className="flex justify-end gap-2">
