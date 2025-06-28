@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -69,15 +70,25 @@ const summaryFormSchema = z.object({
 
 type SummaryFormValues = z.infer<typeof summaryFormSchema>;
 
-function DayWithSummary({ date, summaries, onEdit, onDelete }: { date: Date; summaries: DailySummary[]; onEdit: (summary: DailySummary) => void; onDelete: (summary: DailySummary) => void; }) {
-  const summary = summaries.find(s => {
-    // Robustly compare dates by their components to avoid timezone issues.
-    const [year, month, day] = s.date.split('-').map(Number);
-    return date.getFullYear() === year &&
-           date.getMonth() === month - 1 &&
-           date.getDate() === day;
-  });
+// Helper function to format a Date object to a 'yyyy-MM-dd' string consistently
+const toYyyyMmDd = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
+// Helper function to parse a 'yyyy-MM-dd' string into a local Date object safely
+const fromYyyyMmDd = (dateString: string): Date => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+
+function DayWithSummary({ date, summaries, onEdit, onDelete }: { date: Date; summaries: DailySummary[]; onEdit: (summary: DailySummary) => void; onDelete: (summary: DailySummary) => void; }) {
+  const formattedDate = toYyyyMmDd(date);
+  const summary = summaries.find(s => s.date === formattedDate);
+  
   if (summary) {
     return (
       <Popover>
@@ -90,7 +101,7 @@ function DayWithSummary({ date, summaries, onEdit, onDelete }: { date: Date; sum
         <PopoverContent className="w-80">
           <div className="grid gap-4">
             <div className="space-y-2">
-              <h4 className="font-medium leading-none">{format(new Date(summary.date.replace(/-/g, '/')), "PPPP")}</h4>
+              <h4 className="font-medium leading-none">{format(date, "PPPP")}</h4>
               <p className="text-sm text-muted-foreground whitespace-pre-line">{summary.content}</p>
             </div>
             <div className="flex justify-end gap-2">
@@ -131,7 +142,7 @@ export default function DailySummaryPage() {
     if (summary) {
       setEditingSummary(summary);
       form.reset({
-        date: new Date(summary.date.replace(/-/g, '/')),
+        date: fromYyyyMmDd(summary.date),
         content: summary.content,
       });
     } else {
@@ -145,7 +156,7 @@ export default function DailySummaryPage() {
   };
 
   const onSubmit = (values: SummaryFormValues) => {
-    const formattedDate = format(values.date, "yyyy-MM-dd");
+    const formattedDate = toYyyyMmDd(values.date);
     const existingSummaryForDate = summaries.find(s => s.date === formattedDate && s.id !== editingSummary?.id);
     
     if (existingSummaryForDate) {
@@ -168,7 +179,7 @@ export default function DailySummaryPage() {
       toast({ title: "Summary Updated" });
     } else {
       const updatedSummaries = [...summaries, newSummary];
-      updatedSummaries.sort((a,b) => new Date(b.date.replace(/-/g, '/')).getTime() - new Date(a.date.replace(/-/g, '/')).getTime());
+      updatedSummaries.sort((a,b) => fromYyyyMmDd(b.date).getTime() - fromYyyyMmDd(a.date).getTime());
       setSummaries(updatedSummaries);
       toast({ title: "Summary Added" });
     }
@@ -185,20 +196,21 @@ export default function DailySummaryPage() {
   }
 
   const modifiers = {
-    withSummary: summaries.map(s => new Date(s.date.replace(/-/g, '/')))
+    withSummary: summaries.map(s => fromYyyyMmDd(s.date))
   };
+
   const modifiersClassNames = {
     withSummary: 'bg-accent/50 rounded-md relative',
   };
 
-  const DayContent = useCallback((props: any) => (
+  const DayContent = (props: any) => (
       <DayWithSummary 
         date={props.date} 
         summaries={summaries} 
         onEdit={handleOpenDialog}
         onDelete={setDeletingSummary}
       />
-    ), [summaries]);
+    );
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -295,7 +307,7 @@ export default function DailySummaryPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will permanently delete the summary for {deletingSummary && format(new Date(deletingSummary.date.replace(/-/g, '/')), 'PPP')}.
+                    This will permanently delete the summary for {deletingSummary && format(fromYyyyMmDd(deletingSummary.date), 'PPP')}.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -307,3 +319,5 @@ export default function DailySummaryPage() {
     </main>
   );
 }
+
+    

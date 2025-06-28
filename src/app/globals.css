@@ -1,3 +1,4 @@
+
 #nprogress {
   pointer-events: none;
 }
@@ -136,3 +137,5 @@
     border: 1px solid hsl(var(--primary));
   }
 }
+
+    
