@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { CalendarIcon, MoreHorizontal } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -42,6 +42,16 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
     Form,
     FormControl,
@@ -125,6 +135,8 @@ const initialExpenses: Expense[] = [
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [open, setOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const { toast } = useToast();
@@ -160,22 +172,63 @@ export default function ExpensesPage() {
     },
   });
 
+  const handleOpenDialog = (expense: Expense | null = null) => {
+    if (expense) {
+      setEditingExpense(expense);
+      form.reset({
+        date: new Date(expense.date.replace(/-/g, '/')),
+        type: expense.type,
+        amount: expense.amount,
+        category: expense.category,
+      });
+    } else {
+      setEditingExpense(null);
+      form.reset({
+        date: new Date(),
+        type: "",
+        amount: 0,
+        category: "",
+      });
+    }
+    setOpen(true);
+  };
+
   function onSubmit(values: ExpenseFormValues) {
-    const newExpense: Expense = {
-        id: `exp-${Date.now()}`,
-        date: format(values.date, "yyyy-MM-dd"),
-        type: values.type,
-        amount: values.amount,
-        category: values.category,
+    const expenseData: Expense = {
+      id: editingExpense ? editingExpense.id : `exp-${Date.now()}`,
+      date: format(values.date, "yyyy-MM-dd"),
+      type: values.type,
+      amount: values.amount,
+      category: values.category,
     };
-    setExpenses([newExpense, ...expenses]);
-    toast({
+
+    if (editingExpense) {
+      setExpenses(expenses.map(exp => exp.id === editingExpense.id ? expenseData : exp));
+      toast({
+        title: "Expense Updated",
+        description: `${values.type} has been updated.`,
+      });
+    } else {
+      setExpenses([expenseData, ...expenses]);
+      toast({
         title: "Expense Added",
         description: `${values.type} has been added to your expenses.`,
-    });
-    form.reset();
+      });
+    }
+    
+    setEditingExpense(null);
     setOpen(false);
   }
+
+  const handleDeleteExpense = () => {
+    if (!deletingExpense) return;
+    setExpenses(expenses.filter(exp => exp.id !== deletingExpense.id));
+    toast({
+      title: "Expense Deleted",
+      description: `Expense "${deletingExpense.type}" has been removed.`,
+    });
+    setDeletingExpense(null);
+  };
 
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
@@ -220,10 +273,21 @@ export default function ExpensesPage() {
       }
       
       return true;
-    });
+    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [date, expenses, filterCategory]);
 
-  const totalExpenses = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const { totalExpenses, avgDailyBurn } = useMemo(() => {
+    const currentTotalExpenses = filteredExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+    
+    let days = 0;
+    if (date?.from && date?.to) {
+      days = (date.to.getTime() - date.from.getTime()) / (1000 * 60 * 60 * 24) + 1;
+    }
+    
+    const currentAvgDailyBurn = days > 0 ? currentTotalExpenses / days : 0;
+
+    return { totalExpenses: currentTotalExpenses, avgDailyBurn: currentAvgDailyBurn };
+  }, [filteredExpenses, date]);
 
   const expensesByCategory = useMemo(() => {
     const categoryMap: Map<string, number> = new Map();
@@ -369,13 +433,13 @@ export default function ExpensesPage() {
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button>Add New Expense</Button>
+                <Button onClick={() => handleOpenDialog()}>Add New Expense</Button>
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Add New Expense</DialogTitle>
+                    <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
                     <DialogDescription>
-                        Fill in the details below to add a new expense.
+                        Fill in the details below to {editingExpense ? 'update an' : 'add a new'} expense.
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
@@ -452,7 +516,7 @@ export default function ExpensesPage() {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Category</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                                         <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select a category" />
@@ -468,9 +532,9 @@ export default function ExpensesPage() {
                         />
                         <DialogFooter>
                             <DialogClose asChild>
-                                <Button type="button" variant="secondary">Cancel</Button>
+                                <Button type="button" variant="secondary" onClick={() => setEditingExpense(null)}>Cancel</Button>
                             </DialogClose>
-                            <Button type="submit">Add Expense</Button>
+                            <Button type="submit">{editingExpense ? 'Save Changes' : 'Add Expense'}</Button>
                         </DialogFooter>
                     </form>
                 </Form>
@@ -479,6 +543,27 @@ export default function ExpensesPage() {
         </div>
       </div>
       <div className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Total Expenses</CardTitle>
+                    <CardDescription>Total for the selected period.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">${totalExpenses.toFixed(2)}</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Avg. Daily Burn</CardTitle>
+                    <CardDescription>Average daily cost to run the business.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">${avgDailyBurn.toFixed(2)}</p>
+                </CardContent>
+            </Card>
+        </div>
+
         <Card>
             <CardHeader>
             <CardTitle>Manage Expenses</CardTitle>
@@ -507,7 +592,7 @@ export default function ExpensesPage() {
                         <TableCell className="font-medium">{expense.type}</TableCell>
                         <TableCell>{expense.category}</TableCell>
                         <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -517,8 +602,8 @@ export default function ExpensesPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem>Edit</DropdownMenuItem>
-                                <DropdownMenuItem>Delete</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenDialog(expense)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setDeletingExpense(expense)} className="text-destructive">Delete</DropdownMenuItem>
                             </DropdownMenuContent>
                             </DropdownMenu>
                         </TableCell>
@@ -541,17 +626,8 @@ export default function ExpensesPage() {
                 onShowComparisonChange={setShowComparison}
             />
         </Suspense>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-1">
             <Card>
-                <CardHeader>
-                    <CardTitle>Total Expenses</CardTitle>
-                    <CardDescription>Total for the selected period.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-4xl font-bold">${totalExpenses.toFixed(2)}</p>
-                </CardContent>
-            </Card>
-            <Card className="md:col-span-2">
                 <CardHeader>
                     <CardTitle>Expenses by Category</CardTitle>
                     <CardDescription>A breakdown of your expenses for the selected period.</CardDescription>
@@ -570,6 +646,22 @@ export default function ExpensesPage() {
             </Card>
         </div>
       </div>
+       <AlertDialog open={!!deletingExpense} onOpenChange={(open) => !open && setDeletingExpense(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the expense "{deletingExpense?.type}".
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingExpense(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteExpense} className={buttonVariants({ variant: "destructive" })}>
+                Delete
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
