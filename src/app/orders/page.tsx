@@ -72,6 +72,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DateFilter } from "@/components/dashboard/date-filter";
+import { Textarea } from "@/components/ui/textarea";
 
 
 interface Order {
@@ -113,6 +114,7 @@ const orderFormSchema = z.object({
   rating: z.coerce.number().min(0, "Rating must be at least 0").max(5, "Rating cannot be more than 5").optional(),
   isCancelled: z.boolean().default(false),
   cancellationReasons: z.array(z.string()).optional(),
+  customCancellationReason: z.string().optional(),
 });
 
 type OrderFormValues = z.infer<typeof orderFormSchema>;
@@ -209,6 +211,7 @@ export default function OrdersPage() {
             rating: undefined,
             isCancelled: false,
             cancellationReasons: [],
+            customCancellationReason: "",
         }
     });
 
@@ -225,12 +228,24 @@ export default function OrdersPage() {
                 rating: undefined,
                 isCancelled: false,
                 cancellationReasons: [],
+                customCancellationReason: "",
             });
         }
         setOpen(isOpen);
     };
 
     function onSubmit(values: OrderFormValues) {
+        let finalCancellationReasons: string[] | undefined = undefined;
+        if (values.isCancelled) {
+            const reasons = values.cancellationReasons || [];
+            if (values.customCancellationReason && values.customCancellationReason.trim()) {
+                reasons.push(values.customCancellationReason.trim());
+            }
+            if (reasons.length > 0) {
+                finalCancellationReasons = reasons;
+            }
+        }
+
         const newOrder: Order = {
             id: values.id,
             clientUsername: values.username,
@@ -239,7 +254,7 @@ export default function OrdersPage() {
             source: values.source,
             rating: values.rating,
             status: values.isCancelled ? 'Cancelled' : 'Completed',
-            cancellationReasons: values.isCancelled ? values.cancellationReasons : undefined,
+            cancellationReasons: finalCancellationReasons,
         };
         setOrders([newOrder, ...orders]);
         toast({
@@ -481,56 +496,71 @@ export default function OrdersPage() {
                         />
                         
                         {isCancelled && (
-                            <FormField
-                                control={form.control}
-                                name="cancellationReasons"
-                                render={() => (
-                                    <FormItem className="rounded-md border p-4">
-                                        <div className="mb-4">
-                                            <FormLabel className="text-base">Reason for Cancellation</FormLabel>
-                                            <FormDescription>
-                                                Select one or more reasons.
-                                            </FormDescription>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {cancellationReasonsList.map((reason) => (
-                                                <FormField
-                                                    key={reason}
-                                                    control={form.control}
-                                                    name="cancellationReasons"
-                                                    render={({ field }) => {
-                                                        return (
-                                                            <FormItem
-                                                                key={reason}
-                                                                className="flex flex-row items-start space-x-3 space-y-0"
-                                                            >
-                                                                <FormControl>
-                                                                    <Checkbox
-                                                                        checked={field.value?.includes(reason)}
-                                                                        onCheckedChange={(checked) => {
-                                                                            return checked
-                                                                                ? field.onChange([...(field.value || []), reason])
-                                                                                : field.onChange(
-                                                                                    field.value?.filter(
-                                                                                        (value) => value !== reason
+                            <div className="space-y-4 rounded-md border p-4">
+                                <FormField
+                                    control={form.control}
+                                    name="cancellationReasons"
+                                    render={() => (
+                                        <FormItem>
+                                            <div className="mb-4">
+                                                <FormLabel className="text-base">Reason for Cancellation</FormLabel>
+                                                <FormDescription>
+                                                    Select any applicable reasons.
+                                                </FormDescription>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {cancellationReasonsList.map((reason) => (
+                                                    <FormField
+                                                        key={reason}
+                                                        control={form.control}
+                                                        name="cancellationReasons"
+                                                        render={({ field }) => {
+                                                            return (
+                                                                <FormItem
+                                                                    key={reason}
+                                                                    className="flex flex-row items-start space-x-3 space-y-0"
+                                                                >
+                                                                    <FormControl>
+                                                                        <Checkbox
+                                                                            checked={field.value?.includes(reason)}
+                                                                            onCheckedChange={(checked) => {
+                                                                                return checked
+                                                                                    ? field.onChange([...(field.value || []), reason])
+                                                                                    : field.onChange(
+                                                                                        field.value?.filter(
+                                                                                            (value) => value !== reason
+                                                                                        )
                                                                                     )
-                                                                                )
-                                                                        }}
-                                                                    />
-                                                                </FormControl>
-                                                                <FormLabel className="font-normal">
-                                                                    {reason}
-                                                                </FormLabel>
-                                                            </FormItem>
-                                                        )
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                                                                            }}
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormLabel className="font-normal">
+                                                                        {reason}
+                                                                    </FormLabel>
+                                                                </FormItem>
+                                                            )
+                                                        }}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="customCancellationReason"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Other Reason</FormLabel>
+                                            <FormControl>
+                                                <Textarea placeholder="If other, please specify reason for cancellation..." {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
                         )}
 
                         <DialogFooter>
@@ -660,5 +690,7 @@ export default function OrdersPage() {
     </main>
   );
 }
+
+    
 
     
