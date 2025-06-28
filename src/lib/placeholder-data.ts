@@ -1,4 +1,5 @@
 import React, { type ReactNode } from "react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 
 export interface Stat {
   icon: string;
@@ -123,9 +124,33 @@ export const dashboardData: DashboardData = {
       changeType: "increase",
       description: React.createElement(
         "div",
-        { className: "flex flex-wrap items-center gap-x-4" },
-        React.createElement("span", { key: "new" }, "New: 227 (66%)"),
-        React.createElement("span", { key: "repeat" }, "Repeat: 117 (34%)")
+        { className: "flex flex-wrap items-center gap-x-4 gap-y-1" },
+        React.createElement(
+          "span",
+          { key: "new", className: "inline-flex items-center" },
+          "New: 227 (66%)",
+          React.createElement(
+            "span",
+            { className: "ml-1 inline-flex items-center text-green-600" },
+            "(",
+            React.createElement(ArrowUp, { className: "inline h-3 w-3" }),
+            "15.2%",
+            ")"
+          )
+        ),
+        React.createElement(
+          "span",
+          { key: "repeat", className: "inline-flex items-center" },
+          "Repeat: 117 (34%)",
+          React.createElement(
+            "span",
+            { className: "ml-1 inline-flex items-center text-red-600" },
+            "(",
+            React.createElement(ArrowDown, { className: "inline h-3 w-3" }),
+            "5.1%",
+            ")"
+          )
+        )
       ),
       className: "lg:col-span-2",
     },
