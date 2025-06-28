@@ -643,7 +643,7 @@ export default function IncomesPage() {
                                 </NProgressLink>
                             </TableCell>
                             <TableCell>
-                                {format(new Date(gig.date), "PPP")}
+                                {format(new Date(gig.date.replace(/-/g, '/')), "PPP")}
                             </TableCell>
                             <TableCell>
                                 {gig.messages ?? <span className="text-muted-foreground">N/A</span>}

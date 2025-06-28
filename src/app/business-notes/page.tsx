@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { format } from "date-fns";
 
 const notes = [
     { id: 1, date: "2024-05-20", title: "Q3 Marketing Ideas", content: "- Launch social media campaign for new service.\n- Collaborate with influencer in our niche.\n- Offer a time-limited discount." },
@@ -47,7 +48,7 @@ export default function BusinessNotesPage() {
                 <Card key={note.id}>
                     <CardHeader>
                         <CardTitle>{note.title}</CardTitle>
-                        <CardDescription>{new Date(note.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</CardDescription>
+                        <CardDescription>{format(new Date(note.date.replace(/-/g, '/')), 'PPP')}</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground whitespace-pre-line">{note.content}</p>

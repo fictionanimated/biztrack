@@ -291,14 +291,14 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
                     </TableHeader>
                     <TableBody>
                          <TableRow>
-                            <TableCell>{format(new Date(gigData.creationDate), "PPP")}</TableCell>
+                            <TableCell>{format(new Date(gigData.creationDate.replace(/-/g, '/')), "PPP")}</TableCell>
                             <TableCell>
                                 <Badge variant="secondary">Gig Created</Badge>
                             </TableCell>
                         </TableRow>
                         {gigData.mergeHistory.map((event, index) => (
                             <TableRow key={index}>
-                                <TableCell>{format(new Date(event.date), "PPP")}</TableCell>
+                                <TableCell>{format(new Date(event.date.replace(/-/g, '/')), "PPP")}</TableCell>
                                 <TableCell>
                                     <div className="font-medium">{event.action}</div>
                                     <div className="text-sm text-muted-foreground">Source: {event.mergedGig}</div>

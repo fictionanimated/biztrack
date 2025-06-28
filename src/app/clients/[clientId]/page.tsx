@@ -26,6 +26,7 @@ import { Facebook, Twitter, Linkedin, Github, Globe, DollarSign, ShoppingCart, B
 import type { Stat } from "@/lib/placeholder-data";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
 
 const ClientOrderHistoryChart = lazy(() => import("@/components/clients/client-order-history-chart"));
 
@@ -121,8 +122,8 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
     {
       icon: "Calendar",
       title: "Client Since",
-      value: new Date(client.clientSince).toLocaleDateString(),
-      description: `Last order on ${new Date(client.lastOrder).toLocaleDateString()}`,
+      value: format(new Date(client.clientSince.replace(/-/g, '/')), "PPP"),
+      description: `Last order on ${format(new Date(client.lastOrder.replace(/-/g, '/')), "PPP")}`,
     },
   ];
 
@@ -203,7 +204,7 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
                         {clientOrders.length > 0 ? clientOrders.map(order => (
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">{order.id}</TableCell>
-                                <TableCell>{new Date(order.date).toLocaleDateString()}</TableCell>
+                                <TableCell>{format(new Date(order.date.replace(/-/g, '/')), "PPP")}</TableCell>
                                 <TableCell>
                                     <Badge variant={order.status === 'Cancelled' ? 'destructive' : order.status === 'Completed' ? 'default' : 'secondary'}>
                                         {order.status}

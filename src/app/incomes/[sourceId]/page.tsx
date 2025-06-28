@@ -81,7 +81,7 @@ const ChartComponent = ({ data, config, activeMetrics, yAxisLabel, showCompariso
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
-                    tickFormatter={(value) => format(new Date(value), "MMM d")}
+                    tickFormatter={(value) => format(new Date(value.replace(/-/g, '/')), "MMM d")}
                 />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} label={yAxisLabel} />
                 <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
@@ -167,7 +167,7 @@ export default function SourceAnalyticsPage({
 
         const analyticsMap = new Map<string, { impressions: number; clicks: number; orders: number; revenue: number; }>();
         source.gigs.flatMap(gig => gig.analytics ?? [])
-            .filter(analytic => isDateInRange(new Date(analytic.date)))
+            .filter(analytic => isDateInRange(new Date(analytic.date.replace(/-/g, '/'))))
             .forEach(analytic => {
                 const existing = analyticsMap.get(analytic.date) || { impressions: 0, clicks: 0, orders: 0, revenue: 0 };
                 analyticsMap.set(analytic.date, {
@@ -188,7 +188,7 @@ export default function SourceAnalyticsPage({
 
         const messagesMap = new Map<string, { messages: number }>();
         (source.dataPoints ?? [])
-            .filter(dp => isDateInRange(new Date(dp.date)))
+            .filter(dp => isDateInRange(new Date(dp.date.replace(/-/g, '/'))))
             .forEach(dp => {
                 const existing = messagesMap.get(dp.date) || { messages: 0 };
                 messagesMap.set(dp.date, {
@@ -438,7 +438,7 @@ export default function SourceAnalyticsPage({
                                     {gig.name}
                                 </NProgressLink>
                             </TableCell>
-                            <TableCell>{format(new Date(gig.date), "PPP")}</TableCell>
+                            <TableCell>{format(new Date(gig.date.replace(/-/g, '/')), "PPP")}</TableCell>
                             <TableCell className="text-right">{gig.messages ?? <span className="text-muted-foreground">N/A</span>}</TableCell>
                          </TableRow>
                     ))}

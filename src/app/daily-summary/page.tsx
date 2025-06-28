@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { format } from "date-fns";
 
 const summaries = [
     { id: 1, date: "2024-05-25", content: "Great progress today. Closed two new clients and finished the design for Project X. Need to follow up with the marketing team tomorrow about the new campaign." },
@@ -44,7 +45,7 @@ export default function DailySummaryPage() {
             {summaries.map(summary => (
                 <Card key={summary.id}>
                     <CardHeader>
-                        <CardTitle>{new Date(summary.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</CardTitle>
+                        <CardTitle>{format(new Date(summary.date.replace(/-/g, '/')), 'PPPP')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground">{summary.content}</p>

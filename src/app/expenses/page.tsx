@@ -422,7 +422,7 @@ export default function ExpensesPage() {
                 {filteredExpenses.length > 0 ? (
                     filteredExpenses.map((expense) => (
                         <TableRow key={expense.id}>
-                        <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                        <TableCell>{format(new Date(expense.date.replace(/-/g, '/')), "PPP")}</TableCell>
                         <TableCell className="font-medium">{expense.type}</TableCell>
                         <TableCell>{expense.category}</TableCell>
                         <TableCell className="text-right">${expense.amount.toFixed(2)}</TableCell>
