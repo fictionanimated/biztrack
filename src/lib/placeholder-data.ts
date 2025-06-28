@@ -1,10 +1,12 @@
+import type { ReactNode } from "react";
+
 export interface Stat {
   icon: string;
   title: string;
   value: string;
   change?: string;
   changeType?: "increase" | "decrease";
-  description: string;
+  description: ReactNode;
 }
 
 export interface RecentOrder {

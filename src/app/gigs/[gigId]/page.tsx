@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -60,7 +61,21 @@ const gigData = {
       value: "45",
       change: "+5",
       changeType: "increase" as const,
-      description: "from last month",
+      description: (
+        <>
+          Repeat buyer: 20
+          <span className="ml-1 inline-flex items-center text-green-600">
+            (40%
+            <ArrowUp className="inline h-3 w-3" />)
+          </span>
+          <span className="mx-1">|</span>
+          New Buyer: 10
+          <span className="ml-1 inline-flex items-center text-red-600">
+            (50%
+            <ArrowDown className="inline h-3 w-3" />)
+          </span>
+        </>
+      ),
     },
     {
       icon: "Percent",
