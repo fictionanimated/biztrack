@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -101,7 +100,7 @@ const incomeSources = ["Comprehensive Web Design & Development for Enterprise", 
 
 const orderFormSchema = z.object({
   date: z.date({ required_error: "An order date is required." }),
-  id: z.string(),
+  id: z.string().min(1, "Order ID is required."),
   username: z.string().min(1, "Username is required."),
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   source: z.string().min(1, "Source is required."),
@@ -139,20 +138,11 @@ export default function OrdersPage() {
         }
     });
 
-    const nextOrderId = useMemo(() => {
-        const lastId = orders.reduce((max, order) => {
-            const idNum = parseInt(order.id.replace('ORD', ''), 10);
-            return idNum > max ? idNum : max;
-        }, 0);
-        return `ORD${String(lastId + 1).padStart(3, '0')}`;
-    }, [orders]);
-
-
     const handleOpenChange = (isOpen: boolean) => {
         if (isOpen) {
             form.reset({
                 date: new Date(),
-                id: nextOrderId,
+                id: "",
                 username: "",
                 amount: undefined,
                 source: "",
@@ -249,9 +239,9 @@ export default function OrdersPage() {
                                 name="id"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Order ID</FormLabel>
+                                    <FormLabel>Order ID*</FormLabel>
                                     <FormControl>
-                                    <Input {...field} disabled />
+                                    <Input placeholder="e.g., ORD006" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
