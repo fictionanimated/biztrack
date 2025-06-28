@@ -16,6 +16,13 @@ import IncomeChart from "./income-chart";
 import RecentOrders from "./recent-orders";
 import AiInsights from "./ai-insights";
 import TopClientsChart from "./top-clients-chart";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function DashboardClient({
   stats: initialStats,
@@ -85,6 +92,35 @@ export function DashboardClient({
           Dashboard
         </h1>
         <div className="ml-auto flex items-center gap-2">
+          <Select defaultValue="june">
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Select Month" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="january">January</SelectItem>
+              <SelectItem value="february">February</SelectItem>
+              <SelectItem value="march">March</SelectItem>
+              <SelectItem value="april">April</SelectItem>
+              <SelectItem value="may">May</SelectItem>
+              <SelectItem value="june">June</SelectItem>
+              <SelectItem value="july">July</SelectItem>
+              <SelectItem value="august">August</SelectItem>
+              <SelectItem value="september">September</SelectItem>
+              <SelectItem value="october">October</SelectItem>
+              <SelectItem value="november">November</SelectItem>
+              <SelectItem value="december">December</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select defaultValue="2024">
+            <SelectTrigger className="w-[100px]">
+              <SelectValue placeholder="Select Year" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="2024">2024</SelectItem>
+              <SelectItem value="2023">2023</SelectItem>
+              <SelectItem value="2022">2022</SelectItem>
+            </SelectContent>
+          </Select>
           <SetTargetDialog
             currentTarget={currentTarget}
             onSetTarget={handleSetTarget}
