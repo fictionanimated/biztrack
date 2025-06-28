@@ -44,7 +44,7 @@ const expenses = [
 
 export default function ExpensesPage() {
   const [date, setDate] = useState<DateRange | undefined>({
-    from: new Date(new Date().getFullYear(), 0, 1),
+    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     to: new Date(),
   });
 
