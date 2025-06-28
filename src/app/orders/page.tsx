@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -83,10 +83,10 @@ interface Order {
 
 const initialOrders: Order[] = [
     { id: 'ORD001', clientUsername: 'olivia.m', date: '2024-05-20', amount: 1999.00, source: 'Comprehensive Web Design & Development for Enterprise', gig: 'Acme Corp Redesign', status: 'Completed', rating: 5 },
-    { id: 'ORD002', clientUsername: 'jackson.l', date: '2024-05-21', amount: 399.00, source: 'Consulting', gig: 'Q1 Strategy Session', status: 'Completed', rating: 4 },
+    { id: 'ORD002', clientUsername: 'jackson.l', date: '2024-05-21', amount: 399.00, source: 'Consulting', gig: 'Q1 Strategy Session', status: 'Completed', rating: 4.2 },
     { id: 'ORD003', clientUsername: 'isabella.n', date: '2024-05-22', amount: 299.00, source: 'Logo Design', gig: "Brand Identity for 'Innovate'", status: 'Cancelled' },
     { id: 'ORD004', clientUsername: 'will.k', date: '2024-05-23', amount: 999.00, source: 'Web Design', gig: 'Startup Landing Page', status: 'In Progress' },
-    { id: 'ORD005', clientUsername: 'sofia.d', date: '2024-05-24', amount: 499.00, source: 'SEO Services and Digital Marketing Campaigns', gig: 'Monthly SEO Retainer', status: 'Completed', rating: 5 },
+    { id: 'ORD005', clientUsername: 'sofia.d', date: '2024-05-24', amount: 499.00, source: 'SEO Services and Digital Marketing Campaigns', gig: 'Monthly SEO Retainer', status: 'Completed', rating: 3.7 },
 ];
 
 const clients = [
@@ -101,30 +101,22 @@ const incomeSources = ["Comprehensive Web Design & Development for Enterprise", 
 
 const orderFormSchema = z.object({
   date: z.date({ required_error: "An order date is required." }),
+  id: z.string(),
   username: z.string().min(1, "Username is required."),
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   source: z.string().min(1, "Source is required."),
-  rating: z.number().min(0).max(5).optional(),
+  rating: z.coerce.number().min(0, "Rating must be at least 0").max(5, "Rating cannot be more than 5").optional(),
   isCancelled: z.boolean().default(false),
 });
 
 type OrderFormValues = z.infer<typeof orderFormSchema>;
 
 const StarDisplay = ({ rating }: { rating?: number }) => {
-    if (rating === undefined || rating === 0) return <span className="text-muted-foreground">N/A</span>;
+    if (rating === undefined) return <span className="text-muted-foreground">N/A</span>;
     return (
-        <div className="flex items-center gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-            <Star
-            key={star}
-            className={cn(
-                "h-4 w-4",
-                rating >= star
-                ? "text-primary fill-primary"
-                : "text-muted-foreground"
-            )}
-            />
-        ))}
+        <div className="flex items-center gap-1">
+            <Star className="h-4 w-4 text-primary" />
+            <span>{rating.toFixed(1)}</span>
         </div>
     );
 };
@@ -133,20 +125,38 @@ const StarDisplay = ({ rating }: { rating?: number }) => {
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>(initialOrders);
     const [open, setOpen] = useState(false);
+    const [isClient, setIsClient] = useState(false);
     const { toast } = useToast();
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const form = useForm<OrderFormValues>({
         resolver: zodResolver(orderFormSchema),
+        defaultValues: {
+            isCancelled: false,
+        }
     });
+
+    const nextOrderId = useMemo(() => {
+        const lastId = orders.reduce((max, order) => {
+            const idNum = parseInt(order.id.replace('ORD', ''), 10);
+            return idNum > max ? idNum : max;
+        }, 0);
+        return `ORD${String(lastId + 1).padStart(3, '0')}`;
+    }, [orders]);
+
 
     const handleOpenChange = (isOpen: boolean) => {
         if (isOpen) {
             form.reset({
                 date: new Date(),
+                id: nextOrderId,
                 username: "",
-                amount: 0,
+                amount: undefined,
                 source: "",
-                rating: 0,
+                rating: undefined,
                 isCancelled: false,
             });
         }
@@ -154,9 +164,8 @@ export default function OrdersPage() {
     };
 
     function onSubmit(values: OrderFormValues) {
-        const nextId = 'ORD' + String(orders.length + 1).padStart(3, '0');
         const newOrder: Order = {
-            id: nextId,
+            id: values.id,
             clientUsername: values.username,
             date: format(values.date, "yyyy-MM-dd"),
             amount: values.amount,
@@ -169,8 +178,12 @@ export default function OrdersPage() {
             title: "Order Added",
             description: `Order ${newOrder.id} has been successfully created.`,
         });
-        handleOpenChange(false);
+        setOpen(false);
     }
+
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -233,29 +246,32 @@ export default function OrdersPage() {
                             />
                             <FormField
                                 control={form.control}
-                                name="username"
+                                name="id"
                                 render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Username*</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a client" />
-                                        </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {clients.map(client => (
-                                                <SelectItem key={client.username} value={client.username}>
-                                                    {client.name} (@{client.username})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                <FormItem>
+                                    <FormLabel>Order ID</FormLabel>
+                                    <FormControl>
+                                    <Input {...field} disabled />
+                                    </FormControl>
                                     <FormMessage />
-                                    </FormItem>
+                                </FormItem>
                                 )}
                             />
                         </div>
+
+                        <FormField
+                            control={form.control}
+                            name="username"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Username*</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g., olivia.m" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <FormField
@@ -265,7 +281,7 @@ export default function OrdersPage() {
                                     <FormItem>
                                         <FormLabel>Amount*</FormLabel>
                                         <FormControl>
-                                            <Input type="number" placeholder="e.g., 499.99" {...field} />
+                                            <Input type="number" step="0.01" placeholder="e.g., 499.99" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -300,22 +316,16 @@ export default function OrdersPage() {
                             name="rating"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Rating</FormLabel>
+                                    <FormLabel>Rating (0.0 - 5.0)</FormLabel>
                                     <FormControl>
-                                        <div className="flex items-center gap-1">
-                                            {[1, 2, 3, 4, 5].map((star) => (
-                                                <Star
-                                                    key={star}
-                                                    className={cn(
-                                                        "h-6 w-6 cursor-pointer transition-colors",
-                                                        (field.value || 0) >= star
-                                                        ? "text-primary fill-primary"
-                                                        : "text-muted-foreground hover:text-primary/70"
-                                                    )}
-                                                    onClick={() => field.onChange(star === field.value ? 0 : star)}
-                                                />
-                                            ))}
-                                        </div>
+                                        <Input
+                                            type="number"
+                                            step="0.1"
+                                            placeholder="e.g., 4.2"
+                                            {...field}
+                                            onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                                            value={field.value ?? ""}
+                                        />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
