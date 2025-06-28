@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -70,7 +71,7 @@ const summaryFormSchema = z.object({
 type SummaryFormValues = z.infer<typeof summaryFormSchema>;
 
 function DayWithSummary({ date, summaries, onEdit, onDelete }: { date: Date; summaries: DailySummary[]; onEdit: (summary: DailySummary) => void; onDelete: (summary: DailySummary) => void; }) {
-  const summary = summaries.find(s => isSameDay(new Date(s.date.replace(/-/g, '/')), date));
+  const summary = summaries.find(s => isSameDay(new Date(`${s.date}T00:00:00`), date));
 
   if (summary) {
     return (
@@ -125,7 +126,7 @@ export default function DailySummaryPage() {
     if (summary) {
       setEditingSummary(summary);
       form.reset({
-        date: new Date(summary.date.replace(/-/g, '/')),
+        date: new Date(`${summary.date}T00:00:00`),
         content: summary.content,
       });
     } else {
@@ -177,7 +178,7 @@ export default function DailySummaryPage() {
   }
 
   const modifiers = {
-    withSummary: summaries.map(s => new Date(s.date.replace(/-/g, '/')))
+    withSummary: summaries.map(s => new Date(`${s.date}T00:00:00`))
   };
   const modifiersClassNames = {
     withSummary: 'bg-accent/50 rounded-md relative',
@@ -285,7 +286,7 @@ export default function DailySummaryPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will permanently delete the summary for {deletingSummary && format(new Date(deletingSummary.date.replace(/-/g, '/')), 'PPP')}.
+                    This will permanently delete the summary for {deletingSummary && format(new Date(`${deletingSummary.date}T00:00:00`), 'PPP')}.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
