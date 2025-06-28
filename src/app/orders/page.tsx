@@ -155,10 +155,9 @@ export default function OrdersPage() {
 
     const handleOpenChange = (isOpen: boolean) => {
         if (isOpen) {
-            const nextOrderId = `ORD${(orders.length + 1).toString().padStart(3, '0')}`;
             form.reset({
                 date: new Date(),
-                id: nextOrderId,
+                id: "",
                 username: "",
                 amount: undefined,
                 source: "",
