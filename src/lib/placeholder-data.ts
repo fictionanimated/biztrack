@@ -21,7 +21,6 @@ export interface RecentOrder {
 export interface IncomeBySource {
   source: string;
   amount: number;
-  fill: string;
 }
 
 export interface RevenueByDay {
@@ -216,11 +215,11 @@ export const dashboardData: DashboardData = {
     { date: "2024-04-30", revenue: 5600 },
   ],
   incomeBySource: [
-    { source: "Web Design", amount: 15231, fill: "var(--color-chart-1)" },
-    { source: "Consulting", amount: 10432, fill: "var(--color-chart-2)" },
-    { source: "Logo Design", amount: 8900, fill: "var(--color-chart-3)" },
-    { source: "SEO Services", amount: 6400, fill: "var(--color-chart-4)" },
-    { source: "Maintenance", amount: 4268, fill: "var(--color-chart-5)" },
+    { source: "Web Design", amount: 15231 },
+    { source: "Consulting", amount: 10432 },
+    { source: "Logo Design", amount: 8900 },
+    { source: "SEO Services", amount: 6400 },
+    { source: "Maintenance", amount: 4268 },
   ],
   recentOrders: [
     {

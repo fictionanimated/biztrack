@@ -22,10 +22,17 @@ export default function IncomeChart({ data }: IncomeChartProps) {
   }, [data]);
 
   const chartConfig = useMemo(() => {
-    return data.reduce((acc, { source, fill }) => {
+    const colors = [
+        "hsl(var(--chart-1))",
+        "hsl(var(--chart-2))",
+        "hsl(var(--chart-3))",
+        "hsl(var(--chart-4))",
+        "hsl(var(--chart-5))",
+    ];
+    return data.reduce((acc, { source }, index) => {
       acc[source] = {
         label: source,
-        color: fill,
+        color: colors[index % colors.length],
       };
       return acc;
     }, {} as ChartConfig);
@@ -61,7 +68,7 @@ export default function IncomeChart({ data }: IncomeChartProps) {
           strokeWidth={5}
         >
           {data.map((entry) => (
-             <Cell key={`cell-${entry.source}`} fill={entry.fill} />
+             <Cell key={`cell-${entry.source}`} fill={`var(--color-${entry.source})`} />
           ))}
         </Pie>
         <ChartLegend
