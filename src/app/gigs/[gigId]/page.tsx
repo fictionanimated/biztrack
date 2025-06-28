@@ -22,6 +22,7 @@ import GigAnalyticsChart from "@/components/gigs/analytics-chart";
 // Mock data for a single gig. In a real app, you'd fetch this.
 const gigData = {
   name: "Acme Corp Redesign",
+  source: "Web Design",
   creationDate: "2023-01-15",
   stats: [
     {
@@ -41,6 +42,22 @@ const gigData = {
       description: "from last month",
     },
     {
+      icon: "MessageSquare",
+      title: "Messages",
+      value: "125",
+      change: "+30",
+      changeType: "increase" as const,
+      description: "from last month",
+    },
+    {
+      icon: "ShoppingCart",
+      title: "Orders",
+      value: "45",
+      change: "+5",
+      changeType: "increase" as const,
+      description: "from last month",
+    },
+    {
       icon: "Percent",
       title: "Click-Through Rate (CTR)",
       value: "7.87%",
@@ -48,22 +65,14 @@ const gigData = {
       changeType: "decrease" as const,
       description: "from last month",
     },
-    {
-      icon: "ShoppingCart",
-      title: "Orders from Gig",
-      value: "45",
-      change: "+5",
-      changeType: "increase" as const,
-      description: "from last month",
-    },
   ],
   analyticsData: [
-    { date: "2024-05-01", impressions: 300, clicks: 20 },
-    { date: "2024-05-05", impressions: 450, clicks: 35 },
-    { date: "2024-05-10", impressions: 600, clicks: 50 },
-    { date: "2024-05-15", impressions: 550, clicks: 45 },
-    { date: "2024-05-20", impressions: 700, clicks: 60 },
-    { date: "2024-05-25", impressions: 820, clicks: 75 },
+    { date: "2024-05-01", impressions: 300, clicks: 20, messages: 5, orders: 2 },
+    { date: "2024-05-05", impressions: 450, clicks: 35, messages: 10, orders: 4 },
+    { date: "2024-05-10", impressions: 600, clicks: 50, messages: 15, orders: 7 },
+    { date: "2024-05-15", impressions: 550, clicks: 45, messages: 20, orders: 6 },
+    { date: "2024-05-20", impressions: 700, clicks: 60, messages: 25, orders: 9 },
+    { date: "2024-05-25", impressions: 820, clicks: 75, messages: 30, orders: 12 },
   ],
   mergeHistory: [
     {
@@ -91,10 +100,11 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
           Gig Analytics: <span className="text-primary">{gigData.name}</span>
         </h1>
       </div>
+       <CardDescription>From Income Source: {gigData.source}</CardDescription>
 
       <section>
         <h2 className="text-xl font-semibold mb-4">Performance Overview</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           {gigData.stats.map((stat) => (
             <StatCard key={stat.title} {...stat} />
           ))}
@@ -104,7 +114,7 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
          <Card className="lg:col-span-2">
             <CardHeader>
-                <CardTitle>Impressions & Clicks</CardTitle>
+                <CardTitle>Impressions, Clicks, Messages & Orders</CardTitle>
                 <CardDescription>Performance over the last 30 days.</CardDescription>
             </CardHeader>
             <CardContent>

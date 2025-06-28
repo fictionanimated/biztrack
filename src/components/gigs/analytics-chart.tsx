@@ -22,6 +22,8 @@ interface AnalyticsData {
   date: string;
   impressions: number;
   clicks: number;
+  messages: number;
+  orders: number;
 }
 
 interface GigAnalyticsChartProps {
@@ -36,6 +38,14 @@ const chartConfig = {
   clicks: {
     label: "Clicks",
     color: "hsl(var(--chart-2))",
+  },
+  messages: {
+    label: "Messages",
+    color: "hsl(var(--chart-3))",
+  },
+  orders: {
+    label: "Orders",
+    color: "hsl(var(--chart-4))",
   },
 } satisfies ChartConfig;
 
@@ -87,6 +97,20 @@ export default function GigAnalyticsChart({ data }: GigAnalyticsChartProps) {
           dataKey="clicks"
           type="natural"
           stroke="var(--color-clicks)"
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          dataKey="messages"
+          type="natural"
+          stroke="var(--color-messages)"
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          dataKey="orders"
+          type="natural"
+          stroke="var(--color-orders)"
           strokeWidth={2}
           dot={false}
         />

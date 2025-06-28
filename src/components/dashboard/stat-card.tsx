@@ -24,6 +24,7 @@ import {
   Eye,
   MousePointerClick,
   Percent,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,6 +44,7 @@ const iconMap: { [key: string]: LucideIcon } = {
     Eye,
     MousePointerClick,
     Percent,
+    MessageSquare,
 };
 
 export default function StatCard({
