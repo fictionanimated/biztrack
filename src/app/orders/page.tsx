@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, MoreHorizontal, Star } from "lucide-react";
+import { CalendarIcon, MoreHorizontal, Star, ArrowUpDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -125,19 +125,28 @@ export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>(initialOrders);
     const [open, setOpen] = useState(false);
     const { toast } = useToast();
+    const [sortConfig, setSortConfig] = useState<{ key: keyof Order | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
+
 
     const form = useForm<OrderFormValues>({
         resolver: zodResolver(orderFormSchema),
         defaultValues: {
+            date: undefined,
+            id: "",
+            username: "",
+            amount: undefined,
+            source: "",
+            rating: undefined,
             isCancelled: false,
         }
     });
 
     const handleOpenChange = (isOpen: boolean) => {
         if (isOpen) {
+            const nextOrderId = `ORD${(orders.length + 1).toString().padStart(3, '0')}`;
             form.reset({
                 date: new Date(),
-                id: `ORD${(orders.length + 1).toString().padStart(3, '0')}`,
+                id: nextOrderId,
                 username: "",
                 amount: undefined,
                 source: "",
@@ -165,6 +174,44 @@ export default function OrdersPage() {
         });
         setOpen(false);
     }
+    
+    const requestSort = (key: keyof Order) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        setSortConfig({ key, direction });
+    };
+
+    const getSortIndicator = (key: keyof Order) => {
+        if (sortConfig.key === key) {
+            return <ArrowUpDown className="ml-2 h-4 w-4" />;
+        }
+        return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
+    };
+
+    const sortedOrders = useMemo(() => {
+        let sortableItems = [...orders];
+        if (sortConfig.key) {
+            const key = sortConfig.key;
+            sortableItems.sort((a, b) => {
+                const aValue = a[key];
+                const bValue = b[key];
+
+                if (aValue === undefined || aValue === null) return 1;
+                if (bValue === undefined || bValue === null) return -1;
+
+                if (aValue < bValue) {
+                    return sortConfig.direction === 'ascending' ? -1 : 1;
+                }
+                if (aValue > bValue) {
+                    return sortConfig.direction === 'ascending' ? 1 : -1;
+                }
+                return 0;
+            });
+        }
+        return sortableItems;
+    }, [orders, sortConfig]);
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -191,37 +238,37 @@ export default function OrdersPage() {
                                 control={form.control}
                                 name="date"
                                 render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Order Date*</FormLabel>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-full pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                            >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            initialFocus
-                                        />
-                                        </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel>Order Date*</FormLabel>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <FormControl>
+                                                    <Button
+                                                        variant={"outline"}
+                                                        className={cn(
+                                                            "w-full justify-start text-left font-normal",
+                                                            !field.value && "text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        {field.value ? (
+                                                            format(field.value, "PPP")
+                                                        ) : (
+                                                            <span>Pick a date</span>
+                                                        )}
+                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </FormControl>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={field.value}
+                                                    onSelect={field.onChange}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
                                     </FormItem>
                                 )}
                             />
@@ -230,7 +277,7 @@ export default function OrdersPage() {
                                 name="id"
                                 render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Order ID*</FormLabel>
+                                    <FormLabel>Order ID</FormLabel>
                                     <FormControl>
                                     <Input placeholder="e.g., ORD006" {...field} />
                                     </FormControl>
@@ -349,33 +396,63 @@ export default function OrdersPage() {
         <CardHeader>
           <CardTitle>Manage Orders</CardTitle>
           <CardDescription>
-            A list of all your recent orders.
+            A sortable list of all your recent orders.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Order ID</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Gig</TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead>Status</TableHead>
                 <TableHead>
-                  <span className="sr-only">Actions</span>
+                    <Button variant="ghost" onClick={() => requestSort('date')}>
+                        Date {getSortIndicator('date')}
+                    </Button>
                 </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('id')}>
+                        Order ID {getSortIndicator('id')}
+                    </Button>
+                </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('clientUsername')}>
+                        Client {getSortIndicator('clientUsername')}
+                    </Button>
+                </TableHead>
+                <TableHead className="text-right">
+                    <Button variant="ghost" onClick={() => requestSort('amount')}>
+                        Amount {getSortIndicator('amount')}
+                    </Button>
+                </TableHead>
+                <TableHead>
+                     <Button variant="ghost" onClick={() => requestSort('source')}>
+                        Source {getSortIndicator('source')}
+                    </Button>
+                </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('gig')}>
+                        Gig {getSortIndicator('gig')}
+                    </Button>
+                </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('rating')}>
+                        Rating {getSortIndicator('rating')}
+                    </Button>
+                </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => requestSort('status')}>
+                        Status {getSortIndicator('status')}
+                    </Button>
+                </TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.map((order) => (
+              {sortedOrders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell>{order.date}</TableCell>
                   <TableCell className="font-medium">{order.id}</TableCell>
                   <TableCell>{clients.find(c => c.username === order.clientUsername)?.name || order.clientUsername}</TableCell>
-                  <TableCell>${order.amount.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
                   <TableCell>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -397,7 +474,7 @@ export default function OrdersPage() {
                       {order.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button aria-haspopup="true" size="icon" variant="ghost">
