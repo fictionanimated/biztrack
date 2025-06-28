@@ -2,12 +2,11 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, Star } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { format } from "date-fns";
+import { CalendarIcon, MoreHorizontal, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,8 +31,44 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface Order {
     id: string;
@@ -62,8 +97,21 @@ const clients = [
   { username: "sofia.d", name: "Sofia Davis" },
 ];
 
+const incomeSources = ["Comprehensive Web Design & Development for Enterprise", "Consulting", "Logo Design", "SEO Services and Digital Marketing Campaigns", "Maintenance", "Web Design"];
+
+const orderFormSchema = z.object({
+  date: z.date({ required_error: "An order date is required." }),
+  username: z.string().min(1, "Username is required."),
+  amount: z.coerce.number().positive({ message: "Amount must be positive." }),
+  source: z.string().min(1, "Source is required."),
+  rating: z.number().min(0).max(5).optional(),
+  isCancelled: z.boolean().default(false),
+});
+
+type OrderFormValues = z.infer<typeof orderFormSchema>;
+
 const StarDisplay = ({ rating }: { rating?: number }) => {
-    if (!rating) return <span className="text-muted-foreground">N/A</span>;
+    if (rating === undefined || rating === 0) return <span className="text-muted-foreground">N/A</span>;
     return (
         <div className="flex items-center gap-0.5">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -84,6 +132,45 @@ const StarDisplay = ({ rating }: { rating?: number }) => {
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>(initialOrders);
+    const [open, setOpen] = useState(false);
+    const { toast } = useToast();
+
+    const form = useForm<OrderFormValues>({
+        resolver: zodResolver(orderFormSchema),
+    });
+
+    const handleOpenChange = (isOpen: boolean) => {
+        if (isOpen) {
+            form.reset({
+                date: new Date(),
+                username: "",
+                amount: 0,
+                source: "",
+                rating: 0,
+                isCancelled: false,
+            });
+        }
+        setOpen(isOpen);
+    };
+
+    function onSubmit(values: OrderFormValues) {
+        const nextId = 'ORD' + String(orders.length + 1).padStart(3, '0');
+        const newOrder: Order = {
+            id: nextId,
+            clientUsername: values.username,
+            date: format(values.date, "yyyy-MM-dd"),
+            amount: values.amount,
+            source: values.source,
+            rating: values.rating,
+            status: values.isCancelled ? 'Cancelled' : 'Completed',
+        };
+        setOrders([newOrder, ...orders]);
+        toast({
+            title: "Order Added",
+            description: `Order ${newOrder.id} has been successfully created.`,
+        });
+        handleOpenChange(false);
+    }
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -91,6 +178,181 @@ export default function OrdersPage() {
         <h1 className="font-headline text-lg font-semibold md:text-2xl">
           Orders
         </h1>
+        <div className="ml-auto">
+            <Dialog open={open} onOpenChange={handleOpenChange}>
+            <DialogTrigger asChild>
+                <Button>Add New Order</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Add New Order</DialogTitle>
+                    <DialogDescription>
+                        Fill in the details below to create a new order.
+                    </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="date"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                    <FormLabel>Order Date*</FormLabel>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "pl-3 text-left font-normal",
+                                                !field.value && "text-muted-foreground"
+                                            )}
+                                            >
+                                            {field.value ? (
+                                                format(field.value, "PPP")
+                                            ) : (
+                                                <span>Pick a date</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={field.value}
+                                            onSelect={field.onChange}
+                                            initialFocus
+                                        />
+                                        </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="username"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Username*</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a client" />
+                                        </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {clients.map(client => (
+                                                <SelectItem key={client.username} value={client.username}>
+                                                    {client.name} (@{client.username})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <FormField
+                                control={form.control}
+                                name="amount"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Amount*</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" placeholder="e.g., 499.99" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                           <FormField
+                                control={form.control}
+                                name="source"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Source*</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select an income source" />
+                                        </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {incomeSources.map(source => (
+                                                <SelectItem key={source} value={source}>{source}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                         </div>
+
+                        <FormField
+                            control={form.control}
+                            name="rating"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Rating</FormLabel>
+                                    <FormControl>
+                                        <div className="flex items-center gap-1">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <Star
+                                                    key={star}
+                                                    className={cn(
+                                                        "h-6 w-6 cursor-pointer transition-colors",
+                                                        (field.value || 0) >= star
+                                                        ? "text-primary fill-primary"
+                                                        : "text-muted-foreground hover:text-primary/70"
+                                                    )}
+                                                    onClick={() => field.onChange(star === field.value ? 0 : star)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="isCancelled"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                <FormControl>
+                                    <Checkbox
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>
+                                    Mark as Cancelled
+                                    </FormLabel>
+                                </div>
+                                </FormItem>
+                            )}
+                        />
+
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button type="button" variant="secondary">Cancel</Button>
+                            </DialogClose>
+                            <Button type="submit">Add Order</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+            </Dialog>
+        </div>
       </div>
       <Card>
         <CardHeader>
