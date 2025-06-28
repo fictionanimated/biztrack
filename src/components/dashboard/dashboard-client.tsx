@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,21 +8,47 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { type DashboardData } from "@/lib/placeholder-data";
+import { type DashboardData, type Stat } from "@/lib/placeholder-data";
 import { DateFilter } from "./date-filter";
 import StatCard from "./stat-card";
 import RevenueChart from "./revenue-chart";
 import IncomeChart from "./income-chart";
 import RecentOrders from "./recent-orders";
 import AiInsights from "./ai-insights";
+import { SetTargetDialog } from "./set-target-dialog";
 
 export function DashboardClient({
-  stats,
+  stats: initialStats,
   revenueByDay,
   incomeBySource,
   recentOrders,
   aiInsights,
 }: DashboardData) {
+  const [stats, setStats] = useState<Stat[]>(initialStats);
+
+  const handleSetTarget = (newTarget: number) => {
+    setStats((prevStats) => {
+      const newStats = [...prevStats];
+      const targetIndex = newStats.findIndex(
+        (s) => s.title === "Target for June"
+      );
+      if (targetIndex !== -1) {
+        newStats[targetIndex] = {
+          ...newStats[targetIndex],
+          value: `$${newTarget.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`,
+        };
+      }
+      return newStats;
+    });
+  };
+
+  const currentTarget = parseFloat(
+    stats.find((s) => s.title === "Target for June")?.value.replace(/[^0-9.-]+/g, "") || "0"
+  );
+  
   // Grouping stats by type for better organization
   const financialStats = stats.filter((s) =>
     ["Total Revenue", "Total Expenses", "Net Profit"].includes(s.title)
@@ -57,6 +84,10 @@ export function DashboardClient({
         </h1>
         <div className="ml-auto flex items-center gap-2">
           <DateFilter />
+          <SetTargetDialog
+            currentTarget={currentTarget}
+            onSetTarget={handleSetTarget}
+          />
         </div>
       </div>
 
