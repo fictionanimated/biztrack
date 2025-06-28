@@ -5,7 +5,7 @@ import { useState, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { MoreHorizontal, PlusCircle, Trash2, Facebook, Twitter, Linkedin, Github, Globe, Edit, ArrowUpDown } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, Facebook, Twitter, Linkedin, Github, Globe, Edit, ArrowUpDown, Search } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -123,6 +123,7 @@ const SocialIcon = ({ platform }: { platform: string }) => {
 export default function ClientsPage() {
     const [clients, setClients] = useState<Client[]>(initialClients);
     const [open, setOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
     const [filterSource, setFilterSource] = useState('all');
     const [sortConfig, setSortConfig] = useState<{ key: keyof Client | null; direction: 'ascending' | 'descending' }>({ key: null, direction: 'ascending' });
     const { toast } = useToast();
@@ -178,11 +179,22 @@ export default function ClientsPage() {
     };
 
     const filteredClients = useMemo(() => {
-        if (filterSource === 'all') {
-            return clients;
+        let clientsToFilter = [...clients];
+
+        if (filterSource !== 'all') {
+            clientsToFilter = clientsToFilter.filter(client => client.source.toLowerCase().replace(/\s+/g, '-') === filterSource);
         }
-        return clients.filter(client => client.source.toLowerCase().replace(/\s+/g, '-') === filterSource);
-    }, [clients, filterSource]);
+
+        if (searchQuery.trim() !== "") {
+            const lowercasedQuery = searchQuery.toLowerCase();
+            clientsToFilter = clientsToFilter.filter(client => 
+                client.name?.toLowerCase().includes(lowercasedQuery) ||
+                client.username.toLowerCase().includes(lowercasedQuery)
+            );
+        }
+
+        return clientsToFilter;
+    }, [clients, filterSource, searchQuery]);
 
     const sortedClients = useMemo(() => {
         let sortableItems = [...filteredClients];
@@ -218,6 +230,16 @@ export default function ClientsPage() {
           Clients
         </h1>
         <div className="ml-auto flex items-center gap-2">
+            <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search clients..."
+                    className="pl-8 sm:w-[200px] md:w-[250px]"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+            </div>
           <Select value={filterSource} onValueChange={setFilterSource}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filter by source" />
@@ -434,7 +456,7 @@ export default function ClientsPage() {
                       </TableRow>
                   </TableHeader>
                   <TableBody>
-                      {sortedClients.map((client) => (
+                      {sortedClients.length > 0 ? (sortedClients.map((client) => (
                           <TableRow key={client.id}>
                               <TableCell>
                                 <Link href={`/clients/${client.id}`} className="flex items-center gap-3">
@@ -498,7 +520,13 @@ export default function ClientsPage() {
                                   </DropdownMenu>
                               </TableCell>
                           </TableRow>
-                      ))}
+                      ))) : (
+                        <TableRow>
+                            <TableCell colSpan={9} className="h-24 text-center">
+                                No clients found.
+                            </TableCell>
+                        </TableRow>
+                      )}
                   </TableBody>
               </Table>
           </CardContent>
@@ -507,4 +535,5 @@ export default function ClientsPage() {
   );
 
     
+
 
