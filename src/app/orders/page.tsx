@@ -111,6 +111,7 @@ const orderFormSchema = z.object({
   username: z.string().min(1, "Username is required."),
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   source: z.string().min(1, "Source is required."),
+  gig: z.string().optional(),
   rating: z.coerce.number().min(0, "Rating must be at least 0").max(5, "Rating cannot be more than 5").optional(),
   isCancelled: z.boolean().default(false),
   cancellationReasons: z.array(z.string()).optional(),
@@ -208,6 +209,7 @@ export default function OrdersPage() {
             username: "",
             amount: undefined,
             source: "",
+            gig: "",
             rating: undefined,
             isCancelled: false,
             cancellationReasons: [],
@@ -225,6 +227,7 @@ export default function OrdersPage() {
                 username: "",
                 amount: undefined,
                 source: "",
+                gig: "",
                 rating: undefined,
                 isCancelled: false,
                 cancellationReasons: [],
@@ -252,6 +255,7 @@ export default function OrdersPage() {
             date: format(values.date, "yyyy-MM-dd"),
             amount: values.amount,
             source: values.source,
+            gig: values.gig,
             rating: values.rating,
             status: values.isCancelled ? 'Cancelled' : 'Completed',
             cancellationReasons: finalCancellationReasons,
@@ -454,6 +458,20 @@ export default function OrdersPage() {
                                     )}
                                 />
                             </div>
+
+                            <FormField
+                                control={form.control}
+                                name="gig"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Gig (Optional)</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g., Acme Corp Redesign" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
                             <FormField
                                 control={form.control}
@@ -692,7 +710,3 @@ export default function OrdersPage() {
     </main>
   );
 }
-
-    
-
-    
