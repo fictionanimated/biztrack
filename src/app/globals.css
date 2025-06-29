@@ -119,7 +119,7 @@
     table-layout: fixed;
   }
   .summary-calendar .rdp-row {
-    height: 8rem;
+    height: 10rem;
   }
   .summary-calendar .rdp-cell {
     vertical-align: top;
