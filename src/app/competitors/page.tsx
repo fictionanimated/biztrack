@@ -507,7 +507,7 @@ export default function CompetitorsPage() {
                                 mode="single"
                                 selected={field.value}
                                 onSelect={field.onChange}
-                                captionLayout="dropdown-buttons"
+                                captionLayout="dropdown"
                                 fromYear={2000}
                                 toYear={new Date().getFullYear()}
                                 disabled={(date) =>
