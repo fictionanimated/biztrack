@@ -1,21 +1,14 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { format, addMonths, subMonths, startOfMonth } from "date-fns";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -36,57 +29,42 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import CalendarView from "@/components/daily-summary/calendar-view";
 
-interface DailySummary {
+export interface DailySummary {
   id: number;
-  date: string; // "yyyy-MM-dd"
+  date: Date;
   content: string;
 }
 
 const initialSummaries: DailySummary[] = [
-    { id: 1, date: "2024-05-25", content: "Great progress today. Closed two new clients and finished the design for Project X. Need to follow up with the marketing team tomorrow about the new campaign." },
-    { id: 2, date: "2024-05-24", content: "Team meeting was productive. Outlined the goals for Q3. Spent the afternoon on bug fixes for the main app. Client Y is happy with the latest delivery." },
-    { id: 3, date: "2024-05-23", content: "Onboarded a new developer. Most of the day was spent on code reviews and planning the next sprint. Quiet day otherwise." },
+    { id: 1, date: new Date(2025, 5, 8), content: "Eid al-Adha Holiday" },
+    { id: 2, date: new Date(2025, 5, 9), content: "Eid al-Adha Holiday" },
+    { id: 3, date: new Date(2025, 5, 12), content: "Client meeting follow-up" },
+    { id: 4, date: new Date(2025, 5, 20), content: "Finalize Q3 marketing plan. It needs to be perfect." },
+    { id: 5, date: new Date(2025, 5, 20), content: "Review developer applications" },
 ];
 
 const summaryFormSchema = z.object({
-  date: z.date({ required_error: "A date is required." }),
-  content: z.string().min(10, { message: "Summary must be at least 10 characters." }),
+  content: z.string().min(3, { message: "Summary must be at least 3 characters." }),
 });
 
 type SummaryFormValues = z.infer<typeof summaryFormSchema>;
 
-// Helper function to format a Date object to a 'yyyy-MM-dd' string consistently
-const toYyyyMmDd = (date: Date): string => {
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().split('T')[0];
-};
-
-// Helper function to parse a 'yyyy-MM-dd' string into a local Date object safely
-const fromYyyyMmDd = (dateString: string): Date => {
-  const [year, month, day] = dateString.split('-').map(Number);
-  // Creates a date in the local timezone
-  return new Date(year, month - 1, day);
-};
-
 export default function DailySummaryPage() {
   const [summaries, setSummaries] = useState<DailySummary[]>(initialSummaries);
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1));
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [editingSummary, setEditingSummary] = useState<DailySummary | null>(null);
   const [deletingSummary, setDeletingSummary] = useState<DailySummary | null>(null);
   const { toast } = useToast();
@@ -95,154 +73,134 @@ export default function DailySummaryPage() {
     resolver: zodResolver(summaryFormSchema),
   });
 
-  const handleOpenDialog = (summary: DailySummary | null = null) => {
-    if (summary) {
-      setEditingSummary(summary);
-      form.reset({
-        date: fromYyyyMmDd(summary.date),
-        content: summary.content,
-      });
-    } else {
-      setEditingSummary(null);
-      form.reset({
-        date: new Date(),
-        content: "",
-      });
-    }
+  const handleDateClick = (date: Date) => {
+    setEditingSummary(null);
+    setSelectedDate(date);
+    form.reset({ content: "" });
     setDialogOpen(true);
   };
+  
+  const handleSummaryClick = (summary: DailySummary) => {
+    setEditingSummary(summary);
+    setSelectedDate(summary.date);
+    form.reset({ content: summary.content });
+    setDialogOpen(true);
+  }
 
   const onSubmit = (values: SummaryFormValues) => {
-    const formattedDate = toYyyyMmDd(values.date);
-    const existingSummaryForDate = summaries.find(s => s.date === formattedDate && s.id !== editingSummary?.id);
-    
-    if (existingSummaryForDate) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: `A summary for ${format(values.date, "PPP")} already exists. Please edit the existing one.`,
-        });
-        return;
-    }
-
-    const newSummary: DailySummary = {
-      id: editingSummary ? editingSummary.id : Date.now(),
-      date: formattedDate,
-      content: values.content,
-    };
+    if (!selectedDate) return;
 
     if (editingSummary) {
-      setSummaries(summaries.map(s => s.id === editingSummary.id ? newSummary : s).sort((a,b) => fromYyyyMmDd(b.date).getTime() - fromYyyyMmDd(a.date).getTime()));
+      const updatedSummary = { ...editingSummary, content: values.content };
+      setSummaries(summaries.map(s => s.id === editingSummary.id ? updatedSummary : s));
       toast({ title: "Summary Updated" });
     } else {
-      const updatedSummaries = [...summaries, newSummary];
-      updatedSummaries.sort((a,b) => fromYyyyMmDd(b.date).getTime() - fromYyyyMmDd(a.date).getTime());
-      setSummaries(updatedSummaries);
+      const newSummary: DailySummary = {
+        id: Date.now(),
+        date: selectedDate,
+        content: values.content,
+      };
+      setSummaries([...summaries, newSummary]);
       toast({ title: "Summary Added" });
     }
 
     setDialogOpen(false);
     setEditingSummary(null);
+    setSelectedDate(null);
   };
   
   const handleDelete = () => {
-    if (!deletingSummary) return;
-    setSummaries(summaries.filter(s => s.id !== deletingSummary.id));
+    if (!editingSummary) return;
+    setSummaries(summaries.filter(s => s.id !== editingSummary.id));
     toast({ title: "Summary Deleted" });
     setDeletingSummary(null);
+    setDialogOpen(false);
+    setEditingSummary(null);
   }
 
+  const handlePrevMonth = () => {
+    setCurrentDate(prev => subMonths(prev, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(prev => addMonths(prev, 1));
+  };
+  
+  const handleToday = () => {
+    setCurrentDate(startOfMonth(new Date()));
+  }
+
+  const dialogTitle = useMemo(() => {
+    if (editingSummary) return `Edit Summary for ${format(editingSummary.date, 'PPP')}`;
+    if (selectedDate) return `Add Summary for ${format(selectedDate, 'PPP')}`;
+    return "Summary";
+  }, [editingSummary, selectedDate]);
+
+
   return (
-    <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-      <div className="flex items-center">
-        <h1 className="font-headline text-lg font-semibold md:text-2xl">
-          Daily Summary
-        </h1>
-        <div className="ml-auto">
-          <Button onClick={() => handleOpenDialog()}>Add New Summary</Button>
+    <div className="flex h-full flex-col">
+      <header className="flex items-center justify-between border-b px-4 py-3">
+        <div className="flex items-center gap-4">
+            <h1 className="font-headline text-xl font-semibold md:text-2xl">
+                Calendar
+            </h1>
+            <Button variant="outline" onClick={handleToday}>Today</Button>
+            <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={handlePrevMonth} aria-label="Previous month">
+                    <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={handleNextMonth} aria-label="Next month">
+                    <ChevronRight className="h-5 w-5" />
+                </Button>
+            </div>
+            <h2 className="text-xl font-semibold">{format(currentDate, "MMMM yyyy")}</h2>
         </div>
-      </div>
+      </header>
       
-      <div className="grid gap-6">
-        {summaries.length > 0 ? (
-            summaries.map(summary => (
-                <Card key={summary.id}>
-                    <CardHeader>
-                        <CardTitle>{format(fromYyyyMmDd(summary.date), 'PPPP')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground whitespace-pre-line">{summary.content}</p>
-                    </CardContent>
-                    <CardFooter className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => handleOpenDialog(summary)}>Edit</Button>
-                        <Button variant="destructive" onClick={() => setDeletingSummary(summary)}>Delete</Button>
-                    </CardFooter>
-                </Card>
-            ))
-        ) : (
-            <Card>
-                <CardContent className="p-6 text-center">
-                    <p className="text-muted-foreground">No summaries yet. Add one to get started!</p>
-                </CardContent>
-            </Card>
-        )}
-      </div>
+      <main className="flex flex-1 overflow-auto">
+        <CalendarView 
+            currentDate={currentDate}
+            summaries={summaries}
+            onDateClick={handleDateClick}
+            onSummaryClick={handleSummaryClick}
+        />
+      </main>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingSummary ? 'Edit Summary' : 'Add New Summary'}</DialogTitle>
-            <DialogDescription>
-              {editingSummary ? 'Update your summary for the selected date.' : 'Log your progress for a specific day.'}
-            </DialogDescription>
+            <DialogTitle>{dialogTitle}</DialogTitle>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
-                            disabled={!!editingSummary}
-                          >
-                            {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
                 name="content"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Summary</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="What did you accomplish today?" className="min-h-[120px]" {...field} />
+                      <Textarea placeholder="Write your summary here..." className="min-h-[120px]" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="secondary">Cancel</Button>
-                </DialogClose>
-                <Button type="submit">{editingSummary ? 'Save Changes' : 'Save Summary'}</Button>
+              <DialogFooter className="sm:justify-between">
+                <div>
+                  {editingSummary && (
+                    <Button type="button" variant="destructive" onClick={() => {
+                        setDeletingSummary(editingSummary)
+                    }}>
+                        Delete
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit">{editingSummary ? 'Save Changes' : 'Save Summary'}</Button>
+                </div>
               </DialogFooter>
             </form>
           </Form>
@@ -254,7 +212,7 @@ export default function DailySummaryPage() {
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This will permanently delete the summary for {deletingSummary && format(fromYyyyMmDd(deletingSummary.date), 'PPP')}.
+                    This will permanently delete this summary.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -263,6 +221,6 @@ export default function DailySummaryPage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </main>
+    </div>
   );
 }
