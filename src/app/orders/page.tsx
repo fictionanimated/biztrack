@@ -608,7 +608,7 @@ export default function OrdersPage() {
                                     control={form.control}
                                     name="date"
                                     render={({ field }) => (
-                                        <FormItem className="flex flex-col justify-end">
+                                        <FormItem>
                                             <FormLabel>Order Date*</FormLabel>
                                             <Popover>
                                                 <PopoverTrigger asChild>

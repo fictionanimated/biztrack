@@ -268,7 +268,7 @@ export default function CompetitorsPage() {
     }
 
     const months = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: format(new Date(0, i), 'MMMM') }));
-    const years = Array.from({ length: 15 }, (_, i) => String(2021 + i));
+    const years = Array.from({ length: 11 }, (_, i) => String(2025 - i));
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -481,7 +481,7 @@ export default function CompetitorsPage() {
                         control={form.control}
                         name="workingSince"
                         render={({ field }) => (
-                        <FormItem className="flex flex-col">
+                        <FormItem>
                             <FormLabel>Working Since</FormLabel>
                             <Popover>
                             <PopoverTrigger asChild>
@@ -489,23 +489,23 @@ export default function CompetitorsPage() {
                                 <Button
                                     variant={"outline"}
                                     className={cn(
-                                    "w-full pl-3 text-left font-normal",
+                                    "w-full justify-start text-left font-normal",
                                     !field.value && "text-muted-foreground"
                                     )}
                                 >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
                                     {field.value ? (
                                     format(field.value, "PPP")
                                     ) : (
                                     <span>Pick a date</span>
                                     )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
                                 </FormControl>
                             </PopoverTrigger>
                             <PopoverContent className="w-auto p-0" align="start">
                                 <Calendar
                                 mode="single"
-                                captionLayout="dropdown-buttons"
+                                captionLayout="dropdown"
                                 selected={field.value}
                                 onSelect={field.onChange}
                                 fromYear={2010}
