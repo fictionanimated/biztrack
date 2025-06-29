@@ -28,7 +28,7 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
         return data
             .map(order => ({
                 ...order,
-                dateObj: new Date(order.date),
+                dateObj: new Date(order.date.replace(/-/g, '/')),
             }))
             .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
             .map(order => ({
