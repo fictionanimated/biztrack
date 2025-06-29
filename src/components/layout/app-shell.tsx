@@ -62,6 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <h2 className="text-lg font-semibold font-headline">BizTrack Pro</h2>
               </div>
             </div>
+            <SidebarTrigger className="hidden md:block" />
           </SidebarHeader>
 
           <SidebarContent>
@@ -102,7 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <SidebarSeparator />
               <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                      <NProgressLink href="#">
+                      <NProgressLink href="/business-profile">
                           <Avatar className="size-7">
                               <AvatarImage src="https://placehold.co/100x100.png" alt="@johndoe" data-ai-hint="male avatar" />
                               <AvatarFallback>JD</AvatarFallback>
