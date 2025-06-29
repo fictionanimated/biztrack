@@ -106,6 +106,7 @@ const competitorFormSchema = z.object({
   pricingMid: z.coerce.number().min(0, "Price must be a positive number.").optional(),
   pricingTop: z.coerce.number().min(0, "Price must be a positive number.").optional(),
   reviewsCount: z.coerce.number().int("Number of reviews must be a whole number.").min(0).optional(),
+  totalOrders: z.coerce.number().int("Number of orders must be a whole number.").min(0).optional(),
   workingSince: z.date().optional(),
   notes: z.string().optional(),
 });
@@ -149,6 +150,7 @@ export default function CompetitorsPage() {
             pricingMid: undefined,
             pricingTop: undefined,
             reviewsCount: undefined,
+            totalOrders: undefined,
             workingSince: undefined,
             notes: "",
         },
@@ -173,6 +175,7 @@ export default function CompetitorsPage() {
                 pricingMid: competitor.pricingMid ?? undefined,
                 pricingTop: competitor.pricingTop ?? undefined,
                 reviewsCount: competitor.reviewsCount ?? undefined,
+                totalOrders: competitor.totalOrders ?? undefined,
             });
         } else {
             setEditingCompetitor(null);
@@ -184,6 +187,7 @@ export default function CompetitorsPage() {
                 pricingMid: undefined,
                 pricingTop: undefined,
                 reviewsCount: undefined,
+                totalOrders: undefined,
                 workingSince: undefined,
                 notes: "",
             });
@@ -205,7 +209,6 @@ export default function CompetitorsPage() {
     const onSubmit = (values: CompetitorFormValues) => {
         const competitorData: Competitor = {
             id: editingCompetitor ? editingCompetitor.id : `comp-${Date.now()}`,
-            totalOrders: editingCompetitor ? editingCompetitor.totalOrders : 0,
             monthlyData: editingCompetitor ? editingCompetitor.monthlyData : [],
             ...values,
         };
@@ -447,7 +450,7 @@ export default function CompetitorsPage() {
                     )}
                     />
                 </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <FormField
                     control={form.control}
                     name="reviewsCount"
@@ -460,6 +463,19 @@ export default function CompetitorsPage() {
                         <FormMessage />
                         </FormItem>
                     )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="totalOrders"
+                      render={({ field }) => (
+                          <FormItem>
+                          <FormLabel>No. of Orders</FormLabel>
+                          <FormControl>
+                              <Input type="number" placeholder="e.g., 300" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                          </FormItem>
+                      )}
                     />
                     <FormField
                         control={form.control}
