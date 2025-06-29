@@ -62,7 +62,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <h2 className="text-lg font-semibold font-headline">BizTrack Pro</h2>
               </div>
             </div>
-            <SidebarTrigger className="hidden md:block" />
           </SidebarHeader>
 
           <SidebarContent>
@@ -85,7 +84,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SidebarContent>
 
           <SidebarFooter className="mt-auto">
-            <SidebarSeparator />
             <SidebarMenu>
               {settingsItems.map((item) => (
                   <SidebarMenuItem key={item.label}>
@@ -100,8 +98,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <SidebarMenuItem>
                 <ThemeToggle />
               </SidebarMenuItem>
-              <SidebarSeparator />
-              <SidebarMenuItem>
+            </SidebarMenu>
+
+            <SidebarSeparator />
+            
+            <SidebarMenu>
+                <SidebarMenuItem>
                   <SidebarMenuButton asChild>
                       <NProgressLink href="/business-profile">
                           <Avatar className="size-7">
@@ -116,6 +118,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
+            
+            <SidebarSeparator />
+            <div className="p-2 flex items-center justify-center">
+                <SidebarTrigger className="hidden md:block" />
+            </div>
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>

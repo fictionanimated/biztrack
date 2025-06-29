@@ -252,7 +252,7 @@ const SidebarMenuItem = React.forwardRef<
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
-  "flex w-full items-center gap-3 overflow-hidden whitespace-nowrap rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 group-data-[collapsed=true]:justify-center group-data-[collapsed=true]:p-0 group-data-[collapsed=true]:data-[has-children=true]:hidden [&>svg]:size-4 [&>svg]:shrink-0",
+  "flex w-full items-center gap-3 overflow-hidden whitespace-nowrap rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 group-data-[collapsed=true]:justify-center group-data-[collapsed=true]:p-2 group-data-[collapsed=true]:data-[has-children=true]:hidden [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       isActive: {
