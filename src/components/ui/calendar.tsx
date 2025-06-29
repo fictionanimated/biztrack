@@ -32,7 +32,7 @@ function Calendar({
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1 table-fixed",
+        table: "w-full border-collapse space-y-1",
         head_row: "flex",
         head_cell:
           "text-muted-foreground rounded-md font-normal text-[0.8rem] flex-1",
@@ -69,4 +69,3 @@ function Calendar({
 Calendar.displayName = "Calendar"
 
 export { Calendar }
-
