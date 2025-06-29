@@ -71,7 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     children: item.label,
                   }}
                 >
-                  <NProgressLink href={item.href} passHref>
+                  <NProgressLink href={item.href}>
                     <item.icon />
                     <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                   </NProgressLink>
@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip={{children: 'Settings'}}>
-                  <NProgressLink href="#" passHref>
+                  <NProgressLink href="#">
                     <Settings />
                     <span className="group-data-[collapsible=icon]:hidden">Settings</span>
                   </NProgressLink>

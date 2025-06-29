@@ -152,7 +152,7 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
                 </div>
             </div>
         </div>
-        <NProgressLink href="/clients" passHref>
+        <NProgressLink href="/clients">
           <Button variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back

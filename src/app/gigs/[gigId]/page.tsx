@@ -216,7 +216,7 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
           Gig Analytics: <span className="text-primary">{gigData.name}</span>
         </h1>
         <div className="ml-auto flex items-center gap-2">
-            <NProgressLink href="/incomes" passHref>
+            <NProgressLink href="/incomes">
                 <Button variant="outline">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Back to Incomes

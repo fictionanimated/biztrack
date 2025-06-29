@@ -556,7 +556,7 @@ export default function IncomesPage() {
                      <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <NProgressLink href={`/incomes/${source.id}`} passHref>
+                                <NProgressLink href={`/incomes/${source.id}`}>
                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
                                         <BarChart className="h-4 w-4" />
                                         <span className="sr-only">View Analytics</span>
