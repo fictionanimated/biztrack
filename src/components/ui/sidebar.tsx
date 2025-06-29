@@ -159,7 +159,7 @@ const SidebarInset = React.forwardRef<
   return (
     <main
       ref={ref}
-      className={cn("flex flex-1 flex-col bg-background", className)}
+      className={cn("flex-1 overflow-y-auto", className)}
       {...props}
     />
   )
@@ -266,7 +266,7 @@ const SidebarMenuButton = React.forwardRef<
   React.ComponentProps<"button"> & {
     asChild?: boolean
     isActive?: boolean
-    tooltip?: React.ReactNode
+    tooltip?: React.ReactNode | { children: React.ReactNode; side?: "right" | "top" | "bottom" | "left" };
   } & VariantProps<typeof sidebarMenuButtonVariants>
 >(
   (
@@ -288,11 +288,15 @@ const SidebarMenuButton = React.forwardRef<
     )
 
     if (isCollapsed && tooltip) {
+      const tooltipProps = typeof tooltip === "object" && tooltip !== null && "children" in tooltip
+        ? { side: tooltip.side || "right", children: tooltip.children }
+        : { side: "right", children: tooltip };
+
       return (
         <Tooltip>
           <TooltipTrigger asChild>{button}</TooltipTrigger>
-          <TooltipContent side="right" align="center">
-            {tooltip}
+          <TooltipContent side={tooltipProps.side} align="center">
+            {tooltipProps.children}
           </TooltipContent>
         </Tooltip>
       )

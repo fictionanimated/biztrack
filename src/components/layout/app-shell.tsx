@@ -53,75 +53,77 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   
   return (
     <SidebarProvider>
-      <Sidebar>
-        <SidebarHeader>
-          <div className="flex items-center gap-3">
-            <LayoutDashboard className="size-7 text-primary" />
-            <div className="flex flex-col group-data-[collapsed]:hidden">
-              <h2 className="text-lg font-semibold font-headline">BizTrack Pro</h2>
+      <div className="relative flex h-screen w-full">
+        <Sidebar>
+          <SidebarHeader>
+            <div className="flex items-center gap-3">
+              <LayoutDashboard className="size-7 text-primary" />
+              <div className="flex flex-col group-data-[collapsed]:hidden">
+                <h2 className="text-lg font-semibold font-headline">BizTrack Pro</h2>
+              </div>
             </div>
-          </div>
-        </SidebarHeader>
+          </SidebarHeader>
 
-        <SidebarContent>
-          <SidebarMenu>
-            {navItems.map((item) => (
-              <SidebarMenuItem key={item.label}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === item.href}
-                  tooltip={item.label}
-                >
-                  <NProgressLink href={item.href}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </NProgressLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarContent>
-
-        <SidebarFooter className="mt-auto">
-          <SidebarSeparator />
-          <SidebarMenu>
-            {settingsItems.map((item) => (
+          <SidebarContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
                 <SidebarMenuItem key={item.label}>
-                    <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
-                        <NProgressLink href={item.href}>
-                            <item.icon />
-                            <span>{item.label}</span>
-                        </NProgressLink>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            ))}
-            <SidebarMenuItem>
-              <ThemeToggle />
-            </SidebarMenuItem>
-            <SidebarSeparator />
-             <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                    <NProgressLink href="#">
-                         <Avatar className="size-7">
-                            <AvatarImage src="https://placehold.co/100x100.png" alt="@johndoe" data-ai-hint="male avatar" />
-                            <AvatarFallback>JD</AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                            <span className="font-semibold text-sm">John Doe</span>
-                            <span className="text-xs text-muted-foreground">john.doe@example.com</span>
-                        </div>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href}
+                    tooltip={item.label}
+                  >
+                    <NProgressLink href={item.href}>
+                      <item.icon />
+                      <span>{item.label}</span>
                     </NProgressLink>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
-      </Sidebar>
-      <SidebarInset>
-        <div className="p-2 md:hidden">
-          <SidebarTrigger />
-        </div>
-        {children}
-      </SidebarInset>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarContent>
+
+          <SidebarFooter className="mt-auto">
+            <SidebarSeparator />
+            <SidebarMenu>
+              {settingsItems.map((item) => (
+                  <SidebarMenuItem key={item.label}>
+                      <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                          <NProgressLink href={item.href}>
+                              <item.icon />
+                              <span>{item.label}</span>
+                          </NProgressLink>
+                      </SidebarMenuButton>
+                  </SidebarMenuItem>
+              ))}
+              <SidebarMenuItem>
+                <ThemeToggle />
+              </SidebarMenuItem>
+              <SidebarSeparator />
+              <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                      <NProgressLink href="#">
+                          <Avatar className="size-7">
+                              <AvatarImage src="https://placehold.co/100x100.png" alt="@johndoe" data-ai-hint="male avatar" />
+                              <AvatarFallback>JD</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                              <span className="font-semibold text-sm">John Doe</span>
+                              <span className="text-xs text-muted-foreground">john.doe@example.com</span>
+                          </div>
+                      </NProgressLink>
+                  </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </Sidebar>
+        <SidebarInset>
+          <div className="p-2 md:hidden">
+            <SidebarTrigger />
+          </div>
+          {children}
+        </SidebarInset>
+      </div>
     </SidebarProvider>
   );
 }
