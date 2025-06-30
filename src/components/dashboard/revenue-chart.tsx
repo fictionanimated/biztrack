@@ -59,7 +59,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             <div key={pld.dataKey} className="flex items-center justify-between">
               <div className="flex items-center">
                 <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke || pld.fill }} />
-                <span>{chartConfig[pld.dataKey as keyof typeof chartConfig].label}:</span>
+                <span>{chartConfig[pld.dataKey as keyof typeof chartConfig]?.label}:</span>
               </div>
               <span className="ml-4 font-mono font-medium">${pld.value.toLocaleString()}</span>
             </div>
@@ -185,16 +185,14 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
                     dataKey="previousRevenue"
                     type="natural"
                     fill="url(#fillPreviousRevenue)"
-                    fillOpacity={0.4}
-                    strokeWidth={0}
+                    stroke="none"
                 />
             )}
             <Area
               dataKey="revenue"
               type="natural"
               fill="url(#fillRevenue)"
-              fillOpacity={0.4}
-              strokeWidth={0}
+              stroke="none"
             />
 
             {/* Render Lines on top of the fills */}
