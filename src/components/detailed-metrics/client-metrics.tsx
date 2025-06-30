@@ -11,6 +11,7 @@ const clientMetrics = [
     { name: "Repeat Purchase Rate (%)", value: "34%", formula: "(Repeat Clients / Total Clients) × 100", change: "-1.5%", changeType: "decrease" as const },
     { name: "Client Satisfaction (CSAT)", value: "92%", formula: "(Positive Ratings / Total Ratings) × 100", change: "+3.0%", changeType: "increase" as const },
     { name: "Average Rating", value: "4.8 / 5.0", formula: "Sum of ratings / Number of rated orders", change: "+0.1", changeType: "increase" as const },
+    { name: "Cancelled Orders", value: "12", formula: "Total orders marked as cancelled", change: "+2", changeType: "increase" as const, invertColor: true },
 ];
 
 export function ClientMetrics() {
@@ -25,7 +26,7 @@ export function ClientMetrics() {
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {clientMetrics.map((metric) => {
-            const isPositive = metric.changeType === "increase";
+            const isPositive = (metric as any).invertColor ? metric.changeType === "decrease" : metric.changeType === "increase";
             return (
                 <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
                 <div>
