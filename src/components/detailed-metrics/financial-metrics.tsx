@@ -1,7 +1,14 @@
+"use client";
 
+import { useState, lazy, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, ArrowUp, ArrowDown } from "lucide-react";
+import { DollarSign, ArrowUp, ArrowDown, BarChart, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const FinancialValueChart = lazy(() => import("@/components/detailed-metrics/financial-value-chart"));
+const FinancialPercentageChart = lazy(() => import("@/components/detailed-metrics/financial-percentage-chart"));
 
 const financialMetrics = [
   { name: "Total Revenue", value: "$45,231.89", formula: "Sum of all income from services", change: "+12.5%", changeType: "increase" as const },
@@ -15,13 +22,41 @@ const financialMetrics = [
 ];
 
 export function FinancialMetrics() {
+  const [showChart, setShowChart] = useState(false);
+  const [activeValueMetrics, setActiveValueMetrics] = useState({
+    totalRevenue: true,
+    totalExpenses: true,
+    netProfit: true,
+    cac: false,
+    cltv: false,
+    aov: false,
+  });
+
+  const [activePercentageMetrics, setActivePercentageMetrics] = useState({
+    profitMargin: true,
+    grossMargin: true,
+  });
+
+  const handleValueMetricToggle = (metric: string) => {
+    setActiveValueMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
+  };
+
+  const handlePercentageMetricToggle = (metric: string) => {
+    setActivePercentageMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
+  };
+
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           <DollarSign className="h-6 w-6 text-primary" />
           <span>Financial Metrics</span>
         </CardTitle>
+        <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)}>
+            {showChart ? <EyeOff className="mr-2 h-4 w-4" /> : <BarChart className="mr-2 h-4 w-4" />}
+            {showChart ? "Hide Graphs" : "Show Graphs"}
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -55,6 +90,22 @@ export function FinancialMetrics() {
           })}
         </div>
       </CardContent>
+       {showChart && (
+        <CardContent className="space-y-6">
+             <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+                <FinancialValueChart 
+                  activeMetrics={activeValueMetrics}
+                  onMetricToggle={handleValueMetricToggle}
+                />
+            </Suspense>
+            <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+                <FinancialPercentageChart 
+                  activeMetrics={activePercentageMetrics}
+                  onMetricToggle={handlePercentageMetricToggle}
+                />
+            </Suspense>
+        </CardContent>
+      )}
     </Card>
   );
 }
