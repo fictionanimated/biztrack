@@ -21,7 +21,7 @@ import {
   ChartLegendContent,
 } from "@/components/ui/chart";
 import { type RevenueByDay } from "@/lib/placeholder-data";
-import { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "../ui/separator";
@@ -111,7 +111,7 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
   }, [data, previousData, dailyTarget]);
   
   return (
-    <>
+    <Card>
       <CardHeader>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -226,6 +226,6 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
           </AreaChart>
         </ChartContainer>
       </CardContent>
-    </>
+    </Card>
   );
 }
