@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { 
     startOfMonth, 
     endOfMonth, 
@@ -43,6 +43,11 @@ export default function CalendarView({ currentDate, summaries, onDateClick, onSu
         return map;
     }, [summaries]);
 
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     return (
         <div className="flex-1 grid grid-cols-7 grid-rows-[auto_repeat(6,minmax(0,1fr))] border-l">
             {WEEKDAYS.map(day => (
@@ -55,7 +60,7 @@ export default function CalendarView({ currentDate, summaries, onDateClick, onSu
                 const dayKey = format(day, 'yyyy-MM-dd');
                 const daySummaries = summariesByDate.get(dayKey) || [];
                 const isCurrentMonth = isSameMonth(day, currentDate);
-                const isToday = isSameDay(day, new Date());
+                const isToday = isClient && isSameDay(day, new Date());
 
                 return (
                     <div 

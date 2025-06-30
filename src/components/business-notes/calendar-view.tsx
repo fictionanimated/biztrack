@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { 
     startOfMonth, 
     endOfMonth, 
@@ -49,6 +50,11 @@ export default function CalendarView({ currentDate, notes, onDateClick, onNoteCl
         return map;
     }, [notes]);
     
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     const today = useMemo(() => new Date(), []);
 
     return (
@@ -64,7 +70,7 @@ export default function CalendarView({ currentDate, notes, onDateClick, onNoteCl
                 const dayKey = format(zonedDay, 'yyyy-MM-dd', { timeZone: 'UTC' });
                 const dayNotes = notesByDate.get(dayKey) || [];
                 const isCurrentMonth = isSameMonth(day, currentDate);
-                const isToday = isSameDate(zonedDay, today);
+                const isToday = isClient && isSameDate(zonedDay, today);
 
                 return (
                     <div 
