@@ -84,27 +84,8 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { DateFilter } from "@/components/dashboard/date-filter";
 import { Textarea } from "@/components/ui/textarea";
 import { initialIncomeSources } from "@/lib/data/incomes-data";
+import { initialOrders as staticOrders, type Order } from "@/lib/data/orders-data";
 
-
-interface Order {
-    id: string;
-    clientUsername: string;
-    date: string;
-    amount: number;
-    source: string;
-    gig?: string;
-    status: 'Completed' | 'In Progress' | 'Cancelled';
-    rating?: number;
-    cancellationReasons?: string[];
-}
-
-const initialOrders: Order[] = [
-    { id: 'ORD001', clientUsername: 'olivia.m', date: '2024-05-20', amount: 1999.00, source: 'Web Design', gig: 'Acme Corp Redesign', status: 'Completed', rating: 5 },
-    { id: 'ORD002', clientUsername: 'jackson.l', date: '2024-05-21', amount: 399.00, source: 'Consulting', gig: 'Q1 Strategy Session', status: 'Completed', rating: 4.2 },
-    { id: 'ORD003', clientUsername: 'isabella.n', date: '2024-05-22', amount: 299.00, source: 'Logo Design', gig: "Brand Identity for 'Innovate'", status: 'Cancelled', cancellationReasons: ["Not satisfied with design"] },
-    { id: 'ORD004', clientUsername: 'will.k', date: '2024-05-23', amount: 999.00, source: 'Web Design', gig: 'Startup Landing Page', status: 'In Progress' },
-    { id: 'ORD005', clientUsername: 'sofia.d', date: '2024-05-24', amount: 499.00, source: 'SEO Services', gig: 'Monthly SEO Retainer', status: 'Completed', rating: 3.7 },
-];
 
 const clients = [
   { username: "olivia.m", name: "Olivia Martin" },
@@ -165,7 +146,7 @@ const StarDisplay = ({ rating }: { rating?: number }) => {
 
 
 export default function OrdersPage() {
-    const [orders, setOrders] = useState<Order[]>(initialOrders);
+    const [orders, setOrders] = useState<Order[]>(staticOrders);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingOrder, setEditingOrder] = useState<Order | null>(null);
     const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);

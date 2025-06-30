@@ -1,7 +1,7 @@
 
 "use client";
 
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import NProgressLink from "@/components/layout/nprogress-link";
 import { notFound } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,59 +22,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import StatCard from "@/components/dashboard/stat-card";
-import { Facebook, Twitter, Linkedin, Github, Globe, DollarSign, ShoppingCart, BarChart, Calendar, ArrowLeft } from "lucide-react";
+import { Facebook, Twitter, Linkedin, Github, Globe, DollarSign, ShoppingCart, BarChart, Calendar, ArrowLeft, Pencil } from "lucide-react";
 import type { Stat } from "@/lib/placeholder-data";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { initialClients as staticClients, type Client } from "@/lib/data/clients-data";
+import { initialOrders } from "@/lib/data/orders-data";
+import { EditClientDialog } from "@/components/clients/edit-client-dialog";
 
 const ClientOrderHistoryChart = lazy(() => import("@/components/clients/client-order-history-chart"));
-
-
-// Mock data - in a real app, this would be fetched from a database
-interface Client {
-    id: string;
-    username: string;
-    name?: string;
-    email?: string;
-    source: string;
-    socialLinks?: { platform: string; url: string }[];
-    clientType: 'New' | 'Repeat';
-    clientSince: string;
-    totalOrders: number;
-    totalEarning: number;
-    lastOrder: string;
-}
-
-const initialClients: Client[] = [
-  { id: "1", name: "Olivia Martin", username: "olivia.m", email: "olivia.martin@email.com", source: "Comprehensive Web Design & Development for Enterprise", clientType: "Repeat", clientSince: "2023-01-15", totalOrders: 5, totalEarning: 8500, lastOrder: "2024-05-20", socialLinks: [{platform: "LinkedIn", url: "#"}, {platform: "Twitter", url: "#"}] },
-  { id: "2", name: "Jackson Lee", username: "jackson.l", email: "jackson.lee@email.com", source: "Consulting", clientType: "New", clientSince: "2024-03-10", totalOrders: 1, totalEarning: 1200, lastOrder: "2024-05-21", socialLinks: [{platform: "GitHub", url: "#"}] },
-  { id: "3", name: "Isabella Nguyen", username: "isabella.n", email: "isabella.nguyen@email.com", source: "Logo Design", clientType: "Repeat", clientSince: "2022-11-05", totalOrders: 8, totalEarning: 4500, lastOrder: "2024-05-18", socialLinks: [] },
-  { id: "4", name: "William Kim", username: "will.k", email: "will@email.com", source: "Comprehensive Web Design & Development for Enterprise", clientType: "Repeat", clientSince: "2023-08-20", totalOrders: 3, totalEarning: 6200, lastOrder: "2024-04-30", socialLinks: [{platform: "Website", url: "#"}] },
-  { id: "5", name: "Sofia Davis", username: "sofia.d", email: "sofia.davis@email.com", source: "SEO Services and Digital Marketing Campaigns", clientType: "New", clientSince: "2024-04-01", totalOrders: 2, totalEarning: 1800, lastOrder: "2024-05-24", socialLinks: [{platform: "Facebook", url: "#"}, {platform: "Twitter", url: "#"}] },
-];
-
-interface Order {
-    id: string;
-    clientUsername: string;
-    date: string;
-    amount: number;
-    source: string;
-    gig?: string;
-    status: 'Completed' | 'In Progress' | 'Cancelled';
-    rating?: number;
-}
-
-const initialOrders: Order[] = [
-    { id: 'ORD001', clientUsername: 'olivia.m', date: '2024-05-20', amount: 1999.00, source: 'Comprehensive Web Design & Development for Enterprise', gig: 'Acme Corp Redesign', status: 'Completed', rating: 5 },
-    { id: 'ORD002', clientUsername: 'jackson.l', date: '2024-05-21', amount: 399.00, source: 'Consulting', gig: 'Q1 Strategy Session', status: 'Completed', rating: 4.2 },
-    { id: 'ORD003', clientUsername: 'isabella.n', date: '2024-05-22', amount: 299.00, source: 'Logo Design', gig: "Brand Identity for 'Innovate'", status: 'Cancelled' },
-    { id: 'ORD004', clientUsername: 'will.k', date: '2024-05-23', amount: 999.00, source: 'Web Design', gig: 'Startup Landing Page', status: 'In Progress' },
-    { id: 'ORD005', clientUsername: 'sofia.d', date: '2024-05-24', amount: 499.00, source: 'SEO Services and Digital Marketing Campaigns', gig: 'Monthly SEO Retainer', status: 'Completed', rating: 3.7 },
-    { id: 'ORD006', clientUsername: 'olivia.m', date: '2024-04-15', amount: 2500.00, source: 'Comprehensive Web Design & Development for Enterprise', gig: 'E-commerce Platform', status: 'Completed', rating: 4.8 },
-    { id: 'ORD007', clientUsername: 'isabella.n', date: '2024-03-18', amount: 500.00, source: 'Logo Design', gig: 'Branding Refresh', status: 'Completed', rating: 5 },
-];
-
 
 const socialPlatforms = [
     { value: "Facebook", icon: Facebook },
@@ -99,11 +56,20 @@ const parseDateString = (dateString: string): Date => {
 };
 
 export default function ClientDetailsPage({ params }: { params: { clientId: string } }) {
-  const client = initialClients.find(c => c.id === params.clientId);
+  const [clients, setClients] = useState<Client[]>(staticClients);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  const client = clients.find(c => c.id === params.clientId);
   
   if (!client) {
     notFound();
   }
+
+  const handleClientUpdated = (updatedClient: Client) => {
+      setClients(prevClients => 
+          prevClients.map(c => (c.id === updatedClient.id ? updatedClient : c))
+      );
+  };
   
   const clientOrders = initialOrders.filter(o => o.clientUsername === client?.username);
 
@@ -123,7 +89,7 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
     {
         icon: "BarChart",
         title: "Avg. Order Value",
-        value: `$${(client.totalEarning / client.totalOrders).toFixed(2)}`,
+        value: `$${client.totalOrders > 0 ? (client.totalEarning / client.totalOrders).toFixed(2) : '0.00'}`,
         description: "Average across all orders",
     },
     {
@@ -159,12 +125,25 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
                 </div>
             </div>
         </div>
-        <NProgressLink href="/clients">
-          <Button variant="outline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-        </NProgressLink>
+        <div className="flex items-center gap-2">
+            <EditClientDialog
+              open={isEditDialogOpen}
+              onOpenChange={setIsEditDialogOpen}
+              client={client}
+              onClientUpdated={handleClientUpdated}
+            >
+                <Button variant="outline">
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit Client
+                </Button>
+            </EditClientDialog>
+            <NProgressLink href="/clients">
+              <Button variant="outline">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+            </NProgressLink>
+        </div>
       </div>
       
       <section>
