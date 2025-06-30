@@ -23,12 +23,19 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
+// A more robust date parsing function to avoid performance issues.
+const parseDateString = (dateString: string): Date => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  // In JavaScript's Date, months are 0-indexed (0 for January, 11 for December)
+  return new Date(year, month - 1, day);
+};
+
 export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChartProps) {
     const chartData = useMemo(() => {
         return data
             .map(order => ({
                 ...order,
-                dateObj: new Date(order.date.replace(/-/g, '/')),
+                dateObj: parseDateString(order.date),
             }))
             .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
             .map(order => ({

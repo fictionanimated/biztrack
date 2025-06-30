@@ -91,6 +91,13 @@ const SocialIcon = ({ platform }: { platform: string }) => {
     return <Icon className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />;
 }
 
+// A more robust date parsing function to avoid performance issues.
+const parseDateString = (dateString: string): Date => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  // In JavaScript's Date, months are 0-indexed (0 for January, 11 for December)
+  return new Date(year, month - 1, day);
+};
+
 export default function ClientDetailsPage({ params }: { params: { clientId: string } }) {
   const client = initialClients.find(c => c.id === params.clientId);
   
@@ -122,8 +129,8 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
     {
       icon: "Calendar",
       title: "Client Since",
-      value: format(new Date(client.clientSince.replace(/-/g, '/')), "PPP"),
-      description: `Last order on ${format(new Date(client.lastOrder.replace(/-/g, '/')), "PPP")}`,
+      value: format(parseDateString(client.clientSince), "PPP"),
+      description: `Last order on ${format(parseDateString(client.lastOrder), "PPP")}`,
     },
   ];
 
@@ -204,7 +211,7 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
                         {clientOrders.length > 0 ? clientOrders.map(order => (
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">{order.id}</TableCell>
-                                <TableCell>{format(new Date(order.date.replace(/-/g, '/')), "PPP")}</TableCell>
+                                <TableCell>{format(parseDateString(order.date), "PPP")}</TableCell>
                                 <TableCell>
                                     <Badge variant={order.status === 'Cancelled' ? 'destructive' : order.status === 'Completed' ? 'default' : 'secondary'}>
                                         {order.status}
