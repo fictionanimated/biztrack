@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -23,7 +24,6 @@ import {
   BookText,
   Swords,
   UserCircle,
-  Calendar,
   Settings,
   Notebook,
 } from "lucide-react";
@@ -40,7 +40,6 @@ const navItems = [
   { href: "/daily-summary", icon: BookText, label: "Daily Summary" },
   { href: "/business-notes", icon: Notebook, label: "Business Notes" },
   { href: "/competitors", icon: Swords, label: "Competitors" },
-  { href: "/yearly-stats", icon: Calendar, label: "Yearly Stats" },
 ];
 
 const settingsItems = [
