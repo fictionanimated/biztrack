@@ -20,7 +20,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 // Lazy load heavy chart components to speed up initial page load
 const TopClientsChart = lazy(() => import("./top-clients-chart"));
 const IncomeChart = lazy(() => import("./income-chart"));
-const RevenueChart = lazy(() => import("./revenue-chart"));
 
 export function DashboardClient({
   stats: initialStats,
@@ -154,16 +153,6 @@ export function DashboardClient({
         stats={customerAndOrderStats}
         gridClassName="grid gap-4 md:grid-cols-3 lg:grid-cols-4"
       />
-
-      <Card>
-        <Suspense fallback={<Skeleton className="h-[340px] w-full" />}>
-          <RevenueChart
-            data={revenueByDay}
-            previousData={previousRevenueByDay}
-            dailyTarget={dailyTarget}
-          />
-        </Suspense>
-      </Card>
 
       <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
         <Card>
