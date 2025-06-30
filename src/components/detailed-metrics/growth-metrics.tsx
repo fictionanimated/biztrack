@@ -1,7 +1,14 @@
 
+"use client";
+
+import { useState, lazy, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, ArrowUp, ArrowDown } from "lucide-react";
+import { BarChart, ArrowUp, ArrowDown, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const GrowthMetricsChart = lazy(() => import("@/components/detailed-metrics/growth-metrics-chart"));
 
 const growthMetrics = [
     { name: "Monthly Revenue Growth (%)", value: "2.5%", formula: "((This Month’s Revenue - Last Month’s Revenue) / Last Month’s Revenue) × 100", change: "+0.5%", changeType: "increase" as const },
@@ -13,13 +20,19 @@ const growthMetrics = [
 ];
 
 export function GrowthMetrics() {
+  const [showChart, setShowChart] = useState(false);
+
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           <BarChart className="h-6 w-6 text-primary" />
           <span>Growth Metrics</span>
         </CardTitle>
+        <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)}>
+            {showChart ? <EyeOff className="mr-2 h-4 w-4" /> : <BarChart className="mr-2 h-4 w-4" />}
+            {showChart ? "Hide Graph" : "Show Graph"}
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -53,6 +66,13 @@ export function GrowthMetrics() {
           })}
         </div>
       </CardContent>
+      {showChart && (
+        <CardContent>
+             <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
+                <GrowthMetricsChart />
+            </Suspense>
+        </CardContent>
+      )}
     </Card>
   );
 }
