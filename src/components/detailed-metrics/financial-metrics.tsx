@@ -12,7 +12,6 @@ const financialMetrics = [
   { name: "Client Acquisition Cost (CAC)", value: "$150.25", formula: "Total Sales & Marketing Costs / Number of New Clients", change: "+5.0%", changeType: "increase" as const, invertColor: true },
   { name: "Customer Lifetime Value (CLTV)", value: "$2,540.75", formula: "AOV × Repeat Purchase Rate × Avg. Client Lifespan", change: "+20.3%", changeType: "increase" as const },
   { name: "Average Order Value (AOV)", value: "$131.50", formula: "Total Revenue / Number of Orders", change: "-3.2%", changeType: "decrease" as const },
-  { name: "Outstanding Receivables", value: "$5,210.00", formula: "Sum of all unpaid invoices or pending payments", change: "-15.0%", changeType: "decrease" as const },
 ];
 
 export function FinancialMetrics() {
