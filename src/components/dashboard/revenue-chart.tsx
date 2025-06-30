@@ -175,30 +175,32 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
                     <stop offset="95%" stopColor="var(--color-previousRevenue)" stopOpacity={0.05} />
                 </linearGradient>
             </defs>
+            {/* Area Fills */}
             {showComparison && (
-                <>
-                    <Area
-                        dataKey="previousRevenue"
-                        type="natural"
-                        fill="url(#fillPreviousRevenue)"
-                        strokeWidth={0}
-                    />
-                    <Line
-                        dataKey="previousRevenue"
-                        type="natural"
-                        stroke="var(--color-previousRevenue)"
-                        strokeWidth={2}
-                        strokeDasharray="3 3"
-                        dot={false}
-                    />
-                </>
+              <Area
+                dataKey="previousRevenue"
+                type="natural"
+                fill="url(#fillPreviousRevenue)"
+                strokeWidth={0}
+              />
             )}
             <Area
-                dataKey="revenue"
-                type="natural"
-                fill="url(#fillRevenue)"
-                strokeWidth={0}
+              dataKey="revenue"
+              type="natural"
+              fill="url(#fillRevenue)"
+              strokeWidth={0}
             />
+            {/* Lines on Top */}
+            {showComparison && (
+              <Line
+                dataKey="previousRevenue"
+                type="natural"
+                stroke="var(--color-previousRevenue)"
+                strokeWidth={2}
+                strokeDasharray="3 3"
+                dot={false}
+              />
+            )}
             <Line
               dataKey="revenue"
               type="natural"
@@ -208,14 +210,14 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
               activeDot={{ r: 6 }}
             />
             {showTarget && dailyTarget !== undefined && (
-                <Line
-                    dataKey="target"
-                    type="monotone"
-                    stroke="var(--color-target)"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                    dot={false}
-                />
+              <Line
+                dataKey="target"
+                type="monotone"
+                stroke="var(--color-target)"
+                strokeWidth={2}
+                strokeDasharray="5 5"
+                dot={false}
+              />
             )}
           </AreaChart>
         </ChartContainer>
