@@ -11,18 +11,21 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  Legend,
   Dot,
 } from "recharts";
 import {
   ChartContainer,
-  type ChartConfig
+  type ChartConfig,
+  ChartLegend,
+  ChartLegendContent,
 } from "@/components/ui/chart";
 import { type RevenueByDay } from "@/lib/placeholder-data";
 import { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Separator } from "../ui/separator";
 import { BookText } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 
 interface RevenueChartProps {
   data: RevenueByDay[];
@@ -45,23 +48,6 @@ const chartConfig = {
   }
 } satisfies ChartConfig;
 
-const CustomDot = (props: any) => {
-  const { cx, cy, payload } = props;
-  if (payload.note) {
-    return (
-      <Dot
-        cx={cx}
-        cy={cy}
-        r={5}
-        fill="hsl(var(--primary))"
-        stroke="hsl(var(--background))"
-        strokeWidth={2}
-      />
-    );
-  }
-  return null;
-};
-
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const note = payload[0].payload.note;
@@ -72,10 +58,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           pld.value ? (
             <div key={pld.dataKey} className="flex items-center justify-between">
               <div className="flex items-center">
-                <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke }} />
+                <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke || pld.fill }} />
                 <span>{chartConfig[pld.dataKey as keyof typeof chartConfig].label}:</span>
               </div>
-              <span className="ml-4 font-semibold">${pld.value.toLocaleString()}</span>
+              <span className="ml-4 font-mono font-medium">${pld.value.toLocaleString()}</span>
             </div>
           ) : null
         ))}
@@ -89,6 +75,23 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           </>
         )}
       </div>
+    );
+  }
+  return null;
+};
+
+const CustomDot = (props: any) => {
+  const { cx, cy, payload } = props;
+  if (payload.note) {
+    return (
+      <Dot
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="hsl(var(--primary))"
+        stroke="hsl(var(--background))"
+        strokeWidth={2}
+      />
     );
   }
   return null;
@@ -167,32 +170,35 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
             />
             <defs>
                 <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.4} />
+                    <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.8} />
                     <stop offset="95%" stopColor="var(--color-revenue)" stopOpacity={0.1} />
                 </linearGradient>
+                <linearGradient id="fillPreviousRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-previousRevenue)" stopOpacity={0.6} />
+                    <stop offset="95%" stopColor="var(--color-previousRevenue)" stopOpacity={0.1} />
+                </linearGradient>
             </defs>
-            
-            {/* Render the Area fill first, without a stroke */}
+            {showComparison && (
+                <Area
+                    dataKey="previousRevenue"
+                    type="natural"
+                    fill="url(#fillPreviousRevenue)"
+                    fillOpacity={0.4}
+                    stroke="var(--color-previousRevenue)"
+                    strokeWidth={2}
+                    strokeDasharray="3 3"
+                    dot={false}
+                />
+            )}
             <Area
               dataKey="revenue"
               type="natural"
               fill="url(#fillRevenue)"
-              stroke="none"
-              stackId="a"
+              fillOpacity={0.4}
+              stroke="var(--color-revenue)"
+              strokeWidth={2}
+              dot={<CustomDot />}
             />
-            
-            {/* Render Lines on top of the Area fill */}
-            {showComparison && (
-              <Line
-                dataKey="previousRevenue"
-                type="natural"
-                stroke="var(--color-previousRevenue)"
-                strokeWidth={2}
-                strokeDasharray="3 3"
-                dot={false}
-              />
-            )}
-
             {showTarget && dailyTarget !== undefined && (
               <Line
                 dataKey="target"
@@ -203,16 +209,6 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
                 dot={false}
               />
             )}
-            
-            {/* Render the main revenue line on top of everything */}
-            <Line
-                dataKey="revenue"
-                type="natural"
-                stroke="var(--color-revenue)"
-                strokeWidth={2}
-                dot={<CustomDot />}
-                activeDot={{ r: 6 }}
-            />
           </AreaChart>
         </ChartContainer>
       </CardContent>
