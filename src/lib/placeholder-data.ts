@@ -11,6 +11,7 @@ export interface Stat {
   progressValue?: number;
   className?: string;
   invertChangeColor?: boolean;
+  color?: string;
 }
 
 export interface RecentOrder {

@@ -3,8 +3,9 @@
 
 import { useState, useMemo } from "react";
 import {
+  Area,
+  AreaChart,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,9 +15,7 @@ import {
 } from "recharts";
 import {
   ChartContainer,
-  ChartTooltipContent,
-  ChartTooltip,
-  ChartConfig
+  type ChartConfig
 } from "@/components/ui/chart";
 import { type RevenueByDay } from "@/lib/placeholder-data";
 import { CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -60,7 +59,7 @@ const CustomDot = (props: any) => {
       />
     );
   }
-  return <Dot cx={cx} cy={cy} r={2} fill="hsl(var(--chart-1))" />;
+  return null; // Hide default dots, as the line is prominent enough
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -73,7 +72,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           pld.value ? (
             <div key={pld.dataKey} className="flex items-center justify-between">
               <div className="flex items-center">
-                <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color }} />
+                <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke }} />
                 <span>{chartConfig[pld.dataKey as keyof typeof chartConfig].label}:</span>
               </div>
               <span className="ml-4 font-semibold">${pld.value.toLocaleString()}</span>
@@ -132,7 +131,7 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
       </CardHeader>
       <CardContent className="pl-2">
         <ChartContainer config={chartConfig} className="h-[250px] w-full">
-          <LineChart
+          <AreaChart
             accessibilityLayer
             data={combinedData}
             margin={{
@@ -166,6 +165,23 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
               cursor={false}
               content={<CustomTooltip />}
             />
+            <defs>
+                <linearGradient id="fillRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-revenue)" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="var(--color-revenue)" stopOpacity={0.1} />
+                </linearGradient>
+                 <linearGradient id="fillPreviousRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-previousRevenue)" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="var(--color-previousRevenue)" stopOpacity={0.05} />
+                </linearGradient>
+            </defs>
+            <Area
+                dataKey="revenue"
+                type="natural"
+                fill="url(#fillRevenue)"
+                fillOpacity={1}
+                strokeWidth={0}
+            />
             <Line
               dataKey="revenue"
               type="natural"
@@ -175,14 +191,23 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
               activeDot={{ r: 6 }}
             />
             {showComparison && (
-                <Line
-                    dataKey="previousRevenue"
-                    type="natural"
-                    stroke="var(--color-previousRevenue)"
-                    strokeWidth={2}
-                    strokeDasharray="3 3"
-                    dot={false}
-                />
+                <>
+                    <Area
+                        dataKey="previousRevenue"
+                        type="natural"
+                        fill="url(#fillPreviousRevenue)"
+                        fillOpacity={1}
+                        strokeWidth={0}
+                    />
+                    <Line
+                        dataKey="previousRevenue"
+                        type="natural"
+                        stroke="var(--color-previousRevenue)"
+                        strokeWidth={2}
+                        strokeDasharray="3 3"
+                        dot={false}
+                    />
+                </>
             )}
             {showTarget && dailyTarget !== undefined && (
                 <Line
@@ -194,7 +219,7 @@ export default function RevenueChart({ data, previousData, dailyTarget }: Revenu
                     dot={false}
                 />
             )}
-          </LineChart>
+          </AreaChart>
         </ChartContainer>
       </CardContent>
     </>

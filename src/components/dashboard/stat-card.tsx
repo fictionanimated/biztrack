@@ -60,6 +60,7 @@ export default function StatCard({
   progressValue,
   className,
   invertChangeColor,
+  color,
 }: Stat) {
   const Icon = iconMap[icon];
 
@@ -70,40 +71,50 @@ export default function StatCard({
   const isPositive = invertChangeColor ? changeType === "decrease" : changeType === "increase";
 
   return (
-    <Card className={className}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="text-xs text-muted-foreground mt-1">
-          <div className="flex items-center">
-            {change && (
-                <span
-                className={cn(
-                    "flex items-center gap-1",
-                    isPositive
-                    ? "text-green-600"
-                    : "text-red-600"
-                )}
-                >
-                {changeType === "increase" ? (
-                    <ArrowUp className="h-3 w-3" />
-                ) : (
-                    <ArrowDown className="h-3 w-3" />
-                )}
-                {change}
-                </span>
-            )}
-            {typeof description === "string" && <span className="ml-1">{description}</span>}
+    <Card className={cn("relative overflow-hidden group", className)}>
+      <div className="relative z-10">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{value}</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            <div className="flex items-center">
+              {change && (
+                  <span
+                  className={cn(
+                      "flex items-center gap-1",
+                      isPositive
+                      ? "text-green-600"
+                      : "text-red-600"
+                  )}
+                  >
+                  {changeType === "increase" ? (
+                      <ArrowUp className="h-3 w-3" />
+                  ) : (
+                      <ArrowDown className="h-3 w-3" />
+                  )}
+                  {change}
+                  </span>
+              )}
+              {typeof description === "string" && <span className="ml-1">{description}</span>}
+            </div>
+            {typeof description !== "string" && <div className="mt-1">{description}</div>}
           </div>
-          {typeof description !== "string" && <div className="mt-1">{description}</div>}
-        </div>
-        {progressValue !== undefined && (
-          <Progress value={progressValue} className="mt-2 h-2" />
-        )}
-      </CardContent>
+          {progressValue !== undefined && (
+             <Progress value={progressValue} className="mt-2 h-1" style={{ '--color': color } as React.CSSProperties} />
+          )}
+        </CardContent>
+      </div>
+      {color && (
+         <div
+            className="absolute bottom-[-50%] left-1/2 -translate-x-1/2 w-[200%] h-[100%] z-0 opacity-40 blur-3xl animate-pulse-glow"
+            style={{
+                backgroundImage: `radial-gradient(circle, ${color} 0%, transparent 70%)`
+            }}
+        />
+      )}
     </Card>
   );
 }

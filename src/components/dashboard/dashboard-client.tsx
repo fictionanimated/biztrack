@@ -96,7 +96,7 @@ export function DashboardClient({
 
   const financialStats = stats.filter((s) =>
     ["Total Revenue", "Total Expenses", "Net Profit"].includes(s.title)
-  );
+  ).map((s, i) => ({ ...s, color: `hsl(var(--chart-${i + 1}))` }));
 
   const performanceStats = stats.filter((s) =>
     [
@@ -105,7 +105,10 @@ export function DashboardClient({
       "Req. Daily Revenue (RDR)",
       "Days Left in Month",
     ].includes(s.title) || s.title.startsWith("Target for")
-  );
+  ).map((s, i) => ({
+      ...s,
+      color: s.title.startsWith("Target for") ? `hsl(var(--chart-4))` : `hsl(var(--chart-${(i % 5) + 1}))`
+  }));
 
   const customerAndOrderStats = stats.filter((s) =>
     [
@@ -116,7 +119,10 @@ export function DashboardClient({
       "% Orders with Reviews",
       "All-Time Total Buyers",
     ].includes(s.title)
-  );
+  ).map((s, i) => ({
+      ...s,
+      color: s.title.includes("Cancelled") ? 'hsl(var(--destructive))' : `hsl(var(--chart-${(i % 5) + 1}))`
+  }));
   
   const totalRevenue = revenueByDay.reduce((sum, day) => sum + day.revenue, 0);
 
