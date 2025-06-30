@@ -25,6 +25,9 @@ export function GrowthMetrics() {
     revenueGrowth: true,
     profitGrowth: true,
     clientGrowth: true,
+    aovGrowth: false,
+    highValueClientGrowth: false,
+    sourceGrowth: false,
   });
 
   const handleMetricToggle = (metric: string) => {

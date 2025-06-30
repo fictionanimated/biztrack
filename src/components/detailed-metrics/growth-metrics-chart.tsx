@@ -8,12 +8,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
 const chartData = [
-  { month: "Jan", revenueGrowth: 2.1, profitGrowth: 1.5, clientGrowth: 5 },
-  { month: "Feb", revenueGrowth: 2.5, profitGrowth: 2.0, clientGrowth: 7 },
-  { month: "Mar", revenueGrowth: 1.8, profitGrowth: 1.2, clientGrowth: 4 },
-  { month: "Apr", revenueGrowth: 3.0, profitGrowth: 2.5, clientGrowth: 10 },
-  { month: "May", revenueGrowth: 2.8, profitGrowth: 2.2, clientGrowth: 8 },
-  { month: "Jun", revenueGrowth: 3.5, profitGrowth: 3.0, clientGrowth: 12 },
+  { month: "Jan", revenueGrowth: 2.1, profitGrowth: 1.5, clientGrowth: 5, aovGrowth: 0.5, highValueClientGrowth: 1, sourceGrowth: 2 },
+  { month: "Feb", revenueGrowth: 2.5, profitGrowth: 2.0, clientGrowth: 7, aovGrowth: 0.8, highValueClientGrowth: 2, sourceGrowth: 3 },
+  { month: "Mar", revenueGrowth: 1.8, profitGrowth: 1.2, clientGrowth: 4, aovGrowth: -0.2, highValueClientGrowth: 1, sourceGrowth: 1.5 },
+  { month: "Apr", revenueGrowth: 3.0, profitGrowth: 2.5, clientGrowth: 10, aovGrowth: 1.2, highValueClientGrowth: 4, sourceGrowth: 5 },
+  { month: "May", revenueGrowth: 2.8, profitGrowth: 2.2, clientGrowth: 8, aovGrowth: 1.0, highValueClientGrowth: 3, sourceGrowth: 4 },
+  { month: "Jun", revenueGrowth: 3.5, profitGrowth: 3.0, clientGrowth: 12, aovGrowth: 1.5, highValueClientGrowth: 5, sourceGrowth: 6 },
 ];
 
 const chartConfig = {
@@ -28,6 +28,18 @@ const chartConfig = {
     clientGrowth: {
         label: "Client Growth",
         color: "hsl(var(--chart-3))",
+    },
+    aovGrowth: {
+        label: "AOV Growth",
+        color: "hsl(var(--chart-4))",
+    },
+    highValueClientGrowth: {
+        label: "High-Value Client Growth",
+        color: "hsl(var(--chart-5))",
+    },
+    sourceGrowth: {
+        label: "Source/Gig Growth",
+        color: "hsl(var(--primary))",
     },
 } satisfies ChartConfig;
 
@@ -91,6 +103,9 @@ export default function GrowthMetricsChart({ activeMetrics, onMetricToggle }: Gr
                         {activeMetrics.revenueGrowth && <Line dataKey="revenueGrowth" type="monotone" stroke="var(--color-revenueGrowth)" strokeWidth={2} dot={true} />}
                         {activeMetrics.profitGrowth && <Line dataKey="profitGrowth" type="monotone" stroke="var(--color-profitGrowth)" strokeWidth={2} dot={true} />}
                         {activeMetrics.clientGrowth && <Line dataKey="clientGrowth" type="monotone" stroke="var(--color-clientGrowth)" strokeWidth={2} dot={true} />}
+                        {activeMetrics.aovGrowth && <Line dataKey="aovGrowth" type="monotone" stroke="var(--color-aovGrowth)" strokeWidth={2} dot={true} />}
+                        {activeMetrics.highValueClientGrowth && <Line dataKey="highValueClientGrowth" type="monotone" stroke="var(--color-highValueClientGrowth)" strokeWidth={2} dot={true} />}
+                        {activeMetrics.sourceGrowth && <Line dataKey="sourceGrowth" type="monotone" stroke="var(--color-sourceGrowth)" strokeWidth={2} dot={true} />}
                     </LineChart>
                 </ChartContainer>
             </CardContent>
