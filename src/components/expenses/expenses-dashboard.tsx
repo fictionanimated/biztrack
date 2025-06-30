@@ -237,14 +237,11 @@ export function ExpensesDashboard() {
       if (!expense.date) return false;
       const expenseDate = new Date(expense.date.replace(/-/g, "/"));
       
-      const from = date?.from;
-      const to = date?.to;
-
-      if (from && expenseDate < from) {
+      if (date?.from && expenseDate < date.from) {
         return false;
       }
-      if (to) {
-        const toDateEnd = new Date(to);
+      if (date?.to) {
+        const toDateEnd = new Date(date.to);
         toDateEnd.setHours(23, 59, 59, 999);
         if (expenseDate > toDateEnd) {
           return false;
@@ -437,26 +434,24 @@ export function ExpensesDashboard() {
                     return new Date(a.date).getTime() - new Date(b.date).getTime();
                 });
         };
-
-        if (!date?.from || !date?.to) {
-          return { expenseTrendData: [], previousExpenseTrendData: [] };
-        }
-
+        
         const trendData = getAggregatedData(filteredExpenses, chartView);
-        
-        const { from: prevFrom, to: prevTo } = (() => {
-            const duration = date.to.getTime() - date.from.getTime();
-            const to = new Date(date.from.getTime() - 1);
-            const from = new Date(to.getTime() - duration);
-            return { from, to };
-        })();
-        
-        const previousPeriodExpenses = expenses.filter(expense => {
-            const expenseDate = new Date(expense.date.replace(/-/g, '/'));
-            return expenseDate >= prevFrom && expenseDate <= prevTo;
-        });
+        let prevTrendData: { date: string, amount: number }[] = [];
 
-        const prevTrendData = getAggregatedData(previousPeriodExpenses, chartView);
+        if (date?.from && date?.to) {
+            const { from: prevFrom, to: prevTo } = (() => {
+                const duration = date.to.getTime() - date.from.getTime();
+                const to = new Date(date.from.getTime() - 1);
+                const from = new Date(to.getTime() - duration);
+                return { from, to };
+            })();
+            
+            const previousPeriodExpenses = expenses.filter(expense => {
+                const expenseDate = new Date(expense.date.replace(/-/g, '/'));
+                return expenseDate >= prevFrom && expenseDate <= prevTo;
+            });
+            prevTrendData = getAggregatedData(previousPeriodExpenses, chartView);
+        }
 
         return { expenseTrendData: trendData, previousExpenseTrendData: prevTrendData };
 
