@@ -196,7 +196,7 @@ export default function OrdersPage() {
     };
 
     useEffect(() => {
-        if (!searchParams.has('from') || !searchParams.has('to')) {
+        if (!searchParams.has('from') && !searchParams.has('to')) {
             const today = new Date();
             const startOfYear = new Date(today.getFullYear(), 0, 1);
             setDate({ from: startOfYear, to: today });
@@ -379,7 +379,7 @@ export default function OrdersPage() {
 
     const filteredOrders = useMemo(() => {
         if (!date) {
-            return [];
+            return orders;
         }
         return orders.filter(order => {
             if (!order.date) return false;

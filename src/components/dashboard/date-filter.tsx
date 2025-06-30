@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -24,9 +25,11 @@ export function DateFilter({
   date,
   setDate,
 }: DateFilterProps) {
+  const [isOpen, setIsOpen] = React.useState(false);
+
   return (
     <div className={cn("grid gap-2", className)}>
-      <Popover>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button
             id="date"
@@ -47,7 +50,7 @@ export function DateFilter({
                 format(date.from, "LLL dd, y")
               )
             ) : (
-              <span>Pick a date range</span>
+              <span>All Time</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -60,6 +63,18 @@ export function DateFilter({
             onSelect={setDate}
             numberOfMonths={2}
           />
+           <div className="border-t p-2">
+            <Button
+              variant="ghost"
+              className="w-full justify-center"
+              onClick={() => {
+                setDate(undefined);
+                setIsOpen(false);
+              }}
+            >
+              All Time
+            </Button>
+          </div>
         </PopoverContent>
       </Popover>
     </div>
