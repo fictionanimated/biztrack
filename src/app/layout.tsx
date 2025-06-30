@@ -25,10 +25,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      suppressHydrationWarning
       className={`${inter.variable} ${spaceGrotesk.variable}`}
     >
-      <body className="font-body">
+      <body className="font-body" suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
