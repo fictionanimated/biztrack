@@ -41,7 +41,7 @@ interface EditClientDialogProps {
     onOpenChange: (open: boolean) => void;
     onClientUpdated: (client: Client) => void;
     client: Client;
-    children: React.ReactNode;
+    children?: React.ReactNode;
 }
 
 export function EditClientDialog({ open, onOpenChange, onClientUpdated, client, children }: EditClientDialogProps) {
@@ -90,9 +90,11 @@ export function EditClientDialog({ open, onOpenChange, onClientUpdated, client, 
     
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogTrigger asChild>
-                {children}
-            </DialogTrigger>
+            {children && (
+                <DialogTrigger asChild>
+                    {children}
+                </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Edit Client</DialogTitle>

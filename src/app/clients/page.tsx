@@ -16,11 +16,13 @@ import { Input } from "@/components/ui/input";
 import { initialClients, incomeSources, type Client } from "@/lib/data/clients-data";
 import { AddClientDialog } from "@/components/clients/add-client-dialog";
 import { ClientsTable } from "@/components/clients/clients-table";
+import { EditClientDialog } from "@/components/clients/edit-client-dialog";
 
 
 export default function ClientsPage() {
     const [clients, setClients] = useState<Client[]>(initialClients);
     const [open, setOpen] = useState(false);
+    const [editingClient, setEditingClient] = useState<Client | null>(null);
     
     const router = useRouter();
     const pathname = usePathname();
@@ -80,6 +82,13 @@ export default function ClientsPage() {
 
     const handleClientAdded = (newClient: Client) => {
         setClients([newClient, ...clients]);
+    };
+
+    const handleClientUpdated = (updatedClient: Client) => {
+        setClients(prevClients => 
+            prevClients.map(c => (c.id === updatedClient.id ? updatedClient : c))
+        );
+        setEditingClient(null);
     };
 
     const requestSort = (key: keyof Client) => {
@@ -179,7 +188,17 @@ export default function ClientsPage() {
         clients={sortedClients}
         requestSort={requestSort}
         getSortIndicator={getSortIndicator}
+        onEdit={(client) => setEditingClient(client)}
       />
+
+      {editingClient && (
+        <EditClientDialog
+          open={!!editingClient}
+          onOpenChange={(isOpen) => !isOpen && setEditingClient(null)}
+          client={editingClient}
+          onClientUpdated={handleClientUpdated}
+        />
+      )}
     </main>
   );
 }

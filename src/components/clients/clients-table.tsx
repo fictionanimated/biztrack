@@ -17,6 +17,7 @@ interface ClientsTableProps {
     clients: Client[];
     requestSort: (key: keyof Client) => void;
     getSortIndicator: (key: keyof Client) => React.ReactNode;
+    onEdit: (client: Client) => void;
 }
 
 const SocialIcon = ({ platform }: { platform: string }) => {
@@ -26,7 +27,7 @@ const SocialIcon = ({ platform }: { platform: string }) => {
     return <Icon className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />;
 };
 
-export function ClientsTable({ clients, requestSort, getSortIndicator }: ClientsTableProps) {
+export function ClientsTable({ clients, requestSort, getSortIndicator, onEdit }: ClientsTableProps) {
     const router = useRouter();
 
     const handleRowClick = (clientId: string) => {
@@ -147,7 +148,7 @@ export function ClientsTable({ clients, requestSort, getSortIndicator }: Clients
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem>
+                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(client); }}>
                                                     <Edit className="mr-2 h-4 w-4" />
                                                     Edit
                                                 </DropdownMenuItem>
