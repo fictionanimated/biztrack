@@ -26,6 +26,7 @@ import {
   UserCircle,
   Settings,
   Notebook,
+  Gauge,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from "./theme-toggle";
@@ -40,6 +41,7 @@ const navItems = [
   { href: "/daily-summary", icon: BookText, label: "Daily Summary" },
   { href: "/business-notes", icon: Notebook, label: "Business Notes" },
   { href: "/competitors", icon: Swords, label: "Competitors" },
+  { href: "/detailed-metrics", icon: Gauge, label: "Detailed Metrics" },
 ];
 
 const settingsItems = [
