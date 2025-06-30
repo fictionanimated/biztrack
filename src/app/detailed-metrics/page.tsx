@@ -4,18 +4,9 @@
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   DollarSign,
   Users,
@@ -134,24 +125,17 @@ export default function DetailedMetricsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[30%]">Metric</TableHead>
-                    <TableHead className="w-[15%]">Value</TableHead>
-                    <TableHead>Formula</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {category.metrics.map((metric) => (
-                    <TableRow key={metric.name}>
-                      <TableCell className="font-medium">{metric.name}</TableCell>
-                      <TableCell className="font-mono text-base">{metric.value}</TableCell>
-                      <TableCell className="text-muted-foreground">{metric.formula}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {category.metrics.map((metric) => (
+                  <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">{metric.name}</p>
+                      <p className="text-2xl font-bold mt-1">{metric.value}</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">{metric.formula}</p>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         ))}
