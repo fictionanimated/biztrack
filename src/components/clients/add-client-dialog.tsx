@@ -18,6 +18,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -33,6 +34,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { incomeSources, socialPlatforms, clientFormSchema, type ClientFormValues, type Client } from "@/lib/data/clients-data";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 
 interface AddClientDialogProps {
     open: boolean;
@@ -52,6 +55,9 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded, children }:
             email: "",
             source: "",
             socialLinks: [],
+            notes: "",
+            tags: "",
+            isVip: false,
         },
     });
 
@@ -64,6 +70,7 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded, children }:
         const newClient: Client = {
             id: `client-${Date.now()}`,
             ...values,
+            tags: values.tags ? values.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
             clientType: 'New',
             clientSince: new Date().toISOString().split('T')[0],
             totalOrders: 0,
@@ -92,14 +99,14 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded, children }:
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField
                                 control={form.control}
                                 name="username"
                                 render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Username</FormLabel>
+                                    <FormLabel>Username*</FormLabel>
                                     <FormControl>
                                         <Input placeholder="e.g., johndoe99" {...field} />
                                     </FormControl>
@@ -139,7 +146,7 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded, children }:
                             name="source"
                             render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Income Source</FormLabel>
+                                <FormLabel>Income Source*</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                     <SelectTrigger>
@@ -151,6 +158,58 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded, children }:
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="tags"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Tags</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g. minimalist, reseller, daily-updates" {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                    Comma-separated tags for easy filtering and identification.
+                                </FormDescription>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="notes"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Strategic Notes</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder="Client preferences, communication style, etc." className="min-h-24" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        
+                        <FormField
+                            control={form.control}
+                            name="isVip"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                    <div className="space-y-0.5">
+                                        <FormLabel>VIP Client</FormLabel>
+                                        <FormDescription>
+                                            Mark this client as a VIP for special recognition.
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
                                 </FormItem>
                             )}
                         />
@@ -223,7 +282,7 @@ export function AddClientDialog({ open, onOpenChange, onClientAdded, children }:
                             </Button>
                         </div>
                         
-                        <DialogFooter>
+                        <DialogFooter className="pt-4">
                             <DialogClose asChild>
                             <Button type="button" variant="secondary">
                                 Cancel

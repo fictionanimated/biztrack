@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Edit, Trash2, Globe, Facebook, Twitter, Linkedin, Github } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Globe, Facebook, Twitter, Linkedin, Github, Star } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Client } from "@/lib/data/clients-data";
-import { socialPlatforms } from "@/lib/data/clients-data";
+import { socialPlatforms, getClientStatus } from "@/lib/data/clients-data";
+import { cn } from "@/lib/utils";
 
 interface ClientsTableProps {
     clients: Client[];
@@ -50,6 +51,7 @@ export function ClientsTable({ clients, requestSort, getSortIndicator, onEdit }:
                                         Client {getSortIndicator('name')}
                                     </Button>
                                 </TableHead>
+                                <TableHead>Status</TableHead>
                                 <TableHead>
                                     <Button variant="ghost" onClick={() => requestSort('clientType')}>
                                         Type {getSortIndicator('clientType')}
@@ -85,7 +87,9 @@ export function ClientsTable({ clients, requestSort, getSortIndicator, onEdit }:
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {clients.length > 0 ? (clients.map((client) => (
+                            {clients.length > 0 ? (clients.map((client) => {
+                                const status = getClientStatus(client.lastOrder);
+                                return (
                                 <TableRow 
                                     key={client.id}
                                     onClick={() => handleRowClick(client.id)}
@@ -98,9 +102,25 @@ export function ClientsTable({ clients, requestSort, getSortIndicator, onEdit }:
                                                 <AvatarFallback>{(client.name || client.username).charAt(0).toUpperCase()}</AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <div className="font-medium">{client.name || client.username}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium">{client.name || client.username}</span>
+                                                     {client.isVip && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger>
+                                                                <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent><p>VIP Client</p></TooltipContent>
+                                                        </Tooltip>
+                                                    )}
+                                                </div>
                                                 <div className="text-sm text-muted-foreground">@{client.username}</div>
                                             </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <span className={cn("h-2.5 w-2.5 rounded-full", status.color)} />
+                                            <span>{status.text}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -160,9 +180,10 @@ export function ClientsTable({ clients, requestSort, getSortIndicator, onEdit }:
                                         </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
-                            ))) : (
+                                )}
+                            )) : (
                                 <TableRow>
-                                    <TableCell colSpan={9} className="h-24 text-center">
+                                    <TableCell colSpan={10} className="h-24 text-center">
                                         <h3 className="font-semibold">No clients found</h3>
                                         <p className="text-sm text-muted-foreground">Try adjusting your search or filter to find what you're looking for.</p>
                                     </TableCell>

@@ -22,14 +22,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import StatCard from "@/components/dashboard/stat-card";
-import { Facebook, Twitter, Linkedin, Github, Globe, DollarSign, ShoppingCart, BarChart, Calendar, ArrowLeft, Pencil } from "lucide-react";
+import { Facebook, Twitter, Linkedin, Github, Globe, DollarSign, ShoppingCart, BarChart, Calendar, ArrowLeft, Pencil, Star, HeartPulse } from "lucide-react";
 import type { Stat } from "@/lib/placeholder-data";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
-import { initialClients as staticClients, type Client } from "@/lib/data/clients-data";
+import { getClientStatus, initialClients as staticClients, type Client } from "@/lib/data/clients-data";
 import { initialOrders } from "@/lib/data/orders-data";
 import { EditClientDialog } from "@/components/clients/edit-client-dialog";
+import { cn } from "@/lib/utils";
 
 const ClientOrderHistoryChart = lazy(() => import("@/components/clients/client-order-history-chart"));
 
@@ -72,8 +73,21 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
   };
   
   const clientOrders = initialOrders.filter(o => o.clientUsername === client?.username);
+  
+  const clientStatus = getClientStatus(client.lastOrder);
 
   const clientStats: Stat[] = [
+    {
+      icon: "HeartPulse",
+      title: "Client Status",
+      value: (
+          <div className="flex items-center gap-2">
+              <span className={cn("h-3 w-3 rounded-full", clientStatus.color)} />
+              <span>{clientStatus.text}</span>
+          </div>
+      ),
+      description: `Based on last order date`
+    },
     {
       icon: "DollarSign",
       title: "Total Revenue",
@@ -109,9 +123,12 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
             <AvatarFallback>{(client.name || client.username).charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div>
-                <h1 className="font-headline text-2xl font-semibold md:text-3xl">
-                    {client.name || client.username}
-                </h1>
+                <div className="flex items-center gap-3">
+                    <h1 className="font-headline text-2xl font-semibold md:text-3xl">
+                        {client.name || client.username}
+                    </h1>
+                     {client.isVip && <Badge variant="secondary" className="border-yellow-400 text-yellow-500"><Star className="mr-1 h-3 w-3 fill-yellow-400" /> VIP</Badge>}
+                </div>
                 <p className="text-muted-foreground">@{client.username}</p>
                 <div className="mt-2 flex items-center gap-2">
                     <Badge variant={client.clientType === 'New' ? 'secondary' : 'default'}>
@@ -148,14 +165,36 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
       
       <section>
         <h2 className="text-xl font-semibold mb-4">Client Overview</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           {clientStats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 mt-8">
+        <Card className="md:col-span-2">
+            <CardHeader>
+                <CardTitle>Strategic Brief</CardTitle>
+                <CardDescription>Key notes and tags for this client.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div>
+                    <h3 className="text-sm font-medium mb-2">Key Notes</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {client.notes || "No notes added yet."}
+                    </p>
+                </div>
+                {client.tags && client.tags.length > 0 && (
+                    <div>
+                        <h3 className="text-sm font-medium mb-2">Tags</h3>
+                        <div className="flex flex-wrap gap-2">
+                            {client.tags.map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
         <Card className="md:col-span-1">
              <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
@@ -171,7 +210,10 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
                 </div>
             </CardContent>
         </Card>
-        <Card className="md:col-span-2">
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3 mt-8">
+        <Card className="md:col-span-3">
             <CardHeader>
                 <CardTitle>Order History</CardTitle>
                 <CardDescription>A list of all orders from this client.</CardDescription>
@@ -209,7 +251,7 @@ export default function ClientDetailsPage({ params }: { params: { clientId: stri
         </Card>
       </div>
 
-      <section>
+      <section className="mt-8">
         <Suspense fallback={<Skeleton className="h-[400px] w-full rounded-lg" />}>
           <ClientOrderHistoryChart data={clientOrders} />
         </Suspense>

@@ -25,6 +25,7 @@ import {
   MousePointerClick,
   Percent,
   MessageSquare,
+  HeartPulse,
   type LucideIcon,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -46,6 +47,7 @@ const iconMap: { [key: string]: LucideIcon } = {
     MousePointerClick,
     Percent,
     MessageSquare,
+    HeartPulse,
 };
 
 export default function StatCard({
