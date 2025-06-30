@@ -4,12 +4,12 @@ import { DollarSign } from "lucide-react";
 
 const financialMetrics = [
   { name: "Total Revenue", value: "$45,231.89", formula: "Sum of all income from services" },
+  { name: "Total Expenses", value: "$10,543.00", formula: "Sum of all business expenses" },
   { name: "Net Profit", value: "$34,688.89", formula: "Total Revenue - Total Expenses" },
   { name: "Profit Margin (%)", value: "76.7%", formula: "(Net Profit / Total Revenue) × 100" },
   { name: "Gross Margin (%)", value: "85.2%", formula: "((Revenue - Cost of Services Sold) / Revenue) × 100" },
   { name: "Client Acquisition Cost (CAC)", value: "$150.25", formula: "Total Sales & Marketing Costs / Number of New Clients" },
   { name: "Customer Lifetime Value (CLTV)", value: "$2,540.75", formula: "AOV × Repeat Purchase Rate × Avg. Client Lifespan" },
-  { name: "Cash Flow", value: "$12,345.00", formula: "Cash Inflows - Cash Outflows" },
   { name: "Average Order Value (AOV)", value: "$131.50", formula: "Total Revenue / Number of Orders" },
   { name: "Outstanding Receivables", value: "$5,210.00", formula: "Sum of all unpaid invoices or pending payments" },
 ];
