@@ -47,6 +47,28 @@ export function FinancialStatCard({
           className={cn("absolute inset-0 bg-gradient-to-br", gradient)}
           aria-hidden="true"
         />
+
+        {/* Faded background chart */}
+        <div className="absolute bottom-0 left-0 right-0 h-2/3 text-white/25">
+           <ResponsiveContainer width="100%" height="100%">
+              <Chart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                {chartType === "line" && (
+                  <Line
+                    type="natural"
+                    dataKey="value"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                )}
+                {chartType === "bar" && (
+                  <Bar dataKey="value" fill="currentColor" />
+                )}
+              </Chart>
+            </ResponsiveContainer>
+        </div>
+        
+        {/* Foreground content */}
         <div className="relative z-10">
           <h3 className="text-sm font-medium text-white/80">{title}</h3>
           <div className="mt-2 flex items-baseline gap-2">
@@ -70,27 +92,7 @@ export function FinancialStatCard({
             )}
           </div>
         </div>
-        <div className="relative z-10 mt-4 flex items-end justify-between">
-          <div className="h-10 w-20 text-white/50">
-            <ResponsiveContainer width="100%" height="100%">
-              <Chart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-                {chartType === "line" && (
-                  <Line
-                    type="natural"
-                    dataKey="value"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                )}
-                {chartType === "bar" && (
-                  <Bar dataKey="value" fill="currentColor" />
-                )}
-              </Chart>
-            </ResponsiveContainer>
-          </div>
-          <p className="text-xs text-white/80">{dateRange}</p>
-        </div>
+        <p className="relative z-10 text-xs text-white/80">{dateRange}</p>
       </div>
     </div>
   );
