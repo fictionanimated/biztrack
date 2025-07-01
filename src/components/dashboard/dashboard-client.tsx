@@ -91,22 +91,30 @@ export function DashboardClient({
     stats.find((s) => s.title.startsWith("Target for"))?.value.replace(/[^0-9.-]+/g, "") || "0"
   );
   
-  const customerAndOrderStats = stats.filter((s) =>
+  const orderMetrics = stats.filter((s) =>
     [
       "Avg Order Value (AOV)",
       "Total Orders (Completed)",
-      "Buyers",
       "Cancelled Orders",
       "% Orders with Reviews",
-      "All-Time Total Buyers",
-      "Avg Daily Revenue (ADR)",
-      "Req. Daily Revenue (RDR)",
     ].includes(s.title)
   ).map((s, i) => ({
       ...s,
       color: s.title.includes("Cancelled") ? 'hsl(var(--destructive))' : `hsl(var(--chart-${(i % 5) + 1}))`
   }));
   
+  const customerMetrics = stats.filter((s) =>
+    [
+      "Buyers",
+      "All-Time Total Buyers",
+      "Avg Daily Revenue (ADR)",
+      "Req. Daily Revenue (RDR)",
+    ].includes(s.title)
+  ).map((s, i) => ({
+      ...s,
+      color: `hsl(var(--chart-${(i % 5) + 1}))`
+  }));
+
   const totalRevenue = revenueByDay.reduce((sum, day) => sum + day.revenue, 0);
 
   const performanceValue = parseFloat(stats.find(s => s.title === 'Performance vs Target')?.value as string) || 0;
@@ -140,9 +148,14 @@ export function DashboardClient({
         </Suspense>
       </div>
 
-      <StatsGrid 
-        title="Customer & Order Metrics"
-        stats={customerAndOrderStats}
+      <StatsGrid
+        title="Order Metrics"
+        stats={orderMetrics}
+        gridClassName="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+      />
+      <StatsGrid
+        title="Customer & Daily Metrics"
+        stats={customerMetrics}
         gridClassName="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
       />
 
