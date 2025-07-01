@@ -1,5 +1,4 @@
 import {
-  Card,
   CardContent,
   CardHeader,
   CardTitle,
@@ -71,20 +70,21 @@ export default function StatCard({
   const isPositive = invertChangeColor ? changeType === "decrease" : changeType === "increase";
 
   return (
-    <Card
-      className={cn(
-        "relative overflow-hidden group transition-all duration-300 hover:shadow-[0_0_20px_var(--glow-color)]",
-        className
-      )}
-      style={color ? { '--glow-color': color } as React.CSSProperties : undefined}
+    <div
+      className={cn("relative group", className)}
+      style={color ? { '--glow-color': color } as React.CSSProperties : { '--glow-color': 'hsl(var(--primary))' } as React.CSSProperties}
     >
-      <div className="relative z-10">
+      <div
+        className="absolute -inset-px rounded-lg bg-[conic-gradient(from_90deg_at_50%_50%,var(--glow-color)_0%,hsl(var(--primary))_50%,var(--glow-color)_100%)] opacity-0 blur-sm transition-opacity duration-500 group-hover:animate-spin group-hover:opacity-75"
+        style={{ animationDuration: '3s' }}
+      ></div>
+      <div className="relative z-10 h-full w-full rounded-lg border bg-card text-card-foreground shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">{title}</CardTitle>
           <Icon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold transition-all duration-300 group-hover:text-shadow-[0_0_10px_var(--glow-color)]">
+          <div className="text-2xl font-bold transition-all duration-300 group-hover:text-shadow-[0_0_10px_white]">
             {value}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
@@ -115,14 +115,6 @@ export default function StatCard({
           )}
         </CardContent>
       </div>
-      {color && (
-         <div
-            className="absolute bottom-[-50%] left-1/2 -translate-x-1/2 w-[200%] h-[100%] z-0 opacity-40 blur-3xl animate-pulse-glow"
-            style={{
-                backgroundImage: `radial-gradient(circle, ${color} 0%, transparent 70%)`
-            }}
-        />
-      )}
-    </Card>
+    </div>
   );
 }
