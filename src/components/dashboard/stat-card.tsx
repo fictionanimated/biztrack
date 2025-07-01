@@ -61,7 +61,6 @@ export default function StatCard({
   invertChangeColor,
   color,
   highlight,
-  alwaysHighlight,
   breakdown,
 }: Stat) {
   const Icon = iconMap[icon];
@@ -78,10 +77,7 @@ export default function StatCard({
     >
       <div
         className={cn(
-          "absolute -inset-px rounded-lg bg-[conic-gradient(from_var(--gradient-angle)_at_50%_50%,white_0deg,transparent_60deg)] blur-sm transition-opacity duration-500",
-          alwaysHighlight
-            ? "opacity-75 animate-spin-gradient"
-            : "opacity-0 group-hover:opacity-75 group-hover:animate-spin-gradient"
+          "absolute -inset-px rounded-lg bg-[conic-gradient(from_var(--gradient-angle)_at_50%_50%,white_0deg,transparent_60deg)] opacity-0 blur-sm transition-opacity duration-500 group-hover:opacity-75 group-hover:animate-spin-gradient"
         )}
         aria-hidden="true"
       />

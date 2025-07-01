@@ -98,7 +98,7 @@ export default {
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'spin-gradient': 'spin-gradient 7s linear infinite',
+        'spin-gradient': 'spin-gradient 3s linear infinite',
       },
       textShadow: {
         sm: '0 1px 2px var(--tw-shadow-color)',
