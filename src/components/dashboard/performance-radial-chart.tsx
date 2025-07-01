@@ -27,8 +27,8 @@ export function PerformanceRadialChart({
         <CardTitle>Performance vs Goals</CardTitle>
         <CardDescription>Your progress towards your monthly revenue target.</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col items-center justify-center gap-4 py-4">
-        <div className="relative h-[180px] w-[180px]">
+      <CardContent className="flex flex-col items-center justify-center gap-4 py-2">
+        <div className="relative h-[140px] w-[140px]">
             <ResponsiveContainer width="100%" height="100%">
                  <RadialBarChart
                     data={data}
@@ -36,7 +36,7 @@ export function PerformanceRadialChart({
                     outerRadius="100%"
                     startAngle={90}
                     endAngle={-270}
-                    barSize={16}
+                    barSize={12}
                 >
                     <defs>
                         <linearGradient id="performance-gradient" x1="0" y1="0" x2="0" y2="1">
@@ -53,15 +53,15 @@ export function PerformanceRadialChart({
                     <RadialBar
                         background={{ fill: 'hsl(var(--muted))', opacity: 0.5 }}
                         dataKey="value"
-                        cornerRadius={8}
+                        cornerRadius={6}
                     />
                 </RadialBarChart>
             </ResponsiveContainer>
             <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center text-center">
-                <p className="text-4xl font-bold text-primary">{`${Math.round(performance)}%`}</p>
+                <p className="text-3xl font-bold text-primary">{`${Math.round(performance)}%`}</p>
             </div>
-             <div className="absolute bottom-[20px] left-[10px] text-xs font-medium text-muted-foreground">0%</div>
-            <div className="absolute bottom-[20px] right-[10px] text-xs font-medium text-muted-foreground">100%</div>
+             <div className="absolute bottom-[15px] left-[5px] text-xs font-medium text-muted-foreground">0%</div>
+            <div className="absolute bottom-[15px] right-[5px] text-xs font-medium text-muted-foreground">100%</div>
         </div>
       </CardContent>
     </Card>

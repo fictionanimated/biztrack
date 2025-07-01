@@ -131,7 +131,7 @@ export function DashboardClient({
         </div>
       </section>
 
-      <div className="grid gap-4 md:gap-8 lg:grid-cols-2">
+      <div className="grid gap-4 md:gap-8 lg:grid-cols-2 lg:items-start">
         <Suspense fallback={<Skeleton className="h-[430px] w-full" />}>
           <PerformanceRadialChart
             performance={performanceValue}
