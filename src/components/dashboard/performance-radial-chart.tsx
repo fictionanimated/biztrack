@@ -39,8 +39,8 @@ export function PerformanceRadialChart({
         <CardTitle>Performance vs Goals</CardTitle>
         <CardDescription>Your progress towards your monthly revenue target.</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-1 items-center justify-center py-0">
-        <div className="relative h-[250px] w-[250px]">
+      <CardContent className="flex flex-1 flex-col items-center justify-center gap-4 py-0">
+        <div className="relative h-[200px] w-[200px]">
             <ResponsiveContainer width="100%" height="100%">
                  <RadialBarChart
                     data={data}
@@ -48,7 +48,7 @@ export function PerformanceRadialChart({
                     outerRadius="100%"
                     startAngle={90}
                     endAngle={-270}
-                    barSize={20}
+                    barSize={16}
                 >
                     <defs>
                         <linearGradient id="performance-gradient" x1="0" y1="0" x2="0" y2="1">
@@ -65,39 +65,41 @@ export function PerformanceRadialChart({
                     <RadialBar
                         background={{ fill: 'hsl(var(--muted))', opacity: 0.5 }}
                         dataKey="value"
-                        cornerRadius={10}
+                        cornerRadius={8}
                     />
                 </RadialBarChart>
             </ResponsiveContainer>
-            <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 text-center">
-                <div className="mx-auto h-10 w-24">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={sparklineData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
-                            <Line
-                                type="monotone"
-                                dataKey="value"
-                                stroke="hsl(var(--chart-3))"
-                                strokeWidth={2}
-                                dot={false}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
-                </div>
-                
-                {adrChange && (
-                  <div className="flex items-center justify-center gap-1">
-                      {isPositive ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
-                      <div className="text-xs text-muted-foreground">
-                          <p>ADR: {adr} ({adrChange})</p>
-                          <p>RDR: {rdr}</p>
-                      </div>
-                  </div>
-                )}
-
+            <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center text-center">
                 <p className="text-5xl font-bold text-primary">{`${Math.round(performance)}%`}</p>
             </div>
-             <div className="absolute bottom-[25px] left-[15px] text-xs font-medium text-muted-foreground">0%</div>
-            <div className="absolute bottom-[25px] right-[15px] text-xs font-medium text-muted-foreground">100%</div>
+             <div className="absolute bottom-[20px] left-[10px] text-xs font-medium text-muted-foreground">0%</div>
+            <div className="absolute bottom-[20px] right-[10px] text-xs font-medium text-muted-foreground">100%</div>
+        </div>
+        
+        <div className="flex flex-col items-center gap-1 text-center">
+            <div className="h-8 w-28">
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={sparklineData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                        <Line
+                            type="monotone"
+                            dataKey="value"
+                            stroke="hsl(var(--chart-3))"
+                            strokeWidth={2}
+                            dot={false}
+                        />
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
+            {adrChange && (
+              <div className="flex items-center justify-center gap-1">
+                  {isPositive ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
+                  <div className="text-xs text-muted-foreground">
+                      <span>ADR: {adr} ({adrChange})</span>
+                      <span className="mx-1 text-muted-foreground/50">|</span>
+                      <span>RDR: {rdr}</span>
+                  </div>
+              </div>
+            )}
         </div>
       </CardContent>
     </Card>
