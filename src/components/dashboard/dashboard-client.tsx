@@ -16,11 +16,12 @@ import type { DateRange } from "react-day-picker";
 import { DashboardHeader } from "./dashboard-header";
 import { StatsGrid } from "./stats-grid";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FinancialStatCard } from "./financial-stat-card";
+import RevenueChart from "./revenue-chart";
 
 // Lazy load heavy chart components to speed up initial page load
 const TopClientsChart = lazy(() => import("./top-clients-chart"));
 const IncomeChart = lazy(() => import("./income-chart"));
-const RevenueChart = lazy(() => import("./revenue-chart"));
 
 export function DashboardClient({
   stats: initialStats,
@@ -94,10 +95,6 @@ export function DashboardClient({
   const daysInMonth = monthIndex !== -1 ? new Date(targetYear, monthIndex + 1, 0).getDate() : 30;
   const dailyTarget = currentTarget > 0 ? currentTarget / daysInMonth : undefined;
 
-  const financialStats = stats.filter((s) =>
-    ["Total Revenue", "Total Expenses", "Net Profit"].includes(s.title)
-  ).map((s, i) => ({ ...s, color: `hsl(var(--chart-${i + 1}))` }));
-
   const performanceStats = stats.filter((s) =>
     [
       "Performance vs Target",
@@ -126,6 +123,45 @@ export function DashboardClient({
   
   const totalRevenue = revenueByDay.reduce((sum, day) => sum + day.revenue, 0);
 
+  const generateDummyChartData = (points: number, max: number) => {
+    return Array.from({ length: points }, () => ({ value: Math.random() * max }));
+  };
+  
+  const financialCardsData = [
+    {
+      title: "Total Revenue",
+      value: "$45.2k",
+      dateRange: "May 01 - May 30",
+      chartData: generateDummyChartData(15, 2000),
+      chartType: 'bar' as const,
+      gradient: "from-pink-500 to-purple-600",
+    },
+    {
+      title: "Total Expenses",
+      value: "$10.5k",
+      dateRange: "May 01 - May 30",
+      chartData: generateDummyChartData(15, 800),
+      chartType: 'line' as const,
+      gradient: "from-purple-500 to-indigo-600",
+    },
+    {
+      title: "Net Profit",
+      value: "$34.7k",
+      dateRange: "May 01 - May 30",
+      chartData: generateDummyChartData(15, 1500),
+      chartType: 'line' as const,
+      gradient: "from-blue-400 to-cyan-500",
+    },
+    {
+      title: "Avg. Order Value",
+      value: "$131.50",
+      dateRange: "May 01 - May 30",
+      chartData: generateDummyChartData(15, 200),
+      chartType: 'bar' as const,
+      gradient: "from-orange-400 to-yellow-500",
+    }
+  ];
+
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
       <DashboardHeader 
@@ -137,11 +173,14 @@ export function DashboardClient({
         targetYear={targetYear}
       />
 
-      <StatsGrid 
-        title="Financial Overview"
-        stats={financialStats}
-        gridClassName="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
-      />
+      <section>
+        <h2 className="text-xl font-semibold mb-4">Financial Overview</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {financialCardsData.map((card) => (
+            <FinancialStatCard key={card.title} {...card} />
+          ))}
+        </div>
+      </section>
 
       <StatsGrid 
         title="Performance vs. Goals"

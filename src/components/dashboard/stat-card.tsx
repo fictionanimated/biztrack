@@ -75,6 +75,7 @@ export default function StatCard({
     >
       <div
         className="absolute -inset-px rounded-lg bg-[conic-gradient(from_var(--gradient-angle)_at_50%_50%,white_0deg,transparent_60deg)] opacity-0 blur-sm transition-opacity duration-500 group-hover:opacity-75 group-hover:animate-spin-gradient"
+        aria-hidden="true"
       ></div>
       <div className="relative z-10 h-full w-full rounded-lg border bg-card text-card-foreground shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
