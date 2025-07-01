@@ -99,6 +99,8 @@ export function DashboardClient({
       "Cancelled Orders",
       "% Orders with Reviews",
       "All-Time Total Buyers",
+      "Avg Daily Revenue (ADR)",
+      "Req. Daily Revenue (RDR)",
     ].includes(s.title)
   ).map((s, i) => ({
       ...s,
@@ -108,9 +110,6 @@ export function DashboardClient({
   const totalRevenue = revenueByDay.reduce((sum, day) => sum + day.revenue, 0);
 
   const performanceValue = parseFloat(stats.find(s => s.title === 'Performance vs Target')?.value as string) || 0;
-  const adrStat = stats.find(s => s.title === 'Avg Daily Revenue (ADR)');
-  const rdrStat = stats.find(s => s.title === 'Req. Daily Revenue (RDR)');
-  const sparklineData = revenueByDay.map(d => ({ value: d.revenue }));
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
@@ -136,11 +135,6 @@ export function DashboardClient({
         <Suspense fallback={<Skeleton className="h-[430px] w-full" />}>
           <PerformanceRadialChart
             performance={performanceValue}
-            adr={adrStat?.value as string || "N/A"}
-            rdr={rdrStat?.value as string || "N/A"}
-            adrChange={adrStat?.change}
-            adrChangeType={adrStat?.changeType}
-            sparklineData={sparklineData}
           />
         </Suspense>
         <StatsGrid 

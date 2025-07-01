@@ -1,8 +1,7 @@
 
 "use client"
 
-import { TrendingUp, TrendingDown } from "lucide-react"
-import { RadialBar, RadialBarChart, ResponsiveContainer, PolarAngleAxis, Line, LineChart } from "recharts"
+import { RadialBar, RadialBarChart, ResponsiveContainer, PolarAngleAxis } from "recharts"
 
 import {
   Card,
@@ -14,24 +13,13 @@ import {
 
 interface PerformanceRadialChartProps {
     performance: number
-    adr: string
-    rdr: string
-    adrChange?: string
-    adrChangeType?: 'increase' | 'decrease'
-    sparklineData: { value: number }[]
 }
 
 export function PerformanceRadialChart({
     performance,
-    adr,
-    rdr,
-    adrChange,
-    adrChangeType,
-    sparklineData
 }: PerformanceRadialChartProps) {
 
   const data = [{ name: 'performance', value: performance, fill: 'url(#performance-gradient)' }];
-  const isPositive = adrChangeType === "increase";
 
   return (
     <Card className="flex h-full flex-col">
@@ -74,32 +62,6 @@ export function PerformanceRadialChart({
             </div>
              <div className="absolute bottom-[20px] left-[10px] text-xs font-medium text-muted-foreground">0%</div>
             <div className="absolute bottom-[20px] right-[10px] text-xs font-medium text-muted-foreground">100%</div>
-        </div>
-        
-        <div className="flex flex-col items-center gap-1 text-center">
-            <div className="h-8 w-28">
-                <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={sparklineData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                        <Line
-                            type="monotone"
-                            dataKey="value"
-                            stroke="hsl(var(--chart-3))"
-                            strokeWidth={2}
-                            dot={false}
-                        />
-                    </LineChart>
-                </ResponsiveContainer>
-            </div>
-            {adrChange && (
-              <div className="flex items-center justify-center gap-1">
-                  {isPositive ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
-                  <div className="text-xs text-muted-foreground">
-                      <span>ADR: {adr} ({adrChange})</span>
-                      <span className="mx-1 text-muted-foreground/50">|</span>
-                      <span>RDR: {rdr}</span>
-                  </div>
-              </div>
-            )}
         </div>
       </CardContent>
     </Card>
