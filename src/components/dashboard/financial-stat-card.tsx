@@ -70,15 +70,15 @@ export function FinancialStatCard({
         
         {/* Foreground content */}
         <div className="relative z-10">
-          <h3 className="text-sm font-medium text-white/80">{title}</h3>
+          <h3 className="text-sm font-medium text-white/80 text-shadow-sm [--tw-shadow-color:rgba(0,0,0,0.4)]">{title}</h3>
           <div className="mt-2 flex items-baseline gap-2">
-            <p className="text-3xl font-bold transition-all duration-300 group-hover:text-shadow-[0_0_15px_white]">
+            <p className="text-3xl font-bold text-shadow [--tw-shadow-color:rgba(0,0,0,0.5)] transition-all duration-300 group-hover:text-shadow-[0_0_15px_white]">
               {value}
             </p>
             {change && changeType && (
               <div
                 className={cn(
-                  "flex items-center gap-1 text-xs font-semibold",
+                  "flex items-center gap-1 text-xs font-semibold text-shadow-sm [--tw-shadow-color:rgba(0,0,0,0.4)]",
                   isPositive ? "text-green-300" : "text-red-300"
                 )}
               >
@@ -92,7 +92,7 @@ export function FinancialStatCard({
             )}
           </div>
         </div>
-        <p className="relative z-10 text-xs text-white/80">{dateRange}</p>
+        <p className="relative z-10 text-xs text-white/80 text-shadow-sm [--tw-shadow-color:rgba(0,0,0,0.4)]">{dateRange}</p>
       </div>
     </div>
   );
