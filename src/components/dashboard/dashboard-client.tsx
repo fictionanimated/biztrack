@@ -124,7 +124,7 @@ export function DashboardClient({
         date={date}
         setDate={setDate}
         currentTarget={currentTarget}
-        onSetTarget={onSetTarget}
+        onSetTarget={handleSetTarget}
         targetMonth={targetMonth}
         targetYear={targetYear}
       />
