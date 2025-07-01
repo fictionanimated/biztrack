@@ -62,6 +62,7 @@ export default function StatCard({
   color,
   highlight,
   breakdown,
+  highlightValue,
 }: Stat) {
   const Icon = iconMap[icon];
 
@@ -93,7 +94,10 @@ export default function StatCard({
           <Icon className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold transition-all duration-300 group-hover:text-shadow-[0_0_15px_white]">
+          <div className={cn(
+            "text-2xl font-bold transition-all duration-300 group-hover:text-shadow-[0_0_15px_white]",
+            highlightValue && "animate-pulse-glow"
+          )}>
             {value}
           </div>
           <div className="text-xs text-muted-foreground mt-1">

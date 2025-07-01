@@ -14,6 +14,7 @@ export interface Stat {
   invertChangeColor?: boolean;
   color?: string;
   highlight?: "top-border" | "background" | "none";
+  highlightValue?: boolean;
   breakdown?: {
     label: string;
     value: number;
@@ -176,6 +177,7 @@ export const dashboardData: Omit<DashboardData, "financialCards"> = {
       description: "To meet your monthly target",
       color: "hsl(var(--chart-2))",
       highlight: "top-border",
+      highlightValue: true,
     },
     {
       icon: "BarChart",
