@@ -101,7 +101,7 @@ export default {
           },
           '50%': {
             transform: 'scale(1.02)',
-            textShadow: '0 0 15px hsl(var(--primary) / 0.5), 0 0 25px hsl(var(--primary) / 0.3)',
+            textShadow: '0 0 15px hsl(var(--primary) / 0.3)',
            },
         }
       },
@@ -109,7 +109,7 @@ export default {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'spin-gradient': 'spin-gradient 3s linear infinite',
-        'pulse-glow': 'pulse-glow 20s linear infinite',
+        'pulse-glow': 'pulse-glow 40s linear infinite',
       },
       textShadow: {
         sm: '0 1px 2px var(--tw-shadow-color)',
