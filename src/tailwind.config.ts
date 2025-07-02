@@ -94,22 +94,11 @@ export default {
           '0%': { '--gradient-angle': '0deg' },
           '100%': { '--gradient-angle': '360deg' },
         },
-        'pulse-glow': {
-          '0%, 100%': { 
-            transform: 'scale(1)',
-            textShadow: '0 0 7px hsl(var(--primary) / 0.2)',
-          },
-          '50%': {
-            transform: 'scale(1.02)',
-            textShadow: '0 0 15px hsl(var(--primary) / 0.3)',
-           },
-        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'spin-gradient': 'spin-gradient 3s linear infinite',
-        'pulse-glow': 'pulse-glow 40s linear infinite',
       },
       textShadow: {
         sm: '0 1px 2px var(--tw-shadow-color)',

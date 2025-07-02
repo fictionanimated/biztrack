@@ -179,7 +179,6 @@ export const dashboardData: Omit<DashboardData, "financialCards"> = {
       description: "To meet your monthly target",
       color: "hsl(var(--chart-2))",
       highlight: "top-border",
-      highlightValue: true,
     },
     {
       icon: "BarChart",
