@@ -64,7 +64,6 @@ export default function IncomeChart({ data }: IncomeChartProps) {
           data={data}
           dataKey="amount"
           nameKey="source"
-          innerRadius={60}
           strokeWidth={5}
         >
           {data.map((entry) => (
