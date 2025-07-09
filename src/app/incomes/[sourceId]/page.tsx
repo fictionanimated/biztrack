@@ -74,11 +74,11 @@ const getInitialDateRangeForSource = (source: IncomeSource): DateRange => {
 };
 
 export default function SourceAnalyticsPage({
-  params,
+  params: { sourceId },
 }: {
   params: { sourceId: string };
 }) {
-  const source = initialIncomeSources.find((s) => s.id === params.sourceId);
+  const source = initialIncomeSources.find((s) => s.id === sourceId);
 
   if (!source) {
     notFound();

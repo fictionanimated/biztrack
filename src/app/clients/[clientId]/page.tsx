@@ -56,11 +56,11 @@ const parseDateString = (dateString: string): Date => {
   return new Date(year, month - 1, day);
 };
 
-export default function ClientDetailsPage({ params }: { params: { clientId: string } }) {
+export default function ClientDetailsPage({ params: { clientId } }: { params: { clientId: string } }) {
   const [clients, setClients] = useState<Client[]>(staticClients);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-  const client = clients.find(c => c.id === params.clientId);
+  const client = clients.find(c => c.id === clientId);
   
   if (!client) {
     notFound();
