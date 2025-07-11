@@ -7,7 +7,6 @@ const salesMetrics = [
     { name: "Lead Conversion Rate (%)", value: "18.5%", formula: "(Number of Sales / Number of Leads) × 100", change: "+1.2%", changeType: "increase" as const },
     { name: "Quote-to-Close Ratio (%)", value: "65%", formula: "(Accepted Proposals / Total Proposals Sent) × 100", change: "+5.0%", changeType: "increase" as const },
     { name: "Win Rate (%)", value: "75%", formula: "(Deals Closed / Total Opportunities) × 100", change: "+2.1%", changeType: "increase" as const },
-    { name: "Response Time", value: "1.2 hours", formula: "Average time taken to reply to inquiries", change: "-10%", changeType: "decrease" as const, invertColor: true },
 ];
 
 export function SalesMetrics() {
