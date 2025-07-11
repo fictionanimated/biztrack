@@ -4,7 +4,6 @@ import { Briefcase, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const teamMetrics = [
-    { name: "Employee Turnover Rate (%)", value: "5%", formula: "(Employees Left / Total Employees) × 100", change: "-1%", changeType: "decrease" as const, invertColor: true },
     { name: "Internal Training Time", value: "8 hours/month", formula: "Total Training Hours / Team Members", change: "+2 hours", changeType: "increase" as const },
     { name: "Team Efficiency Score", value: "92%", formula: "Tasks Completed on Time / Total Tasks", change: "+3%", changeType: "increase" as const },
 ];
@@ -19,9 +18,9 @@ export function TeamMetrics() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
           {teamMetrics.map((metric) => {
-            const isPositive = metric.invertColor ? metric.changeType === "decrease" : metric.changeType === "increase";
+            const isPositive = (metric as any).invertColor ? metric.changeType === "decrease" : metric.changeType === "increase";
             return (
                 <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
                 <div>
