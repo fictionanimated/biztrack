@@ -4,10 +4,8 @@ import { Clock, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const projectMetrics = [
-    { name: "Average Project Delivery Time", value: "12 days", formula: "Sum of all Delivery Times / Total Projects Delivered", change: "-1 day", changeType: "decrease" as const, invertColor: true },
     { name: "Revisions per Project", value: "1.8", formula: "Total Number of Revisions / Total Projects Delivered", change: "+0.2", changeType: "increase" as const, invertColor: true },
-    { name: "Utilization Rate (%)", value: "88%", formula: "(Billable Hours / Total Work Hours Available) × 100", change: "+5%", changeType: "increase" as const },
-    { name: "Task Completion Rate (%)", value: "96%", formula: "(Completed Tasks / Total Tasks Assigned) × 100", change: "-1%", changeType: "decrease" as const },
+    { name: "Order Completion Rate (%)", value: "96%", formula: "(Completed Tasks / Total Tasks Assigned) × 100", change: "-1%", changeType: "decrease" as const },
 ];
 
 export function ProjectMetrics() {
@@ -20,7 +18,7 @@ export function ProjectMetrics() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
           {projectMetrics.map((metric) => {
             const isPositive = metric.invertColor ? metric.changeType === "decrease" : metric.changeType === "increase";
             return (
