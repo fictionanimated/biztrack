@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, lazy, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -47,13 +47,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import CalendarView from "@/components/business-notes/calendar-view";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const CalendarView = lazy(() => import("@/components/business-notes/calendar-view"));
 
 export interface BusinessNote {
   id: number;
@@ -221,12 +223,14 @@ export default function BusinessNotesPage() {
       
       <div className="flex-1 overflow-y-auto">
         <main>
+          <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
             <CalendarView 
                 currentDate={currentDate}
                 notes={notes}
                 onDateClick={handleDateClick}
                 onNoteClick={handleNoteClick}
             />
+          </Suspense>
         </main>
         <section className="px-4 py-8 md:px-8">
           <h2 className="text-2xl font-semibold mb-4">Recent Notes</h2>

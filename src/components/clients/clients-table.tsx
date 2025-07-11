@@ -1,6 +1,7 @@
 
 "use client";
 
+import { memo } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal, Edit, Trash2, Globe, Facebook, Twitter, Linkedin, Github, Star } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,7 +29,7 @@ const SocialIcon = ({ platform }: { platform: string }) => {
     return <Icon className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />;
 };
 
-export function ClientsTable({ clients, requestSort, getSortIndicator, onEdit }: ClientsTableProps) {
+const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit }: ClientsTableProps) => {
     const router = useRouter();
 
     const handleRowClick = (clientId: string) => {
@@ -196,3 +197,5 @@ export function ClientsTable({ clients, requestSort, getSortIndicator, onEdit }:
         </Card>
     );
 }
+
+export const ClientsTable = memo(ClientsTableComponent);

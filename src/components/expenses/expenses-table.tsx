@@ -1,6 +1,7 @@
 
 "use client";
 
+import { memo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ interface ExpensesTableProps {
     onDelete: (expense: Expense) => void;
 }
 
-export function ExpensesTable({ expenses, onEdit, onDelete }: ExpensesTableProps) {
+const ExpensesTableComponent = ({ expenses, onEdit, onDelete }: ExpensesTableProps) => {
     return (
         <Card>
             <CardHeader>
@@ -75,3 +76,5 @@ export function ExpensesTable({ expenses, onEdit, onDelete }: ExpensesTableProps
         </Card>
     );
 }
+
+export const ExpensesTable = memo(ExpensesTableComponent);

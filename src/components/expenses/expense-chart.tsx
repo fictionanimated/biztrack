@@ -22,7 +22,7 @@ interface ExpenseChartProps {
   data: ExpenseChartData[];
 }
 
-export default function ExpenseChart({ data }: ExpenseChartProps) {
+const ExpenseChartComponent = ({ data }: ExpenseChartProps) => {
   const chartConfig = data.reduce((acc, item) => {
     acc[item.name] = { label: item.name, color: item.fill };
     return acc;
@@ -53,7 +53,6 @@ export default function ExpenseChart({ data }: ExpenseChartProps) {
           data={data}
           dataKey="amount"
           nameKey="name"
-          innerRadius={60}
           strokeWidth={5}
         >
           {data.map((entry, index) => (
@@ -68,3 +67,5 @@ export default function ExpenseChart({ data }: ExpenseChartProps) {
     </ChartContainer>
   );
 }
+
+export default React.memo(ExpenseChartComponent);

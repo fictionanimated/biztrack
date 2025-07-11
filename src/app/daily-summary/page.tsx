@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, lazy, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -44,7 +44,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import CalendarView from "@/components/daily-summary/calendar-view";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const CalendarView = lazy(() => import("@/components/daily-summary/calendar-view"));
 
 export interface DailySummary {
   id: number;
@@ -184,12 +186,14 @@ export default function DailySummaryPage() {
       
       <div className="flex-1 overflow-y-auto">
         <main>
+          <Suspense fallback={<Skeleton className="h-[500px] w-full" />}>
             <CalendarView 
                 currentDate={currentDate}
                 summaries={summaries}
                 onDateClick={handleDateClick}
                 onSummaryClick={handleSummaryClick}
             />
+          </Suspense>
         </main>
         <section className="px-4 py-8 md:px-8">
           <h2 className="text-2xl font-semibold mb-4">Recent Summaries</h2>

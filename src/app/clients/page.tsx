@@ -29,9 +29,9 @@ export default function ClientsPage() {
     const searchParams = useSearchParams();
 
     // Read state from URL
-    const searchQuery = searchParams.get('q') || "";
-    const filterSource = searchParams.get('source') || "all";
-    const sortParam = searchParams.get('sort');
+    const searchQuery = useMemo(() => searchParams.get('q') || "", [searchParams]);
+    const filterSource = useMemo(() => searchParams.get('source') || "all", [searchParams]);
+    const sortParam = useMemo(() => searchParams.get('sort'), [searchParams]);
 
     const [localSearch, setLocalSearch] = useState(searchQuery);
 
