@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 const salesMetrics = [
     { name: "Lead Conversion Rate (%)", value: "18.5%", formula: "(Number of Sales / Number of Leads) × 100", change: "+1.2%", changeType: "increase" as const },
-    { name: "Quote-to-Close Ratio (%)", value: "65%", formula: "(Accepted Proposals / Total Proposals Sent) × 100", change: "+5.0%", changeType: "increase" as const },
+    { name: "Win rate", value: "65%", formula: "(Deals Closed / Total Opportunities)x100", change: "+5.0%", changeType: "increase" as const },
 ];
 
 export function SalesMetrics() {
@@ -18,7 +18,7 @@ export function SalesMetrics() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
           {salesMetrics.map((metric) => {
             const isPositive = (metric as any).invertColor ? metric.changeType === "decrease" : metric.changeType === "increase";
             return (
