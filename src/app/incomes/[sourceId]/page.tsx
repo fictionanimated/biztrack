@@ -54,7 +54,13 @@ const chartConfig = {
   prevOrders: { label: "Prev. Orders", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig;
 
-const getInitialDateRangeForSource = (source: IncomeSource): DateRange => {
+const getInitialDateRangeForSource = (source?: IncomeSource): DateRange => {
+    if (!source) {
+      const today = new Date();
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setDate(today.getDate() - 30);
+      return { from: oneMonthAgo, to: today };
+    }
     const allDates = [
       ...(source.gigs.flatMap(g => g.analytics?.map(a => new Date(a.date)) ?? [])),
       ...(source.dataPoints?.map(dp => new Date(dp.date)) ?? [])
@@ -76,7 +82,7 @@ const getInitialDateRangeForSource = (source: IncomeSource): DateRange => {
 export default function SourceAnalyticsPage() {
   const params = useParams();
   const sourceId = params.sourceId as string;
-  const source = initialIncomeSources.find((s) => s.id === sourceId);
+  const source = useMemo(() => initialIncomeSources.find((s) => s.id === sourceId), [sourceId]);
 
   if (!source) {
     notFound();

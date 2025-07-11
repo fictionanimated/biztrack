@@ -207,10 +207,10 @@ export default function OrdersPage() {
             const startOfYear = new Date(today.getFullYear(), 0, 1);
             setDate({ from: startOfYear, to: today });
         }
-    }, [searchParams]);
+    }, []);
 
     const sortConfig = useMemo(() => {
-        if (!sortParam) return { key: null, direction: 'ascending' as const };
+        if (!sortParam) return { key: 'date' as keyof Order, direction: 'descending' as const };
         const [key, direction] = sortParam.split('_');
         return { key: key as keyof Order, direction: direction as 'ascending' | 'descending' };
     }, [sortParam]);
@@ -418,17 +418,19 @@ export default function OrdersPage() {
         if (sortConfig.key) {
             const key = sortConfig.key;
             sortableItems.sort((a, b) => {
-                const aValue = a[key as keyof typeof a];
-                const bValue = b[key as keyof typeof b];
+                let aValue: any, bValue: any;
 
+                if (key === 'date') {
+                    aValue = a.dateObj;
+                    bValue = b.dateObj;
+                } else {
+                    aValue = a[key as keyof Order];
+                    bValue = b[key as keyof Order];
+                }
+                
                 if (aValue === undefined || aValue === null) return 1;
                 if (bValue === undefined || bValue === null) return -1;
                 
-                if(key === 'date') {
-                    // @ts-ignore
-                    return sortConfig.direction === 'ascending' ? a.dateObj - b.dateObj : b.dateObj - a.dateObj;
-                }
-
                 if (aValue < bValue) {
                     return sortConfig.direction === 'ascending' ? -1 : 1;
                 }

@@ -363,7 +363,7 @@ export function ExpensesDashboard() {
       fixedCostRatio,
       previousPeriodDescription,
     };
-  }, [date, expenses, filteredExpenses]);
+  }, [filteredExpenses, date, expenses]);
 
   const expensesByCategory = useMemo(() => {
     const categoryMap: Map<string, number> = new Map();
@@ -391,10 +391,10 @@ export function ExpensesDashboard() {
   }, [filteredExpenses]);
 
    const { expenseTrendData, previousExpenseTrendData } = useMemo(() => {
-        const getAggregatedData = (expensesToAggregate: Expense[], view: string) => {
-            if (!expensesToAggregate.length) return [];
+        const getAggregatedData = (dataToAggregate: Expense[], view: string) => {
+            if (!dataToAggregate.length) return [];
             
-            const totals = expensesToAggregate.reduce((acc, { date, amount }) => {
+            const totals = dataToAggregate.reduce((acc, { date, amount }) => {
                 const expenseDate = new Date(date.replace(/-/g, "/"));
                 let key = "";
 
@@ -455,7 +455,7 @@ export function ExpensesDashboard() {
 
         return { expenseTrendData: trendData, previousExpenseTrendData: prevTrendData };
 
-  }, [date, expenses, filteredExpenses, chartView]);
+  }, [filteredExpenses, date, expenses, chartView]);
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">

@@ -82,45 +82,51 @@ export default function ClientDetailsPage() {
     return initialOrders.filter(o => o.clientUsername === client?.username);
   }, [initialOrders, client]);
   
-  const clientStatus = getClientStatus(client.lastOrder);
+  const clientStatus = useMemo(() => {
+    if (!client) return { text: "Inactive", color: "bg-red-500" };
+    return getClientStatus(client.lastOrder);
+  }, [client]);
 
-  const clientStats: Stat[] = [
-    {
-      icon: "HeartPulse",
-      title: "Client Status",
-      value: (
-          <div className="flex items-center gap-2">
-              <span className={cn("h-3 w-3 rounded-full", clientStatus.color)} />
-              <span>{clientStatus.text}</span>
-          </div>
-      ),
-      description: `Based on last order date`
-    },
-    {
-      icon: "DollarSign",
-      title: "Total Revenue",
-      value: `$${client.totalEarning.toLocaleString()}`,
-      description: `from ${client.totalOrders} orders`,
-    },
-    {
-      icon: "ShoppingCart",
-      title: "Total Orders",
-      value: `${client.totalOrders}`,
-      description: "All-time orders",
-    },
-    {
-        icon: "BarChart",
-        title: "Avg. Order Value",
-        value: `$${client.totalOrders > 0 ? (client.totalEarning / client.totalOrders).toFixed(2) : '0.00'}`,
-        description: "Average across all orders",
-    },
-    {
-      icon: "Calendar",
-      title: "Client Since",
-      value: format(parseDateString(client.clientSince), "PPP"),
-      description: `Last order on ${format(parseDateString(client.lastOrder), "PPP")}`,
-    },
-  ];
+  const clientStats = useMemo((): Stat[] => {
+    if (!client) return [];
+    return [
+      {
+        icon: "HeartPulse",
+        title: "Client Status",
+        value: (
+            <div className="flex items-center gap-2">
+                <span className={cn("h-3 w-3 rounded-full", clientStatus.color)} />
+                <span>{clientStatus.text}</span>
+            </div>
+        ),
+        description: `Based on last order date`
+      },
+      {
+        icon: "DollarSign",
+        title: "Total Revenue",
+        value: `$${client.totalEarning.toLocaleString()}`,
+        description: `from ${client.totalOrders} orders`,
+      },
+      {
+        icon: "ShoppingCart",
+        title: "Total Orders",
+        value: `${client.totalOrders}`,
+        description: "All-time orders",
+      },
+      {
+          icon: "BarChart",
+          title: "Avg. Order Value",
+          value: `$${client.totalOrders > 0 ? (client.totalEarning / client.totalOrders).toFixed(2) : '0.00'}`,
+          description: "Average across all orders",
+      },
+      {
+        icon: "Calendar",
+        title: "Client Since",
+        value: format(parseDateString(client.clientSince), "PPP"),
+        description: `Last order on ${format(parseDateString(client.lastOrder), "PPP")}`,
+      },
+    ];
+  }, [client, clientStatus]);
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
