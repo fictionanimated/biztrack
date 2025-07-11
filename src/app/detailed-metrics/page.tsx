@@ -9,7 +9,6 @@ import { ClientMetrics } from "@/components/detailed-metrics/client-metrics";
 import { SalesMetrics } from "@/components/detailed-metrics/sales-metrics";
 import { MarketingMetrics } from "@/components/detailed-metrics/marketing-metrics";
 import { ProjectMetrics } from "@/components/detailed-metrics/project-metrics";
-import { TeamMetrics } from "@/components/detailed-metrics/team-metrics";
 import { GrowthMetrics } from "@/components/detailed-metrics/growth-metrics";
 import {
   Select,
@@ -63,7 +62,6 @@ export default function DetailedMetricsPage() {
         <SalesMetrics />
         <MarketingMetrics />
         <ProjectMetrics />
-        <TeamMetrics />
       </div>
     </main>
   );
