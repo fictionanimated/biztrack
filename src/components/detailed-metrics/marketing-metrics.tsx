@@ -6,8 +6,6 @@ import { cn } from "@/lib/utils";
 const marketingMetrics = [
     { name: "Cost per Lead (CPL)", value: "$25.50", formula: "Total Marketing Spend / Number of Leads Generated", change: "-5.0%", changeType: "decrease" as const, invertColor: true },
     { name: "Marketing ROI (ROMI)", value: "450%", formula: "((Revenue from Marketing - Marketing Cost) / Marketing Cost) × 100", change: "+50%", changeType: "increase" as const },
-    { name: "Engagement Rate", value: "3.5%", formula: "((Likes + Comments + Shares) / Followers) × 100", change: "+0.3%", changeType: "increase" as const },
-    { name: "Conversion Rate (from traffic)", value: "1.8%", formula: "(Number of Clients / Website Visitors) × 100", change: "+0.2%", changeType: "increase" as const },
 ];
 
 export function MarketingMetrics() {
@@ -20,7 +18,7 @@ export function MarketingMetrics() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
           {marketingMetrics.map((metric) => {
             const isPositive = metric.invertColor ? metric.changeType === "decrease" : metric.changeType === "increase";
             return (
