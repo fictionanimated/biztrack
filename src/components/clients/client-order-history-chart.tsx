@@ -10,6 +10,7 @@ import { BarChart2, LineChartIcon } from "lucide-react";
 
 interface Order {
     date: string;
+    dateObj: Date;
     amount: number;
     id: string;
 }
@@ -25,22 +26,11 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
-// A more robust date parsing function to avoid performance issues.
-const parseDateString = (dateString: string): Date => {
-  const [year, month, day] = dateString.split('-').map(Number);
-  // In JavaScript's Date, months are 0-indexed (0 for January, 11 for December)
-  return new Date(year, month - 1, day);
-};
-
 export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChartProps) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
 
     const chartData = useMemo(() => {
         return data
-            .map(order => ({
-                ...order,
-                dateObj: parseDateString(order.date),
-            }))
             .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
             .map(order => ({
                 ...order,

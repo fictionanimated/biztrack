@@ -1,7 +1,7 @@
 
 "use client";
 
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, useMemo } from "react";
 import NProgressLink from "@/components/layout/nprogress-link";
 import { notFound, useParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { getClientStatus, initialClients as staticClients, type Client } from "@/lib/data/clients-data";
-import { initialOrders } from "@/lib/data/orders-data";
+import { initialOrders as staticOrdersData, type Order } from "@/lib/data/orders-data";
 import { EditClientDialog } from "@/components/clients/edit-client-dialog";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +63,10 @@ export default function ClientDetailsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const client = clients.find(c => c.id === clientId);
+
+  const initialOrders = useMemo(() => {
+    return staticOrdersData.map(o => ({ ...o, dateObj: parseDateString(o.date) }));
+  }, []);
   
   if (!client) {
     notFound();
@@ -74,7 +78,9 @@ export default function ClientDetailsPage() {
       );
   };
   
-  const clientOrders = initialOrders.filter(o => o.clientUsername === client?.username);
+  const clientOrders = useMemo(() => {
+    return initialOrders.filter(o => o.clientUsername === client?.username);
+  }, [initialOrders, client]);
   
   const clientStatus = getClientStatus(client.lastOrder);
 
@@ -234,7 +240,7 @@ export default function ClientDetailsPage() {
                         {clientOrders.length > 0 ? clientOrders.map(order => (
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">{order.id}</TableCell>
-                                <TableCell>{format(parseDateString(order.date), "PPP")}</TableCell>
+                                <TableCell>{format(order.dateObj, "PPP")}</TableCell>
                                 <TableCell>
                                     <Badge variant={order.status === 'Cancelled' ? 'destructive' : order.status === 'Completed' ? 'default' : 'secondary'}>
                                         {order.status}

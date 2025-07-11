@@ -144,6 +144,12 @@ const StarDisplay = ({ rating }: { rating?: number }) => {
     );
 };
 
+// A more robust date parsing function to avoid performance issues.
+const parseDateString = (dateString: string): Date => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  // In JavaScript's Date, months are 0-indexed (0 for January, 11 for December)
+  return new Date(year, month - 1, day);
+};
 
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>(staticOrders);
@@ -257,7 +263,7 @@ export default function OrdersPage() {
             form.reset({
                 id: order.id,
                 username: order.clientUsername,
-                date: new Date(order.date.replace(/-/g, '/')),
+                date: parseDateString(order.date),
                 amount: order.amount,
                 source: order.source,
                 gig: order.gig,
@@ -377,14 +383,17 @@ export default function OrdersPage() {
         return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />;
     };
 
+    const parsedOrders = useMemo(() => {
+        return orders.map(order => ({ ...order, dateObj: parseDateString(order.date) }));
+    }, [orders]);
+
+
     const filteredOrders = useMemo(() => {
         if (!date) {
-            return orders;
+            return parsedOrders;
         }
-        return orders.filter(order => {
-            if (!order.date) return false;
-            const orderDate = new Date(order.date.replace(/-/g, '/'));
-
+        return parsedOrders.filter(order => {
+            const orderDate = order.dateObj;
             const from = date?.from;
             const to = date?.to;
 
@@ -402,18 +411,23 @@ export default function OrdersPage() {
             
             return true;
         });
-    }, [date, orders]);
+    }, [date, parsedOrders]);
 
     const sortedOrders = useMemo(() => {
         let sortableItems = [...filteredOrders];
         if (sortConfig.key) {
             const key = sortConfig.key;
             sortableItems.sort((a, b) => {
-                const aValue = a[key];
-                const bValue = b[key];
+                const aValue = a[key as keyof typeof a];
+                const bValue = b[key as keyof typeof b];
 
                 if (aValue === undefined || aValue === null) return 1;
                 if (bValue === undefined || bValue === null) return -1;
+                
+                if(key === 'date') {
+                    // @ts-ignore
+                    return sortConfig.direction === 'ascending' ? a.dateObj - b.dateObj : b.dateObj - a.dateObj;
+                }
 
                 if (aValue < bValue) {
                     return sortConfig.direction === 'ascending' ? -1 : 1;
@@ -496,7 +510,7 @@ export default function OrdersPage() {
               {sortedOrders.length > 0 ? (
                 sortedOrders.map((order) => (
                     <TableRow key={order.id}>
-                    <TableCell>{format(new Date(order.date.replace(/-/g, '/')), 'PPP')}</TableCell>
+                    <TableCell>{format(order.dateObj, 'PPP')}</TableCell>
                     <TableCell className="font-medium">{order.id}</TableCell>
                     <TableCell>{clients.find(c => c.username === order.clientUsername)?.name || order.clientUsername}</TableCell>
                     <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
