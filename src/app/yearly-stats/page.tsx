@@ -20,14 +20,16 @@ const MonthlyRevenueVsTargetChart = lazy(() => import("@/components/yearly-stats
 
 
 export default function YearlyStatsPage() {
+    // For simplicity, we'll use 2023 data as the default for single-year charts
+    const defaultYearData = yearlyStatsData[2023];
+    
     const { 
         myTotalYearlyOrders, 
         monthlyOrders,
         competitors, 
         monthlyFinancials, 
-        monthlyOrders: myMonthlyOrders, 
         monthlyTargetRevenue 
-    } = yearlyStatsData;
+    } = defaultYearData;
     
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
@@ -39,7 +41,7 @@ export default function YearlyStatsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Suspense fallback={<Skeleton className="h-[300px] lg:col-span-2" />}>
-            <MyOrdersVsCompetitorAvgChart myOrders={myMonthlyOrders} competitors={competitors} />
+            <MyOrdersVsCompetitorAvgChart myOrders={monthlyOrders} competitors={competitors} />
         </Suspense>
         <Card>
              <CardHeader>
@@ -61,7 +63,7 @@ export default function YearlyStatsPage() {
         </CardHeader>
         <CardContent>
             <Suspense fallback={<Skeleton className="h-[400px]" />}>
-                <MonthlyOrdersVsCompetitorsChart myOrders={monthlyOrders} competitors={competitors} />
+                <MonthlyOrdersVsCompetitorsChart allYearlyData={yearlyStatsData} />
             </Suspense>
         </CardContent>
       </Card>
