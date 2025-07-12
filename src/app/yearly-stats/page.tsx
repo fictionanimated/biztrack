@@ -22,9 +22,10 @@ const MonthlyRevenueVsTargetChart = lazy(() => import("@/components/yearly-stats
 export default function YearlyStatsPage() {
     const { 
         myTotalYearlyOrders, 
+        monthlyOrders,
         competitors, 
         monthlyFinancials, 
-        monthlyOrders, 
+        monthlyOrders: myMonthlyOrders, 
         monthlyTargetRevenue 
     } = yearlyStatsData;
     
@@ -39,12 +40,12 @@ export default function YearlyStatsPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
             <CardHeader>
-                <CardTitle>My Orders vs. Average Competitor Orders (Year)</CardTitle>
-                <CardDescription>A comparison of your total orders for the year against the average of your competitors.</CardDescription>
+                <CardTitle>My Orders vs. Average Competitor Orders (Monthly)</CardTitle>
+                <CardDescription>A comparison of your monthly orders against the average of your competitors.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Suspense fallback={<Skeleton className="h-[300px]" />}>
-                    <MyOrdersVsCompetitorAvgChart myOrders={myTotalYearlyOrders} competitors={competitors} />
+                    <MyOrdersVsCompetitorAvgChart myOrders={myMonthlyOrders} competitors={competitors} />
                 </Suspense>
             </CardContent>
         </Card>

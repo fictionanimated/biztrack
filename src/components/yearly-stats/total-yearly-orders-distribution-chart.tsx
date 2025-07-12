@@ -62,7 +62,7 @@ export default function TotalYearlyOrdersDistributionChart({ myOrders, competito
                         }}
                     />}
                 />
-                <Pie data={chartData} dataKey="value" nameKey="name" innerRadius={60} strokeWidth={5}>
+                <Pie data={chartData} dataKey="value" nameKey="name" strokeWidth={5}>
                     {chartData.map((entry) => (
                         <Cell key={`cell-${entry.name}`} fill={entry.color} />
                     ))}
