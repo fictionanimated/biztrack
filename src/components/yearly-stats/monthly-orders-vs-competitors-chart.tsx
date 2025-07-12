@@ -31,7 +31,7 @@ const chartColors = [
   "hsl(var(--primary))",
 ];
 
-const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '_');
+const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '');
 
 export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: MonthlyOrdersVsCompetitorsChartProps) {
     const availableYears = useMemo(() => Object.keys(allYearlyData).map(Number).sort((a,b) => a - b), [allYearlyData]);
@@ -119,7 +119,7 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: Month
                     ) : (
                         <>
                             <div className="space-y-2">
-                                <Label>Competitor Data Year</Label>
+                                <Label>Data Year</Label>
                                 <Select value={String(baseYearForCompetitors)} onValueChange={(v) => setBaseYearForCompetitors(Number(v))}>
                                      <SelectTrigger><SelectValue /></SelectTrigger>
                                      <SelectContent>
@@ -130,7 +130,7 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: Month
                             <div>
                                 <h4 className="font-semibold mb-2 mt-4">Display Lines</h4>
                                 <p className="text-sm text-muted-foreground mb-4">Toggle lines on the graph.</p>
-                                <ScrollArea className="h-60 rounded-md border p-2">
+                                <ScrollArea className="h-48 rounded-md border p-2">
                                     <div className="space-y-2">
                                         {Object.entries(chartConfig).map(([metricKey, config]) => (
                                             <div key={metricKey} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted/50">
