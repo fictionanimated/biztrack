@@ -6,6 +6,7 @@ import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts'
 import {
   ChartContainer,
   ChartTooltipContent,
+  ChartLegend,
   type ChartConfig
 } from "@/components/ui/chart";
 import { type YearlyStatsData } from '@/lib/data/yearly-stats-data';
@@ -222,7 +223,7 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: Month
                         <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
                         <YAxis tickLine={false} axisLine={false} tickMargin={8} />
                         <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                        <CustomLegend payload={Object.keys(chartConfig).map(key => ({ value: key, color: chartConfig[key].color }))} />
+                        <ChartLegend content={<CustomLegend />} />
                         {Object.entries(activeMetrics).map(([key, isActive]) => 
                             isActive && (
                                 <Line

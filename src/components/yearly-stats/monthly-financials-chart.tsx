@@ -6,6 +6,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Line, LineChart } 
 import {
   ChartContainer,
   ChartTooltipContent,
+  ChartLegend,
   type ChartConfig
 } from "@/components/ui/chart";
 import { type YearlyStatsData } from '@/lib/data/yearly-stats-data';
@@ -22,18 +23,10 @@ interface MonthlyFinancialsChartProps {
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const yoyChartColors = [
-    "hsl(var(--chart-1))",
-    "hsl(var(--chart-2))",
-    "hsl(var(--chart-3))",
-    "hsl(var(--chart-4))",
-    "hsl(var(--chart-5))",
-    "hsl(var(--primary))",
-    "#FF5733",
-    "#33FF57",
-    "#3357FF",
-    "#FF33A1",
-    "#A133FF",
-    "#33FFA1",
+    "#8884d8", "#82ca9d", "#ffc658",
+    "#ff7300", "#387908", "#0088FE",
+    "#00C49F", "#FFBB28", "#FF8042",
+    "#d0ed57", "#ffc0cb", "#8a2be2"
 ];
 
 const baseChartColors = {
@@ -219,7 +212,7 @@ export default function MonthlyFinancialsChart({ allYearlyData }: MonthlyFinanci
                                     valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
                                 />}
                             />
-                            <CustomLegend payload={Object.keys(chartConfig).map(key => ({ value: key, color: chartConfig[key].color }))} />
+                            <ChartLegend content={<CustomLegend />} />
                             {Object.keys(chartConfig).map(key => (
                                 <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={isYoY ? 0 : 4} />
                             ))}
@@ -246,7 +239,7 @@ export default function MonthlyFinancialsChart({ allYearlyData }: MonthlyFinanci
                                     valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
                                 />}
                             />
-                             <CustomLegend payload={Object.keys(chartConfig).map(key => ({ value: key, color: chartConfig[key].color }))} />
+                            <ChartLegend content={<CustomLegend />} />
                             {Object.keys(chartConfig).map(key => (
                                 <Line key={key} dataKey={key} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot={true} />
                             ))}
