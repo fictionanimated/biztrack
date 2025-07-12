@@ -16,57 +16,62 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 
 interface MyOrdersVsCompetitorAvgChartProps {
     allYearlyData: YearlyStatsData;
-    selectedYear: number;
+    selectedYears: number[];
 }
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const chartColors = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-];
+const colorVariants: {[key: number]: string} = {
+    0: "hsl(var(--chart-1))",
+    1: "hsl(var(--chart-2))",
+    2: "hsl(var(--chart-3))",
+    3: "hsl(var(--chart-4))",
+    4: "hsl(var(--chart-5))",
+};
+
 
 const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '');
 
-export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYear }: MyOrdersVsCompetitorAvgChartProps) {
+export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYears }: MyOrdersVsCompetitorAvgChartProps) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
     
-    const { chartData, chartConfig, legendStats } = useMemo(() => {
-        const legendData: Record<string, { label: string; total: number; avg: number; }> = {};
-        const config: ChartConfig = {};
-        
+    const { chartData, chartConfig, legendStats, isYoy } = useMemo(() => {
+        const yoy = selectedYears.length > 1;
         const data: { month: string; [key: string]: string | number }[] = months.map((month) => ({ month }));
-
-        const yearData = allYearlyData[selectedYear];
-        const myOrdersKey = 'myOrders';
-        const competitorAvgKey = 'competitorAvg';
-
-        config[myOrdersKey] = { label: 'My Orders', color: chartColors[0] };
-        config[competitorAvgKey] = { label: 'Competitor Avg.', color: chartColors[1] };
-
-        months.forEach((month, index) => {
-            const competitorTotalForMonth = yearData.competitors.reduce((acc, curr) => acc + curr.monthlyOrders[index], 0);
-            const competitorAvgForMonth = yearData.competitors.length > 0 ? competitorTotalForMonth / yearData.competitors.length : 0;
-            data[index][myOrdersKey] = yearData.monthlyOrders[index];
-            data[index][competitorAvgKey] = Math.round(competitorAvgForMonth);
-        });
-
-        const myOrdersTotal = yearData.myTotalYearlyOrders;
-        const competitorAvgTotal = data.reduce((s, c) => s + (c.competitorAvg as number), 0);
+        const config: ChartConfig = {};
+        const legendData: Record<string, { label: string; total: number; avg: number; year?: number }> = {};
         
-        legendData[myOrdersKey] = {
-            label: 'My Orders',
-            total: myOrdersTotal,
-            avg: Math.round(myOrdersTotal / 12),
-        };
-        legendData[competitorAvgKey] = {
-            label: 'Competitor Avg.',
-            total: competitorAvgTotal,
-            avg: Math.round(competitorAvgTotal / 12),
-        };
+        selectedYears.forEach((year, yearIndex) => {
+            const yearData = allYearlyData[year];
+            if (!yearData) return;
+            
+            const metrics = { 'My Orders': yearData.monthlyOrders, 'Competitor Avg.': [] as number[] };
+            
+            months.forEach((_, monthIndex) => {
+                const competitorTotalForMonth = yearData.competitors.reduce((acc, curr) => acc + curr.monthlyOrders[monthIndex], 0);
+                metrics['Competitor Avg.'].push(yearData.competitors.length > 0 ? Math.round(competitorTotalForMonth / yearData.competitors.length) : 0);
+            });
+            
+            Object.entries(metrics).forEach(([metricName, monthlyValues], metricIndex) => {
+                const baseKey = sanitizeKey(metricName);
+                const key = yoy ? `${baseKey}_${year}` : baseKey;
+                const label = yoy ? `${metricName} ${year}` : metricName;
+                const colorIndex = (metricIndex * selectedYears.length + yearIndex) % Object.keys(colorVariants).length;
 
-        return { chartData: data, chartConfig: config, legendStats: legendData };
-    }, [selectedYear, allYearlyData]);
+                config[key] = { label, color: colorVariants[colorIndex] };
+
+                monthlyValues.forEach((value, monthIndex) => {
+                    data[monthIndex][key] = value;
+                });
+                
+                const total = monthlyValues.reduce((s, c) => s + c, 0);
+                legendData[key] = { label, total, avg: Math.round(total / 12), year: yoy ? year : undefined };
+            });
+        });
+        
+        return { chartData: data, chartConfig: config, legendStats: legendData, isYoy };
+
+    }, [selectedYears, allYearlyData]);
 
     const ChartTooltipContentCustom = (
         <ChartTooltipContent
@@ -109,7 +114,7 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
             <CardHeader className="flex flex-col items-start justify-between gap-y-4 md:flex-row md:items-center">
                 <div>
                     <CardTitle>My Orders vs. Average Competitor Orders (Monthly)</CardTitle>
-                    <CardDescription>A comparison of your monthly orders against the average of your competitors for {selectedYear}.</CardDescription>
+                    <CardDescription>A comparison of your monthly orders against the average of your competitors.</CardDescription>
                 </div>
                 <div className="flex items-center gap-1">
                     <Button

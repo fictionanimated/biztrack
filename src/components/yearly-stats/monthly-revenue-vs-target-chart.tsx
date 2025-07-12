@@ -9,13 +9,14 @@ import {
   ChartLegend,
   type ChartConfig
 } from "@/components/ui/chart";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { type YearlyStatsData } from '@/lib/data/yearly-stats-data';
 import { Button } from '@/components/ui/button';
 import { BarChart2, LineChartIcon } from 'lucide-react';
 
 interface MonthlyRevenueVsTargetChartProps {
     allYearlyData: YearlyStatsData;
-    selectedYear: number;
+    selectedYears: number[];
 }
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -25,41 +26,59 @@ const baseChartColors = {
   target: "hsl(var(--chart-5))",
 };
 
+const colorVariants: { [key: number]: string } = {
+    0: "hsl(var(--chart-1))",
+    1: "hsl(var(--chart-2))",
+    2: "hsl(var(--chart-3))",
+    3: "hsl(var(--chart-4))",
+    4: "hsl(var(--chart-5))",
+};
+
 const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '');
 
-export default function MonthlyRevenueVsTargetChart({ allYearlyData, selectedYear }: MonthlyRevenueVsTargetChartProps) {
+export default function MonthlyRevenueVsTargetChart({ allYearlyData, selectedYears }: MonthlyRevenueVsTargetChartProps) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('line');
     
-    const { chartData, chartConfig, legendStats } = useMemo(() => {
+    const { chartData, chartConfig, legendStats, isYoy } = useMemo(() => {
+        const yoy = selectedYears.length > 1;
         const data: { month: string; [key: string]: string | number }[] = months.map((month) => ({ month }));
         const config: ChartConfig = {};
-        const legendData: Record<string, { label: string; total: number; avg: number; }> = {};
+        const legendData: Record<string, { label: string; total: number; avg: number; year?: number }> = {};
         
-        const yearData = allYearlyData[selectedYear];
-        Object.keys(baseChartColors).forEach(metric => {
-            const key = sanitizeKey(metric);
-            config[key] = { 
-                label: metric.charAt(0).toUpperCase() + metric.slice(1), 
-                color: baseChartColors[metric as keyof typeof baseChartColors] 
-            };
-            let total = 0;
-            const sourceData = metric === 'revenue' ? yearData.monthlyFinancials.map(f => f.revenue) : yearData.monthlyTargetRevenue;
+        selectedYears.forEach((year, yearIndex) => {
+            const yearData = allYearlyData[year];
+            if (!yearData) return;
 
-            sourceData.forEach((val, monthIndex) => {
-                const metricValue = val;
-                data[monthIndex][key] = metricValue;
-                total += metricValue;
+            Object.keys(baseChartColors).forEach((metric, metricIndex) => {
+                const baseKey = sanitizeKey(metric);
+                const key = yoy ? `${baseKey}_${year}` : baseKey;
+                const label = yoy ? `${metric.charAt(0).toUpperCase() + metric.slice(1)} ${year}` : `${metric.charAt(0).toUpperCase() + metric.slice(1)}`;
+                
+                const colorIndex = (metricIndex * selectedYears.length + yearIndex) % Object.keys(colorVariants).length;
+                config[key] = { 
+                    label: label, 
+                    color: colorVariants[colorIndex]
+                };
+
+                let total = 0;
+                const sourceData = metric === 'revenue' ? yearData.monthlyFinancials.map(f => f.revenue) : yearData.monthlyTargetRevenue;
+
+                sourceData.forEach((val, monthIndex) => {
+                    data[monthIndex][key] = val;
+                    total += val;
+                });
+                
+                legendData[key] = {
+                    label: label,
+                    total: total,
+                    avg: Math.round(total / 12),
+                    year: yoy ? year : undefined,
+                };
             });
-            legendData[key] = {
-                label: metric.charAt(0).toUpperCase() + metric.slice(1),
-                total: total,
-                avg: Math.round(total / 12),
-            };
         });
         
-        return { chartData: data, chartConfig: config, legendStats: legendData };
-
-    }, [selectedYear, allYearlyData]);
+        return { chartData: data, chartConfig: config, legendStats: legendData, isYoy };
+    }, [selectedYears, allYearlyData]);
 
     const CustomLegend = (props: any) => {
       const { payload } = props;
@@ -90,92 +109,100 @@ export default function MonthlyRevenueVsTargetChart({ allYearlyData, selectedYea
     }
     
     return (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-             <div className="md:col-span-1">
-                <div className="space-y-4">
-                     <div className="flex items-center gap-1">
-                        <Button
-                            variant={chartType === 'bar' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="w-full justify-center"
-                            onClick={() => setChartType('bar')}
-                            aria-label="Switch to Bar Chart"
-                        >
-                            <BarChart2 className="h-4 w-4" />
-                            <span className="ml-2">Bar</span>
-                        </Button>
-                        <Button
-                            variant={chartType === 'line' ? 'secondary' : 'ghost'}
-                            size="sm"
-                            className="w-full justify-center"
-                            onClick={() => setChartType('line')}
-                            aria-label="Switch to Line Chart"
-                        >
-                            <LineChartIcon className="h-4 w-4" />
-                            <span className="ml-2">Line</span>
-                        </Button>
+        <Card>
+            <CardHeader>
+                <CardTitle>Monthly Revenue vs. Target Revenue</CardTitle>
+                <CardDescription>A line graph comparing your actual monthly revenue against your target revenue for the year.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                    <div className="md:col-span-1">
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant={chartType === 'bar' ? 'secondary' : 'ghost'}
+                                    size="sm"
+                                    className="w-full justify-center"
+                                    onClick={() => setChartType('bar')}
+                                    aria-label="Switch to Bar Chart"
+                                >
+                                    <BarChart2 className="h-4 w-4" />
+                                    <span className="ml-2">Bar</span>
+                                </Button>
+                                <Button
+                                    variant={chartType === 'line' ? 'secondary' : 'ghost'}
+                                    size="sm"
+                                    className="w-full justify-center"
+                                    onClick={() => setChartType('line')}
+                                    aria-label="Switch to Line Chart"
+                                >
+                                    <LineChartIcon className="h-4 w-4" />
+                                    <span className="ml-2">Line</span>
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="md:col-span-4">
+                        <ChartContainer config={chartConfig} className="w-full min-h-[400px]">
+                            {chartType === 'bar' ? (
+                                <BarChart data={chartData} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis
+                                        dataKey="month"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                    />
+                                    <YAxis
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        tickFormatter={(value) => `$${value / 1000}k`}
+                                    />
+                                    <Tooltip
+                                        cursor={false}
+                                        content={<ChartTooltipContent
+                                            indicator="dot"
+                                            valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
+                                        />}
+                                    />
+                                    <ChartLegend content={<CustomLegend />} />
+                                    {Object.keys(chartConfig).map(key => (
+                                        <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={4} />
+                                    ))}
+                                </BarChart>
+                            ) : (
+                                <LineChart data={chartData} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis
+                                        dataKey="month"
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                    />
+                                    <YAxis
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        tickFormatter={(value) => `$${value / 1000}k`}
+                                    />
+                                    <Tooltip
+                                        cursor={false}
+                                        content={<ChartTooltipContent
+                                            indicator="dot"
+                                            valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
+                                        />}
+                                    />
+                                    <ChartLegend content={<CustomLegend />} />
+                                    {Object.keys(chartConfig).map(key => (
+                                        <Line key={key} dataKey={key} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot={true} />
+                                    ))}
+                                </LineChart>
+                            )}
+                        </ChartContainer>
                     </div>
                 </div>
-            </div>
-            <div className="md:col-span-4">
-                <ChartContainer config={chartConfig} className="w-full min-h-[400px]">
-                    {chartType === 'bar' ? (
-                        <BarChart data={chartData} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
-                            <CartesianGrid vertical={false} />
-                            <XAxis
-                                dataKey="month"
-                                tickLine={false}
-                                axisLine={false}
-                                tickMargin={8}
-                            />
-                            <YAxis
-                                tickLine={false}
-                                axisLine={false}
-                                tickMargin={8}
-                                tickFormatter={(value) => `$${value / 1000}k`}
-                            />
-                            <Tooltip
-                                cursor={false}
-                                content={<ChartTooltipContent
-                                    indicator="dot"
-                                    valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
-                                />}
-                            />
-                            <ChartLegend content={<CustomLegend />} />
-                            {Object.keys(chartConfig).map(key => (
-                                <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={4} />
-                            ))}
-                        </BarChart>
-                    ) : (
-                         <LineChart data={chartData} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
-                            <CartesianGrid vertical={false} />
-                            <XAxis
-                                dataKey="month"
-                                tickLine={false}
-                                axisLine={false}
-                                tickMargin={8}
-                            />
-                            <YAxis
-                                tickLine={false}
-                                axisLine={false}
-                                tickMargin={8}
-                                tickFormatter={(value) => `$${value / 1000}k`}
-                            />
-                            <Tooltip
-                                cursor={false}
-                                content={<ChartTooltipContent
-                                    indicator="dot"
-                                    valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
-                                />}
-                            />
-                            <ChartLegend content={<CustomLegend />} />
-                            {Object.keys(chartConfig).map(key => (
-                                <Line key={key} dataKey={key} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot={true} />
-                            ))}
-                        </LineChart>
-                    )}
-                </ChartContainer>
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 }

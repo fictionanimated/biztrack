@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { yearlyStatsData } from "@/lib/data/yearly-stats-data";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 
 const MyOrdersVsCompetitorAvgChart = lazy(() => import("@/components/yearly-stats/my-orders-vs-competitor-avg-chart"));
@@ -24,9 +26,20 @@ const YearlySummaryTable = lazy(() => import("@/components/yearly-stats/yearly-s
 
 export default function YearlyStatsPage() {
     const availableYears = useMemo(() => Object.keys(yearlyStatsData).map(Number).sort((a,b) => b-a), []);
-    const [selectedYear, setSelectedYear] = useState(availableYears[0]);
+    const [selectedYears, setSelectedYears] = useState<number[]>([availableYears[0]]);
     
-    const selectedYearData = yearlyStatsData[selectedYear];
+    const singleSelectedYear = selectedYears[selectedYears.length - 1] || availableYears[0];
+    const selectedYearData = yearlyStatsData[singleSelectedYear];
+
+    const handleYearToggle = (year: number) => {
+        setSelectedYears(prev => {
+            const newSelection = prev.includes(year)
+                ? prev.filter(y => y !== year)
+                : [...prev, year];
+            if (newSelection.length === 0) return [year]; // Keep at least one year selected
+            return newSelection.sort((a,b) => b-a);
+        });
+    };
     
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
@@ -35,29 +48,43 @@ export default function YearlyStatsPage() {
           Yearly Stats
         </h1>
         <div className="ml-auto">
-            <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select Year" />
-                </SelectTrigger>
-                <SelectContent>
-                    {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                </SelectContent>
-            </Select>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                        {selectedYears.length > 1 ? `${selectedYears.length} years selected` : `Year: ${selectedYears[0]}`}
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                    <DropdownMenuLabel>Select Years</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {availableYears.map(year => (
+                        <DropdownMenuCheckboxItem
+                            key={year}
+                            checked={selectedYears.includes(year)}
+                            onSelect={(e) => e.preventDefault()}
+                            onCheckedChange={() => handleYearToggle(year)}
+                        >
+                            {year}
+                        </DropdownMenuCheckboxItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
       </div>
       
       <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
-        <YearlySummaryTable allYearlyData={yearlyStatsData} selectedYear={selectedYear} />
+        <YearlySummaryTable allYearlyData={yearlyStatsData} selectedYear={singleSelectedYear} />
       </Suspense>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Suspense fallback={<Skeleton className="h-[500px] lg:col-span-2" />}>
-            <MyOrdersVsCompetitorAvgChart allYearlyData={yearlyStatsData} selectedYear={selectedYear}/>
+            <MyOrdersVsCompetitorAvgChart allYearlyData={yearlyStatsData} selectedYears={selectedYears}/>
         </Suspense>
         <Card>
              <CardHeader>
                 <CardTitle>Total Yearly Orders Distribution</CardTitle>
-                <CardDescription>A pie chart showing the market share of orders between you and your competitors for {selectedYear}.</CardDescription>
+                <CardDescription>A pie chart showing the market share of orders between you and your competitors for {singleSelectedYear}.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Suspense fallback={<Skeleton className="h-[300px]" />}>
@@ -67,41 +94,17 @@ export default function YearlyStatsPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-            <CardTitle>Monthly Orders: You vs. Competitors</CardTitle>
-            <CardDescription>A line graph showing your monthly orders compared to each of your main competitors throughout the selected year.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Suspense fallback={<Skeleton className="h-[400px] w-full min-h-[400px]" />}>
-                <MonthlyOrdersVsCompetitorsChart allYearlyData={yearlyStatsData} selectedYear={selectedYear} />
-            </Suspense>
-        </CardContent>
-      </Card>
+      <Suspense fallback={<Skeleton className="h-[500px]" />}>
+          <MonthlyOrdersVsCompetitorsChart allYearlyData={yearlyStatsData} selectedYears={selectedYears} />
+      </Suspense>
 
-      <Card>
-        <CardHeader>
-            <CardTitle>Monthly Revenue, Expenses, and Profit</CardTitle>
-            <CardDescription>A bar graph showing your key financial metrics for each month of the year.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Suspense fallback={<Skeleton className="h-[400px] w-full min-h-[400px]" />}>
-                <MonthlyFinancialsChart allYearlyData={yearlyStatsData} selectedYear={selectedYear} />
-            </Suspense>
-        </CardContent>
-      </Card>
+      <Suspense fallback={<Skeleton className="h-[500px]" />}>
+          <MonthlyFinancialsChart allYearlyData={yearlyStatsData} selectedYears={selectedYears} />
+      </Suspense>
       
-      <Card>
-        <CardHeader>
-            <CardTitle>Monthly Revenue vs. Target Revenue</CardTitle>
-            <CardDescription>A line graph comparing your actual monthly revenue against your target revenue for the year.</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Suspense fallback={<Skeleton className="h-[400px] w-full min-h-[400px]" />}>
-                <MonthlyRevenueVsTargetChart allYearlyData={yearlyStatsData} selectedYear={selectedYear} />
-            </Suspense>
-        </CardContent>
-      </Card>
+      <Suspense fallback={<Skeleton className="h-[500px]" />}>
+          <MonthlyRevenueVsTargetChart allYearlyData={yearlyStatsData} selectedYears={selectedYears} />
+      </Suspense>
     </main>
   );
 }
