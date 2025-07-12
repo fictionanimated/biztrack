@@ -25,7 +25,6 @@ export default function YearlyStatsPage() {
     
     const { 
         myTotalYearlyOrders, 
-        monthlyOrders,
         competitors, 
         monthlyFinancials, 
         monthlyTargetRevenue 
@@ -75,7 +74,7 @@ export default function YearlyStatsPage() {
         </CardHeader>
         <CardContent>
             <Suspense fallback={<Skeleton className="h-[400px]" />}>
-                <MonthlyFinancialsChart data={monthlyFinancials} />
+                <MonthlyFinancialsChart allYearlyData={yearlyStatsData} />
             </Suspense>
         </CardContent>
       </Card>

@@ -1,62 +1,106 @@
 
 "use client";
 
-import { useMemo } from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import { useMemo, useState } from 'react';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Line, LineChart } from 'recharts';
 import {
   ChartContainer,
   ChartTooltipContent,
   ChartLegend,
   type ChartConfig
 } from "@/components/ui/chart";
-import { MonthlyFinancials } from '@/lib/data/yearly-stats-data';
+import { type YearlyStatsData } from '@/lib/data/yearly-stats-data';
+import { Button } from '@/components/ui/button';
+import { BarChart2, LineChartIcon } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MonthlyFinancialsChartProps {
-    data: MonthlyFinancials[];
+    allYearlyData: YearlyStatsData;
 }
 
-const chartConfig = {
-  revenue: { label: "Revenue", color: "hsl(var(--chart-1))" },
-  expenses: { label: "Expenses", color: "hsl(var(--chart-2))" },
-  profit: { label: "Profit", color: "hsl(var(--chart-3))" },
-} satisfies ChartConfig;
+const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export default function MonthlyFinancialsChart({ data }: MonthlyFinancialsChartProps) {
-    const { totalRevenue, avgRevenue, totalExpenses, avgExpenses, totalProfit, avgProfit } = useMemo(() => {
-        const totalRev = data.reduce((acc, curr) => acc + curr.revenue, 0);
-        const avgRev = data.length > 0 ? totalRev / data.length : 0;
-        
-        const totalExp = data.reduce((acc, curr) => acc + curr.expenses, 0);
-        const avgExp = data.length > 0 ? totalExp / data.length : 0;
+const chartColors = {
+  revenue: "hsl(var(--chart-1))",
+  expenses: "hsl(var(--chart-2))",
+  profit: "hsl(var(--chart-3))",
+};
 
-        const totalProf = data.reduce((acc, curr) => acc + curr.profit, 0);
-        const avgProf = data.length > 0 ? totalProf / data.length : 0;
+const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '');
+
+export default function MonthlyFinancialsChart({ allYearlyData }: MonthlyFinancialsChartProps) {
+    const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+    const availableYears = useMemo(() => Object.keys(allYearlyData).map(Number).sort((a,b) => a - b), [allYearlyData]);
+    const [isYoY, setIsYoY] = useState(false);
+    const [startYear, setStartYear] = useState(availableYears[0]);
+    const [endYear, setEndYear] = useState(availableYears[availableYears.length - 1]);
+    
+    const latestYear = availableYears[availableYears.length - 1];
+
+    const { chartData, chartConfig, legendStats } = useMemo(() => {
+        const data: { month: string; [key: string]: string | number }[] = months.map((month, i) => ({ month }));
+        const config: ChartConfig = {};
+        const legendData: Record<string, { label: string; total: number; avg: number; }> = {};
+        let colorIndexOffset = 0;
+
+        if (isYoY) {
+            const selectedYears = availableYears.filter(y => y >= startYear && y <= endYear);
+            selectedYears.forEach((year, yearIndex) => {
+                const yearData = allYearlyData[year];
+                
+                ['revenue', 'expenses', 'profit'].forEach((metric, metricIndex) => {
+                    const key = sanitizeKey(`${metric}_${year}`);
+                    config[key] = { label: `${metric.charAt(0).toUpperCase() + metric.slice(1)} ${year}`, color: chartColors[metric as keyof typeof chartColors] };
+                    let total = 0;
+                    yearData.monthlyFinancials.forEach((val, monthIndex) => {
+                        const metricValue = val[metric as keyof typeof val] as number;
+                        data[monthIndex][key] = metricValue;
+                        total += metricValue;
+                    });
+                    legendData[key] = {
+                        label: `${metric.charAt(0).toUpperCase() + metric.slice(1)} ${year}`,
+                        total: total,
+                        avg: Math.round(total / 12),
+                    };
+                });
+            });
+
+        } else {
+            // Single Year
+            const yearData = allYearlyData[latestYear];
+            ['revenue', 'expenses', 'profit'].forEach(metric => {
+                const key = sanitizeKey(metric);
+                config[key] = { label: metric.charAt(0).toUpperCase() + metric.slice(1), color: chartColors[metric as keyof typeof chartColors] };
+                let total = 0;
+                yearData.monthlyFinancials.forEach((val, monthIndex) => {
+                    const metricValue = val[metric as keyof typeof val] as number;
+                    data[monthIndex][key] = metricValue;
+                    total += metricValue;
+                });
+                legendData[key] = {
+                    label: metric.charAt(0).toUpperCase() + metric.slice(1),
+                    total: total,
+                    avg: Math.round(total / 12),
+                };
+            });
+        }
         
-        return {
-            totalRevenue: totalRev,
-            avgRevenue: avgRev,
-            totalExpenses: totalExp,
-            avgExpenses: avgExp,
-            totalProfit: totalProf,
-            avgProfit: avgProf,
-        };
-    }, [data]);
+        return { chartData: data, chartConfig: config, legendStats: legendData };
+
+    }, [isYoY, startYear, endYear, allYearlyData, availableYears, latestYear]);
 
     const CustomLegend = (props: any) => {
       const { payload } = props;
       const formatCurrency = (value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
       
-      const statsMap = {
-          revenue: { total: totalRevenue, avg: avgRevenue, label: "Revenue" },
-          expenses: { total: totalExpenses, avg: avgExpenses, label: "Expenses" },
-          profit: { total: totalProfit, avg: avgProfit, label: "Profit" },
-      }
-
       return (
         <div className="flex justify-center gap-4 pt-4 flex-wrap">
           {payload.map((entry: any, index: number) => {
-            const key = entry.value as keyof typeof statsMap;
-            const stats = statsMap[key];
+            const key = entry.value as keyof typeof legendStats;
+            const stats = legendStats[key];
+            if (!stats) return null;
 
             return (
                 <div key={`item-${index}`} className="flex items-center space-x-2 rounded-lg border bg-background/50 px-4 py-2">
@@ -76,33 +120,115 @@ export default function MonthlyFinancialsChart({ data }: MonthlyFinancialsChartP
     }
     
     return (
-        <ChartContainer config={chartConfig} className="h-[400px] w-full">
-            <BarChart data={data} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                />
-                <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(value) => `$${value / 1000}k`}
-                />
-                <Tooltip
-                    cursor={false}
-                    content={<ChartTooltipContent
-                        indicator="dot"
-                        valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
-                    />}
-                />
-                <ChartLegend content={<CustomLegend />} />
-                <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
-                <Bar dataKey="expenses" fill="var(--color-expenses)" radius={4} />
-                <Bar dataKey="profit" fill="var(--color-profit)" radius={4} />
-            </BarChart>
-        </ChartContainer>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+             <div className="md:col-span-1">
+                <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                        <Checkbox id="yoy-financial-checkbox" checked={isYoY} onCheckedChange={(checked) => setIsYoY(!!checked)} />
+                        <Label htmlFor="yoy-financial-checkbox" className="font-semibold">Year-over-Year</Label>
+                    </div>
+                    
+                    {isYoY && (
+                        <div className="space-y-2">
+                            <Label>From</Label>
+                            <Select value={String(startYear)} onValueChange={(v) => setStartYear(Number(v))}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {availableYears.map(y => <SelectItem key={y} value={String(y)} disabled={y > endYear}>{y}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Label>To</Label>
+                             <Select value={String(endYear)} onValueChange={(v) => setEndYear(Number(v))}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {availableYears.map(y => <SelectItem key={y} value={String(y)} disabled={y < startYear}>{y}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                     <div className="flex items-center gap-1">
+                        <Button
+                            variant={chartType === 'bar' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="w-full justify-center"
+                            onClick={() => setChartType('bar')}
+                            aria-label="Switch to Bar Chart"
+                        >
+                            <BarChart2 className="h-4 w-4" />
+                            <span className="ml-2">Bar</span>
+                        </Button>
+                        <Button
+                            variant={chartType === 'line' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            className="w-full justify-center"
+                            onClick={() => setChartType('line')}
+                            aria-label="Switch to Line Chart"
+                        >
+                            <LineChartIcon className="h-4 w-4" />
+                            <span className="ml-2">Line</span>
+                        </Button>
+                    </div>
+                </div>
+            </div>
+            <div className="md:col-span-4">
+                <ChartContainer config={chartConfig} className="h-[400px] w-full">
+                    {chartType === 'bar' ? (
+                        <BarChart data={chartData} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis
+                                dataKey="month"
+                                tickLine={false}
+                                axisLine={false}
+                                tickMargin={8}
+                            />
+                            <YAxis
+                                tickLine={false}
+                                axisLine={false}
+                                tickMargin={8}
+                                tickFormatter={(value) => `$${value / 1000}k`}
+                            />
+                            <Tooltip
+                                cursor={false}
+                                content={<ChartTooltipContent
+                                    indicator="dot"
+                                    valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
+                                />}
+                            />
+                            <ChartLegend content={<CustomLegend />} />
+                            {Object.keys(chartConfig).map(key => (
+                                <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={isYoY ? 0 : 4} />
+                            ))}
+                        </BarChart>
+                    ) : (
+                         <LineChart data={chartData} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis
+                                dataKey="month"
+                                tickLine={false}
+                                axisLine={false}
+                                tickMargin={8}
+                            />
+                            <YAxis
+                                tickLine={false}
+                                axisLine={false}
+                                tickMargin={8}
+                                tickFormatter={(value) => `$${value / 1000}k`}
+                            />
+                            <Tooltip
+                                cursor={false}
+                                content={<ChartTooltipContent
+                                    indicator="dot"
+                                    valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
+                                />}
+                            />
+                            <ChartLegend content={<CustomLegend />} />
+                            {Object.keys(chartConfig).map(key => (
+                                <Line key={key} dataKey={key} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot={true} />
+                            ))}
+                        </LineChart>
+                    )}
+                </ChartContainer>
+            </div>
+        </div>
     );
 }
