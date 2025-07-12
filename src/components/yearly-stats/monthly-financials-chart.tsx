@@ -28,9 +28,9 @@ const baseChartColors = {
 };
 
 const chartColorVariants = [
-    {-10: "hsl(var(--chart-1) / 0.4)", 0: "hsl(var(--chart-1))", 10: "hsl(var(--chart-1) / 1.2)"},
-    {-10: "hsl(var(--chart-2) / 0.4)", 0: "hsl(var(--chart-2))", 10: "hsl(var(--chart-2) / 1.2)"},
-    {-10: "hsl(var(--chart-3) / 0.4)", 0: "hsl(var(--chart-3))", 10: "hsl(var(--chart-3) / 1.2)"},
+    { "-10": "hsl(var(--chart-1) / 0.4)", "0": "hsl(var(--chart-1))", "10": "hsl(var(--chart-1) / 1.2)" },
+    { "-10": "hsl(var(--chart-2) / 0.4)", "0": "hsl(var(--chart-2))", "10": "hsl(var(--chart-2) / 1.2)" },
+    { "-10": "hsl(var(--chart-3) / 0.4)", "0": "hsl(var(--chart-3))", "10": "hsl(var(--chart-3) / 1.2)" },
 ];
 
 
@@ -57,11 +57,12 @@ export default function MonthlyFinancialsChart({ allYearlyData }: MonthlyFinanci
                 
                 Object.keys(baseChartColors).forEach((metric, metricIndex) => {
                     const key = sanitizeKey(`${metric}_${year}`);
-                    // Use variants to create distinct colors for each year's metric
                     const colorShade = yearIndex === 0 ? 0 : (yearIndex % 2 === 1 ? -10 : 10);
+                    const colorVariantKey = String(colorShade) as keyof typeof chartColorVariants[number];
+
                     config[key] = { 
                         label: `${metric.charAt(0).toUpperCase() + metric.slice(1)} ${year}`, 
-                        color: chartColorVariants[metricIndex % chartColorVariants.length][colorShade as keyof typeof chartColorVariants[number]]
+                        color: chartColorVariants[metricIndex % chartColorVariants.length][colorVariantKey]
                     };
                     
                     let total = 0;
