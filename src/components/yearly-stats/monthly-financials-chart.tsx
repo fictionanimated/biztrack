@@ -27,10 +27,14 @@ const baseChartColors = {
   profit: "hsl(var(--chart-3))",
 };
 
-const chartColorVariants = [
-    { "-10": "hsl(var(--chart-1) / 0.4)", "0": "hsl(var(--chart-1))", "10": "hsl(var(--chart-1) / 1.2)" },
-    { "-10": "hsl(var(--chart-2) / 0.4)", "0": "hsl(var(--chart-2))", "10": "hsl(var(--chart-2) / 1.2)" },
-    { "-10": "hsl(var(--chart-3) / 0.4)", "0": "hsl(var(--chart-3))", "10": "hsl(var(--chart-3) / 1.2)" },
+const yoyChartColors = [
+    "hsl(var(--chart-1))",
+    "hsl(var(--chart-2))",
+    "hsl(var(--chart-3))",
+    "hsl(var(--chart-4))",
+    "hsl(var(--chart-5))",
+    "hsl(var(--primary))",
+    "hsl(var(--destructive))",
 ];
 
 
@@ -52,18 +56,18 @@ export default function MonthlyFinancialsChart({ allYearlyData }: MonthlyFinanci
         
         if (isYoY) {
             const selectedYears = availableYears.filter(y => y >= startYear && y <= endYear);
-            selectedYears.forEach((year, yearIndex) => {
+            let colorIndex = 0;
+
+            selectedYears.forEach((year) => {
                 const yearData = allYearlyData[year];
                 
-                Object.keys(baseChartColors).forEach((metric, metricIndex) => {
+                Object.keys(baseChartColors).forEach((metric) => {
                     const key = sanitizeKey(`${metric}_${year}`);
-                    const colorShade = yearIndex === 0 ? 0 : (yearIndex % 2 === 1 ? -10 : 10);
-                    const colorVariantKey = String(colorShade) as keyof typeof chartColorVariants[number];
-
                     config[key] = { 
                         label: `${metric.charAt(0).toUpperCase() + metric.slice(1)} ${year}`, 
-                        color: chartColorVariants[metricIndex % chartColorVariants.length][colorVariantKey]
+                        color: yoyChartColors[colorIndex % yoyChartColors.length]
                     };
+                    colorIndex++;
                     
                     let total = 0;
                     yearData.monthlyFinancials.forEach((val, monthIndex) => {
