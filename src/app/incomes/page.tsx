@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState } from "react";
@@ -103,6 +104,13 @@ const addGigFormSchema = z.object({
 });
 type AddGigFormValues = z.infer<typeof addGigFormSchema>;
 
+const editGigFormSchema = z.object({
+    name: z.string().min(2, { message: "Gig name must be at least 2 characters." }),
+    date: z.date({ required_error: "A date for the gig is required." }),
+});
+type EditGigFormValues = z.infer<typeof editGigFormSchema>;
+
+
 const addDataFormSchema = z.object({
     date: z.date({ required_error: "A date is required." }),
     messages: z.coerce.number().int().min(0, { message: "Number of messages must be a non-negative number." }),
@@ -132,6 +140,9 @@ export default function IncomesPage() {
 
   const [addGigDialogOpen, setAddGigDialogOpen] = useState(false);
   const [addingToSourceId, setAddingToSourceId] = useState<string | null>(null);
+
+  const [editGigDialogOpen, setEditGigDialogOpen] = useState(false);
+  const [editingGigInfo, setEditingGigInfo] = useState<{sourceId: string; gig: Gig} | null>(null);
   
   const [isAddDataDialogOpen, setIsAddDataDialogOpen] = useState(false);
   const [updatingSourceId, setUpdatingSourceId] = useState<string | null>(null);
@@ -164,6 +175,10 @@ export default function IncomesPage() {
       name: "",
       date: staticDate,
     },
+  });
+
+  const editGigForm = useForm<EditGigFormValues>({
+    resolver: zodResolver(editGigFormSchema),
   });
 
   const addDataForm = useForm<AddDataFormValues>({
@@ -233,6 +248,36 @@ export default function IncomesPage() {
     });
     addGigForm.reset({ name: "", date: new Date() });
     setAddGigDialogOpen(false);
+  }
+
+  function onEditGigSubmit(values: EditGigFormValues) {
+    if (!editingGigInfo) return;
+
+    const { sourceId, gig } = editingGigInfo;
+
+    const updatedGig: Gig = {
+        ...gig,
+        name: values.name,
+        date: format(values.date, "yyyy-MM-dd"),
+    };
+
+    setIncomeSources(prevSources => 
+      prevSources.map(source => {
+        if (source.id === sourceId) {
+            return {
+                ...source,
+                gigs: source.gigs.map(g => g.id === gig.id ? updatedGig : g),
+            };
+        }
+        return source;
+      })
+    );
+
+    toast({
+      title: "Gig Updated",
+      description: `Gig "${values.name}" has been updated.`,
+    });
+    setEditGigDialogOpen(false);
   }
 
   function onAddDataSubmit(values: AddDataFormValues) {
@@ -384,6 +429,15 @@ export default function IncomesPage() {
       });
 
       closeDeleteDialog();
+  };
+
+  const handleOpenEditGigDialog = (gig: Gig, sourceId: string) => {
+      setEditingGigInfo({ sourceId, gig });
+      editGigForm.reset({
+          name: gig.name,
+          date: new Date(gig.date.replace(/-/g, '/')),
+      });
+      setEditGigDialogOpen(true);
   };
 
   return (
@@ -680,6 +734,7 @@ export default function IncomesPage() {
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8"
+                                        onClick={() => handleOpenEditGigDialog(gig, source.id)}
                                     >
                                         <Pencil className="h-4 w-4" />
                                         <span className="sr-only">Edit Gig</span>
@@ -843,6 +898,78 @@ export default function IncomesPage() {
                             <Button type="button" variant="secondary">Cancel</Button>
                         </DialogClose>
                         <Button type="submit">Add Gig</Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editGigDialogOpen} onOpenChange={setEditGigDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Edit Gig</DialogTitle>
+                <DialogDescription>
+                   Update the details for &quot;{editingGigInfo?.gig.name}&quot;.
+                </DialogDescription>
+            </DialogHeader>
+            <Form {...editGigForm}>
+                <form onSubmit={editGigForm.handleSubmit(onEditGigSubmit)} className="space-y-6 pt-4">
+                    <FormField
+                        control={editGigForm.control}
+                        name="name"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Gig Name</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g., New Project" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={editGigForm.control}
+                        name="date"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                            <FormLabel>Date</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                    )}
+                                    >
+                                    {field.value ? (
+                                        format(field.value, "PPP")
+                                    ) : (
+                                        <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary">Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit">Save Changes</Button>
                     </DialogFooter>
                 </form>
             </Form>
