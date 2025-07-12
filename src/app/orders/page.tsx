@@ -152,6 +152,11 @@ const parseDateString = (dateString: string): Date => {
   return new Date(year, month - 1, day);
 };
 
+const importFormSchema = z.object({
+    source: z.string().optional(),
+    file: z.any().optional(),
+});
+
 export default function OrdersPage() {
     const [orders, setOrders] = useState<Order[]>(staticOrders);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -239,6 +244,10 @@ export default function OrdersPage() {
             cancellationReasons: [],
             customCancellationReason: "",
         },
+    });
+    
+    const importForm = useForm<z.infer<typeof importFormSchema>>({
+        resolver: zodResolver(importFormSchema),
     });
 
     const isCancelled = form.watch("isCancelled");
@@ -874,41 +883,53 @@ export default function OrdersPage() {
                     Upload a CSV file to bulk import orders.
                 </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-                <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
-                    <h4 className="mb-2 text-sm font-semibold text-yellow-900 dark:text-yellow-200">CSV Import Guidelines</h4>
-                    <ul className="list-disc space-y-1 pl-5 text-xs text-yellow-800 dark:text-yellow-300">
-                        <li>Essential CSV headers (case-insensitive): <strong>Date</strong>, <strong>Client Username</strong>, <strong>Amount</strong>.</li>
-                        <li>Optional headers: <strong>Order ID</strong>, <strong>Gig Name</strong>, <strong>Type</strong>.</li>
-                        <li>If <strong>'Order ID'</strong> is provided, rows with the same Order ID will be combined: amounts are summed, other details (like Gig Name) are taken from the first row for that ID. The combined Order ID must be <strong>unique</strong> in the database. If 'Order ID' is blank for a row, it's treated as a unique order.</li>
-                        <li>Optional 'Type' column (e.g., "Order", "Order Extra"). Defaults to "Order" if missing. This is stored for your reference.</li>
-                        <li>Fields with commas must be in double quotes (e.g., "My Gig, with details"). Escaped double quotes: "My ""quoted"" Gig".</li>
-                        <li>Date format: MM/DD/YYYY, YY-MM-DD, etc. (standard parsable formats).</li>
-                        <li>Max <strong>2000 orders</strong> per file.</li>
-                        <li>New clients and gigs (for selected income source) are <strong>auto-created</strong>.</li>
-                    </ul>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="import-source">Income Source</Label>
-                    <Select>
-                        <SelectTrigger id="import-source">
-                            <SelectValue placeholder="Select an income source" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {incomeSourceNames.map(source => (
-                                <SelectItem key={source} value={source}>{source}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <FormDescription>
-                        New gigs from your CSV will be added to this source.
-                    </FormDescription>
-                </div>
-                <div className="space-y-2">
-                     <Label htmlFor="csv-file">CSV File</Label>
-                     <Input id="csv-file" type="file" accept=".csv" />
-                </div>
-            </div>
+            <Form {...importForm}>
+                <form className="space-y-4 py-4">
+                    <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
+                        <h4 className="mb-2 text-sm font-semibold text-yellow-900 dark:text-yellow-200">CSV Import Guidelines</h4>
+                        <ul className="list-disc space-y-1 pl-5 text-xs text-yellow-800 dark:text-yellow-300">
+                            <li>Essential CSV headers (case-insensitive): <strong>Date</strong>, <strong>Client Username</strong>, <strong>Amount</strong>.</li>
+                            <li>Optional headers: <strong>Order ID</strong>, <strong>Gig Name</strong>, <strong>Type</strong>.</li>
+                            <li>If <strong>'Order ID'</strong> is provided, rows with the same Order ID will be combined: amounts are summed, other details (like Gig Name) are taken from the first row for that ID. The combined Order ID must be <strong>unique</strong> in the database. If 'Order ID' is blank for a row, it's treated as a unique order.</li>
+                            <li>Optional 'Type' column (e.g., "Order", "Order Extra"). Defaults to "Order" if missing. This is stored for your reference.</li>
+                            <li>Fields with commas must be in double quotes (e.g., "My Gig, with details"). Escaped double quotes: "My ""quoted"" Gig".</li>
+                            <li>Date format: MM/DD/YYYY, YY-MM-DD, etc. (standard parsable formats).</li>
+                            <li>Max <strong>2000 orders</strong> per file.</li>
+                            <li>New clients and gigs (for selected income source) are <strong>auto-created</strong>.</li>
+                        </ul>
+                    </div>
+                    <FormField
+                        control={importForm.control}
+                        name="source"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Income Source</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger id="import-source">
+                                            <SelectValue placeholder="Select an income source" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {incomeSourceNames.map(source => (
+                                            <SelectItem key={source} value={source}>{source}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>
+                                    New gigs from your CSV will be added to this source.
+                                </FormDescription>
+                            </FormItem>
+                        )}
+                    />
+                    <FormItem>
+                         <FormLabel htmlFor="csv-file">CSV File</FormLabel>
+                         <FormControl>
+                            <Input id="csv-file" type="file" accept=".csv" />
+                         </FormControl>
+                    </FormItem>
+                </form>
+            </Form>
             <DialogFooter>
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">Cancel</Button>
