@@ -28,7 +28,7 @@ const chartColors = [
   "hsl(var(--chart-5))",
 ];
 
-const sanitizeKey = (key: string) => key.replace(/\s+/g, '_');
+const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9]/g, '_');
 
 export default function MonthlyOrdersVsCompetitorsChart({ myOrders, competitors }: MonthlyOrdersVsCompetitorsChartProps) {
     const { chartData, chartConfig } = useMemo(() => {
