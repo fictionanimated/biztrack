@@ -51,7 +51,8 @@ export default function MonthlyOrdersVsCompetitorsChart({ myOrders, competitors 
             [myOrdersKey]: { label: 'My Orders', color: chartColors[0] },
         };
         competitors.forEach((c, i) => {
-            config[competitorKeys[i]] = {
+            const sanitizedName = sanitizeKey(c.name);
+            config[sanitizedName] = {
                 label: c.name,
                 color: chartColors[(i + 1) % chartColors.length]
             };
@@ -69,13 +70,13 @@ export default function MonthlyOrdersVsCompetitorsChart({ myOrders, competitors 
     };
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div className="md:col-span-1">
                 <h4 className="font-semibold mb-2">Display Lines</h4>
                 <p className="text-sm text-muted-foreground mb-4">
-                    Select which lines to show on the graph.
+                    Toggle lines on the graph.
                 </p>
-                <ScrollArea className="h-96 rounded-md border p-2">
+                <ScrollArea className="h-80 rounded-md border p-2">
                      <div className="space-y-2">
                         {Object.entries(chartConfig).map(([metricKey, config]) => (
                             <div key={metricKey} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted/50">
@@ -94,7 +95,7 @@ export default function MonthlyOrdersVsCompetitorsChart({ myOrders, competitors 
                     </div>
                 </ScrollArea>
             </div>
-            <div className="md:col-span-3">
+            <div className="md:col-span-4">
                 <ChartContainer config={chartConfig} className="h-[400px] w-full">
                     <LineChart data={chartData} margin={{ top: 20, right: 20, left: 10, bottom: 20 }}>
                         <CartesianGrid vertical={false} />
