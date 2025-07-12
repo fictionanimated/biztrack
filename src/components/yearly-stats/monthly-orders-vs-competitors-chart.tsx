@@ -28,22 +28,26 @@ const chartColors = [
   "hsl(var(--chart-5))",
 ];
 
+const sanitizeKey = (key: string) => key.replace(/\s+/g, '_');
+
 export default function MonthlyOrdersVsCompetitorsChart({ myOrders, competitors }: MonthlyOrdersVsCompetitorsChartProps) {
     const { chartData, chartConfig } = useMemo(() => {
+        const myOrdersKey = sanitizeKey('My Orders');
+        
         const data = months.map((month, index) => {
             const entry: { month: string; [key: string]: string | number } = { month };
-            entry['My Orders'] = myOrders[index];
+            entry[myOrdersKey] = myOrders[index];
             competitors.forEach(c => {
-                entry[c.name] = c.monthlyOrders[index];
+                entry[sanitizeKey(c.name)] = c.monthlyOrders[index];
             });
             return entry;
         });
 
         const config: ChartConfig = {
-            'My Orders': { label: 'My Orders', color: chartColors[0] },
+            [myOrdersKey]: { label: 'My Orders', color: chartColors[0] },
         };
         competitors.forEach((c, i) => {
-            config[c.name] = {
+            config[sanitizeKey(c.name)] = {
                 label: c.name,
                 color: chartColors[(i + 1) % chartColors.length]
             };
@@ -73,19 +77,19 @@ export default function MonthlyOrdersVsCompetitorsChart({ myOrders, competitors 
                 />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Line
-                    dataKey="My Orders"
+                    dataKey={sanitizeKey("My Orders")}
                     type="monotone"
                     strokeWidth={2}
-                    stroke={`var(--color-My Orders)`}
+                    stroke={`var(--color-${sanitizeKey("My Orders")})`}
                     dot={true}
                 />
                 {competitors.map(c => (
                     <Line
                         key={c.id}
-                        dataKey={c.name}
+                        dataKey={sanitizeKey(c.name)}
                         type="monotone"
                         strokeWidth={2}
-                        stroke={`var(--color-${c.name})`}
+                        stroke={`var(--color-${sanitizeKey(c.name)})`}
                         dot={false}
                         strokeDasharray="3 3"
                     />
