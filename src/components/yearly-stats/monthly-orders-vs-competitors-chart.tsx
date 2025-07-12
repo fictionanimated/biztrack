@@ -38,11 +38,12 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: Month
     const [isYoY, setIsYoY] = useState(false);
     const [startYear, setStartYear] = useState(availableYears[0]);
     const [endYear, setEndYear] = useState(availableYears[availableYears.length - 1]);
-    const [baseYearForCompetitors, setBaseYearForCompetitors] = useState(availableYears[availableYears.length - 1]);
+    
+    const latestYear = availableYears[availableYears.length - 1];
 
     const competitorData = useMemo(() => {
-        return allYearlyData[baseYearForCompetitors]?.competitors || [];
-    }, [allYearlyData, baseYearForCompetitors]);
+        return allYearlyData[latestYear]?.competitors || [];
+    }, [allYearlyData, latestYear]);
 
     const { chartData, chartConfig, metricKeys } = useMemo(() => {
         if (isYoY) {
@@ -60,7 +61,7 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: Month
             });
             return { chartData: data, chartConfig: config, metricKeys: selectedYears.map(String) };
         } else {
-            const myOrders = allYearlyData[baseYearForCompetitors].monthlyOrders;
+            const myOrders = allYearlyData[latestYear].monthlyOrders;
             const myOrdersKey = sanitizeKey('My Orders');
             const competitorKeys = competitorData.map(c => sanitizeKey(c.name));
             const data = months.map((month, index) => {
@@ -77,7 +78,7 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: Month
             });
             return { chartData: data, chartConfig: config, metricKeys: [myOrdersKey, ...competitorKeys] };
         }
-    }, [isYoY, startYear, endYear, baseYearForCompetitors, allYearlyData, competitorData, availableYears]);
+    }, [isYoY, startYear, endYear, allYearlyData, competitorData, availableYears, latestYear]);
     
     const [activeMetrics, setActiveMetrics] = useState<Record<string, boolean>>({});
 
@@ -118,15 +119,6 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: Month
                         </div>
                     ) : (
                         <>
-                            <div className="space-y-2">
-                                <Label>Data Year</Label>
-                                <Select value={String(baseYearForCompetitors)} onValueChange={(v) => setBaseYearForCompetitors(Number(v))}>
-                                     <SelectTrigger><SelectValue /></SelectTrigger>
-                                     <SelectContent>
-                                        {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                                     </SelectContent>
-                                </Select>
-                            </div>
                             <div>
                                 <h4 className="font-semibold mb-2 mt-4">Display Lines</h4>
                                 <p className="text-sm text-muted-foreground mb-4">Toggle lines on the graph.</p>
