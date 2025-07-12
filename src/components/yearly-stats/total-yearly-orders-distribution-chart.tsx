@@ -10,11 +10,10 @@ import {
   ChartLegendContent,
   type ChartConfig
 } from "@/components/ui/chart";
-import { CompetitorYearlyData } from '@/lib/data/yearly-stats-data';
+import { type SingleYearData } from '@/lib/data/yearly-stats-data';
 
 interface TotalYearlyOrdersDistributionChartProps {
-    myOrders: number;
-    competitors: CompetitorYearlyData[];
+    yearData: SingleYearData;
 }
 
 const chartColors = [
@@ -25,11 +24,12 @@ const chartColors = [
   "hsl(var(--chart-5))",
 ];
 
-export default function TotalYearlyOrdersDistributionChart({ myOrders, competitors }: TotalYearlyOrdersDistributionChartProps) {
+export default function TotalYearlyOrdersDistributionChart({ yearData }: TotalYearlyOrdersDistributionChartProps) {
     
     const { chartData, chartConfig, totalOrders } = useMemo(() => {
+        const { myTotalYearlyOrders, competitors } = yearData;
         const data = [
-            { name: "My Orders", value: myOrders, color: chartColors[0] },
+            { name: "My Orders", value: myTotalYearlyOrders, color: chartColors[0] },
             ...competitors.map((c, i) => ({
                 name: c.name,
                 value: c.totalOrders,
@@ -46,7 +46,7 @@ export default function TotalYearlyOrdersDistributionChart({ myOrders, competito
 
         return { chartData: data, chartConfig: config, totalOrders: total };
 
-    }, [myOrders, competitors]);
+    }, [yearData]);
 
     const CustomLegend = (props: any) => {
         const { payload } = props;

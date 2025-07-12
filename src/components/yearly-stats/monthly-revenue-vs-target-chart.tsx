@@ -12,22 +12,13 @@ import {
 import { type YearlyStatsData } from '@/lib/data/yearly-stats-data';
 import { Button } from '@/components/ui/button';
 import { BarChart2, LineChartIcon } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MonthlyRevenueVsTargetChartProps {
     allYearlyData: YearlyStatsData;
+    selectedYear: number;
 }
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-const yoyChartColors = [
-    "#8884d8", "#82ca9d", "#ffc658",
-    "#ff7300", "#387908", "#0088FE",
-    "#00C49F", "#FFBB28", "#FF8042",
-    "#d0ed57", "#ffc0cb", "#8a2be2"
-];
 
 const baseChartColors = {
   revenue: "hsl(var(--chart-1))",
@@ -36,80 +27,39 @@ const baseChartColors = {
 
 const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '');
 
-export default function MonthlyRevenueVsTargetChart({ allYearlyData }: MonthlyRevenueVsTargetChartProps) {
+export default function MonthlyRevenueVsTargetChart({ allYearlyData, selectedYear }: MonthlyRevenueVsTargetChartProps) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('line');
-    const availableYears = useMemo(() => Object.keys(allYearlyData).map(Number).sort((a,b) => a - b), [allYearlyData]);
-    const [isYoY, setIsYoY] = useState(false);
-    const [startYear, setStartYear] = useState(availableYears[0]);
-    const [endYear, setEndYear] = useState(availableYears[availableYears.length - 1]);
     
-    const latestYear = availableYears[availableYears.length - 1];
-
     const { chartData, chartConfig, legendStats } = useMemo(() => {
         const data: { month: string; [key: string]: string | number }[] = months.map((month) => ({ month }));
         const config: ChartConfig = {};
         const legendData: Record<string, { label: string; total: number; avg: number; }> = {};
         
-        if (isYoY) {
-            const selectedYears = availableYears.filter(y => y >= startYear && y <= endYear);
-            let colorIndex = 0;
+        const yearData = allYearlyData[selectedYear];
+        Object.keys(baseChartColors).forEach(metric => {
+            const key = sanitizeKey(metric);
+            config[key] = { 
+                label: metric.charAt(0).toUpperCase() + metric.slice(1), 
+                color: baseChartColors[metric as keyof typeof baseChartColors] 
+            };
+            let total = 0;
+            const sourceData = metric === 'revenue' ? yearData.monthlyFinancials.map(f => f.revenue) : yearData.monthlyTargetRevenue;
 
-            selectedYears.forEach((year) => {
-                const yearData = allYearlyData[year];
-                
-                Object.keys(baseChartColors).forEach((metric) => {
-                    const key = sanitizeKey(`${metric}_${year}`);
-                    config[key] = { 
-                        label: `${metric.charAt(0).toUpperCase() + metric.slice(1)} ${year}`, 
-                        color: yoyChartColors[colorIndex % yoyChartColors.length]
-                    };
-                    colorIndex++;
-                    
-                    let total = 0;
-                    const sourceData = metric === 'revenue' ? yearData.monthlyFinancials.map(f => f.revenue) : yearData.monthlyTargetRevenue;
-
-                    sourceData.forEach((val, monthIndex) => {
-                        const metricValue = val;
-                        data[monthIndex][key] = metricValue;
-                        total += metricValue;
-                    });
-
-                    legendData[key] = {
-                        label: `${metric.charAt(0).toUpperCase() + metric.slice(1)} ${year}`,
-                        total: total,
-                        avg: Math.round(total / 12),
-                    };
-                });
+            sourceData.forEach((val, monthIndex) => {
+                const metricValue = val;
+                data[monthIndex][key] = metricValue;
+                total += metricValue;
             });
-
-        } else {
-            // Single Year
-            const yearData = allYearlyData[latestYear];
-            Object.keys(baseChartColors).forEach(metric => {
-                const key = sanitizeKey(metric);
-                config[key] = { 
-                    label: metric.charAt(0).toUpperCase() + metric.slice(1), 
-                    color: baseChartColors[metric as keyof typeof baseChartColors] 
-                };
-                let total = 0;
-                const sourceData = metric === 'revenue' ? yearData.monthlyFinancials.map(f => f.revenue) : yearData.monthlyTargetRevenue;
-
-                sourceData.forEach((val, monthIndex) => {
-                    const metricValue = val;
-                    data[monthIndex][key] = metricValue;
-                    total += metricValue;
-                });
-                legendData[key] = {
-                    label: metric.charAt(0).toUpperCase() + metric.slice(1),
-                    total: total,
-                    avg: Math.round(total / 12),
-                };
-            });
-        }
+            legendData[key] = {
+                label: metric.charAt(0).toUpperCase() + metric.slice(1),
+                total: total,
+                avg: Math.round(total / 12),
+            };
+        });
         
         return { chartData: data, chartConfig: config, legendStats: legendData };
 
-    }, [isYoY, startYear, endYear, allYearlyData, availableYears, latestYear]);
+    }, [selectedYear, allYearlyData]);
 
     const CustomLegend = (props: any) => {
       const { payload } = props;
@@ -143,29 +93,6 @@ export default function MonthlyRevenueVsTargetChart({ allYearlyData }: MonthlyRe
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
              <div className="md:col-span-1">
                 <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="yoy-revenue-target-checkbox" checked={isYoY} onCheckedChange={(checked) => setIsYoY(!!checked)} />
-                        <Label htmlFor="yoy-revenue-target-checkbox" className="font-semibold">Year-over-Year</Label>
-                    </div>
-                    
-                    {isYoY && (
-                        <div className="space-y-2">
-                            <Label>From</Label>
-                            <Select value={String(startYear)} onValueChange={(v) => setStartYear(Number(v))}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {availableYears.map(y => <SelectItem key={y} value={String(y)} disabled={y > endYear}>{y}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Label>To</Label>
-                             <Select value={String(endYear)} onValueChange={(v) => setEndYear(Number(v))}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {availableYears.map(y => <SelectItem key={y} value={String(y)} disabled={y < startYear}>{y}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
                      <div className="flex items-center gap-1">
                         <Button
                             variant={chartType === 'bar' ? 'secondary' : 'ghost'}
@@ -216,7 +143,7 @@ export default function MonthlyRevenueVsTargetChart({ allYearlyData }: MonthlyRe
                             />
                             <ChartLegend content={<CustomLegend />} />
                             {Object.keys(chartConfig).map(key => (
-                                <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={isYoY ? 0 : 4} />
+                                <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={4} />
                             ))}
                         </BarChart>
                     ) : (

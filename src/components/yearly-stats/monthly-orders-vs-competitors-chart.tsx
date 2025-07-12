@@ -13,12 +13,12 @@ import { type YearlyStatsData } from '@/lib/data/yearly-stats-data';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { BarChart2, LineChartIcon } from 'lucide-react';
 
 interface MonthlyOrdersVsCompetitorsChartProps {
     allYearlyData: YearlyStatsData;
+    selectedYear: number;
 }
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -40,92 +40,39 @@ const chartColors = [
 
 const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '');
 
-export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: MonthlyOrdersVsCompetitorsChartProps) {
-    const availableYears = useMemo(() => Object.keys(allYearlyData).map(Number).sort((a,b) => a - b), [allYearlyData]);
-    const [isYoY, setIsYoY] = useState(false);
-    const [startYear, setStartYear] = useState(availableYears[0]);
-    const [endYear, setEndYear] = useState(availableYears[availableYears.length - 1]);
+export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selectedYear }: MonthlyOrdersVsCompetitorsChartProps) {
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
     
-    const latestYear = availableYears[availableYears.length - 1];
-
     const { chartData, chartConfig, metricKeys, legendStats } = useMemo(() => {
         const legendData: Record<string, { label: string; total: number; avg: number; }> = {};
         
-        if (isYoY) {
-            const selectedYears = availableYears.filter(y => y >= startYear && y <= endYear);
-            const data: { month: string; [key: string]: string | number }[] = months.map((month) => ({ month }));
-            const config: ChartConfig = {};
-            const keys: string[] = [];
-            let colorIndex = 0;
-
-            selectedYears.forEach(year => {
-                const yearData = allYearlyData[year];
-                
-                // My Orders for the year
-                const myOrdersKey = `myOrders_${year}`;
-                keys.push(myOrdersKey);
-                config[myOrdersKey] = { label: `My Orders ${year}`, color: chartColors[colorIndex % chartColors.length] };
-                colorIndex++;
-                const myTotal = yearData.monthlyOrders.reduce((s, c) => s + c, 0);
-                legendData[myOrdersKey] = {
-                    label: `My Orders ${year}`,
-                    total: myTotal,
-                    avg: Math.round(myTotal / 12)
-                };
-                yearData.monthlyOrders.forEach((val, monthIndex) => {
-                    data[monthIndex][myOrdersKey] = val;
-                });
-
-                // Competitor Orders for the year
-                yearData.competitors.forEach(competitor => {
-                    const competitorKey = `${sanitizeKey(competitor.name)}_${year}`;
-                    keys.push(competitorKey);
-                    config[competitorKey] = { label: `${competitor.name} ${year}`, color: chartColors[colorIndex % chartColors.length] };
-                    colorIndex++;
-                    const competitorTotal = competitor.monthlyOrders.reduce((s, c) => s + c, 0);
-                     legendData[competitorKey] = {
-                        label: `${competitor.name} ${year}`,
-                        total: competitorTotal,
-                        avg: Math.round(competitorTotal / 12)
-                    };
-                    competitor.monthlyOrders.forEach((val, monthIndex) => {
-                        data[monthIndex][competitorKey] = val;
-                    });
-                });
+        const yearData = allYearlyData[selectedYear];
+        const myOrders = yearData.monthlyOrders;
+        const competitors = yearData.competitors;
+        
+        const myOrdersKey = sanitizeKey('My Orders');
+        const competitorKeys = competitors.map(c => sanitizeKey(c.name));
+        
+        const data = months.map((month, index) => {
+            const entry: { month: string; [key: string]: string | number } = { month };
+            entry[myOrdersKey] = myOrders[index];
+            competitors.forEach((c) => {
+                entry[sanitizeKey(c.name)] = c.monthlyOrders[index];
             });
+            return entry;
+        });
 
-            return { chartData: data, chartConfig: config, metricKeys: keys, legendStats: legendData };
-        } else {
-            // Single Year Competitor View
-            const yearData = allYearlyData[latestYear];
-            const myOrders = yearData.monthlyOrders;
-            const competitors = yearData.competitors;
-            
-            const myOrdersKey = sanitizeKey('My Orders');
-            const competitorKeys = competitors.map(c => sanitizeKey(c.name));
-            
-            const data = months.map((month, index) => {
-                const entry: { month: string; [key: string]: string | number } = { month };
-                entry[myOrdersKey] = myOrders[index];
-                competitors.forEach((c) => {
-                    entry[sanitizeKey(c.name)] = c.monthlyOrders[index];
-                });
-                return entry;
-            });
+        const config: ChartConfig = { [myOrdersKey]: { label: 'My Orders', color: chartColors[0] } };
+        legendData[myOrdersKey] = { label: 'My Orders', total: yearData.myTotalYearlyOrders, avg: Math.round(yearData.myTotalYearlyOrders / 12) };
 
-            const config: ChartConfig = { [myOrdersKey]: { label: 'My Orders', color: chartColors[0] } };
-            legendData[myOrdersKey] = { label: 'My Orders', total: yearData.myTotalYearlyOrders, avg: Math.round(yearData.myTotalYearlyOrders / 12) };
+        competitors.forEach((c, i) => {
+            const key = sanitizeKey(c.name);
+            config[key] = { label: c.name, color: chartColors[(i + 1) % chartColors.length] };
+            legendData[key] = { label: c.name, total: c.totalOrders, avg: Math.round(c.totalOrders / 12) };
+        });
 
-            competitors.forEach((c, i) => {
-                const key = sanitizeKey(c.name);
-                config[key] = { label: c.name, color: chartColors[(i + 1) % chartColors.length] };
-                legendData[key] = { label: c.name, total: c.totalOrders, avg: Math.round(c.totalOrders / 12) };
-            });
-
-            return { chartData: data, chartConfig: config, metricKeys: [myOrdersKey, ...competitorKeys], legendStats: legendData };
-        }
-    }, [isYoY, startYear, endYear, allYearlyData, availableYears, latestYear]);
+        return { chartData: data, chartConfig: config, metricKeys: [myOrdersKey, ...competitorKeys], legendStats: legendData };
+    }, [selectedYear, allYearlyData]);
     
     const [activeMetrics, setActiveMetrics] = useState<Record<string, boolean>>({});
 
@@ -172,29 +119,6 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: Month
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div className="md:col-span-1">
                 <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="yoy-checkbox" checked={isYoY} onCheckedChange={(checked) => setIsYoY(!!checked)} />
-                        <Label htmlFor="yoy-checkbox" className="font-semibold">Year-over-Year</Label>
-                    </div>
-                    
-                    {isYoY && (
-                        <div className="space-y-2">
-                            <Label>From</Label>
-                            <Select value={String(startYear)} onValueChange={(v) => setStartYear(Number(v))}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {availableYears.map(y => <SelectItem key={y} value={String(y)} disabled={y > endYear}>{y}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Label>To</Label>
-                             <Select value={String(endYear)} onValueChange={(v) => setEndYear(Number(v))}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {availableYears.map(y => <SelectItem key={y} value={String(y)} disabled={y < startYear}>{y}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
                     <div className="flex items-center gap-1">
                         <Button
                             variant={chartType === 'bar' ? 'secondary' : 'ghost'}
@@ -276,7 +200,7 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData }: Month
                                         key={key}
                                         dataKey={key}
                                         fill={`var(--color-${key})`}
-                                        radius={isYoY ? 0 : 4}
+                                        radius={4}
                                     />
                                 )
                             )}

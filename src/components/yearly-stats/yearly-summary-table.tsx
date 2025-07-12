@@ -11,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type YearlyStatsData } from '@/lib/data/yearly-stats-data';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,6 +18,7 @@ import { Button } from '../ui/button';
 
 interface YearlySummaryTableProps {
     allYearlyData: YearlyStatsData;
+    selectedYear: number;
 }
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -27,9 +27,7 @@ const formatCurrency = (value: number) => {
     return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function YearlySummaryTable({ allYearlyData }: YearlySummaryTableProps) {
-    const availableYears = useMemo(() => Object.keys(allYearlyData).map(Number).sort((a,b) => b-a), [allYearlyData]);
-    const [selectedYear, setSelectedYear] = useState(availableYears[0]);
+export default function YearlySummaryTable({ allYearlyData, selectedYear }: YearlySummaryTableProps) {
     const [sortAsc, setSortAsc] = useState(true);
 
     const tableData = useMemo(() => {
@@ -72,14 +70,8 @@ export default function YearlySummaryTable({ allYearlyData }: YearlySummaryTable
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Yearly Summary</CardTitle>
-                    <CardDescription>A monthly breakdown of key performance indicators for the selected year.</CardDescription>
+                    <CardDescription>A monthly breakdown of key performance indicators for {selectedYear}.</CardDescription>
                 </div>
-                 <Select value={String(selectedYear)} onValueChange={(v) => setSelectedYear(Number(v))}>
-                    <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                        {availableYears.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                    </SelectContent>
-                </Select>
             </CardHeader>
             <CardContent>
                 <Table>
