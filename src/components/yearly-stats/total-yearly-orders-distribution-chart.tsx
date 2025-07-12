@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo } from 'react';
-import { Pie, PieChart, Cell } from 'recharts';
+import { Pie, PieChart, Cell, Tooltip } from 'recharts';
 import {
   ChartContainer,
   ChartTooltip,
@@ -75,4 +75,3 @@ export default function TotalYearlyOrdersDistributionChart({ myOrders, competito
         </ChartContainer>
     );
 }
-
