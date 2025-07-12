@@ -41,7 +41,7 @@ export default function YearlyStatsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Suspense fallback={<Skeleton className="h-[300px] lg:col-span-2" />}>
-            <MyOrdersVsCompetitorAvgChart myOrders={monthlyOrders} competitors={competitors} />
+            <MyOrdersVsCompetitorAvgChart allYearlyData={yearlyStatsData} />
         </Suspense>
         <Card>
              <CardHeader>
