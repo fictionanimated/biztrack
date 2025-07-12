@@ -47,24 +47,27 @@ export default function MonthlyFinancialsChart({ data }: MonthlyFinancialsChartP
       const formatCurrency = (value: number) => `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
       
       const statsMap = {
-          revenue: { total: totalRevenue, avg: avgRevenue },
-          expenses: { total: totalExpenses, avg: avgExpenses },
-          profit: { total: totalProfit, avg: avgProfit },
+          revenue: { total: totalRevenue, avg: avgRevenue, label: "Revenue" },
+          expenses: { total: totalExpenses, avg: avgExpenses, label: "Expenses" },
+          profit: { total: totalProfit, avg: avgProfit, label: "Profit" },
       }
 
       return (
-        <div className="flex justify-center gap-6 pt-4 flex-wrap">
+        <div className="flex justify-center gap-4 pt-4 flex-wrap">
           {payload.map((entry: any, index: number) => {
             const key = entry.value as keyof typeof statsMap;
             const stats = statsMap[key];
 
             return (
-                <div key={`item-${index}`} className="flex items-center space-x-2 text-sm">
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                  <span className="text-muted-foreground">{entry.payload.label}:</span>
-                  <span className="font-semibold">{formatCurrency(stats.total)} (Total)</span>
-                  <span className="font-semibold text-muted-foreground/80">/</span>
-                  <span className="font-semibold">{formatCurrency(stats.avg)} (Avg)</span>
+                <div key={`item-${index}`} className="flex items-center space-x-2 rounded-lg border bg-background/50 px-4 py-2">
+                    <span className="h-3 w-3 rounded-full" style={{ backgroundColor: entry.color }} />
+                    <div className="flex flex-col text-sm">
+                        <span className="font-semibold text-foreground">{stats.label}</span>
+                        <div className="flex gap-2 text-muted-foreground">
+                            <span>Total: <span className="font-medium text-foreground/90">{formatCurrency(stats.total)}</span></span>
+                            <span>Avg: <span className="font-medium text-foreground/90">{formatCurrency(stats.avg)}</span></span>
+                        </div>
+                    </div>
                 </div>
             );
           })}
@@ -74,7 +77,7 @@ export default function MonthlyFinancialsChart({ data }: MonthlyFinancialsChartP
     
     return (
         <ChartContainer config={chartConfig} className="h-[400px] w-full">
-            <BarChart data={data} margin={{ top: 20, right: 20, left: 10, bottom: 20 }}>
+            <BarChart data={data} margin={{ top: 20, right: 20, left: 10, bottom: 5 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
                     dataKey="month"
