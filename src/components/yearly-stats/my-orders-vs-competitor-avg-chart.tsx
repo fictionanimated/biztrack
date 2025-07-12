@@ -126,7 +126,7 @@ export default function MyOrdersVsCompetitorAvgChart({ myOrders, competitors }: 
                 </div>
             </CardHeader>
             <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                <ChartContainer config={chartConfig} className="h-[400px] w-full">
                     {chartType === 'bar' ? (
                         <BarChart
                             data={chartData}
