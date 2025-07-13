@@ -105,11 +105,20 @@ const orderFormSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive." }),
   source: z.string().min(1, "Source is required."),
   gig: z.string().min(1, "Gig is required."),
+  status: z.enum(["Completed", "In Progress", "Cancelled"]),
   rating: z.coerce.number().min(0, "Rating must be at least 0").max(5, "Rating cannot be more than 5").optional(),
-  isCancelled: z.boolean().default(false),
   cancellationReasons: z.array(z.string()).optional(),
   customCancellationReason: z.string().optional(),
+}).refine(data => {
+    if (data.status === 'Cancelled') {
+        return (data.cancellationReasons?.length ?? 0) > 0 || (data.customCancellationReason?.trim() ?? "") !== "";
+    }
+    return true;
+}, {
+    message: "At least one cancellation reason must be provided for cancelled orders.",
+    path: ["cancellationReasons"],
 });
+
 
 type OrderFormValues = z.infer<typeof orderFormSchema>;
 
@@ -231,8 +240,8 @@ export default function OrdersPage() {
             amount: undefined,
             source: "",
             gig: "",
+            status: "In Progress",
             rating: undefined,
-            isCancelled: false,
             cancellationReasons: [],
             customCancellationReason: "",
         }
@@ -250,7 +259,7 @@ export default function OrdersPage() {
         resolver: zodResolver(importFormSchema),
     });
 
-    const isCancelled = form.watch("isCancelled");
+    const orderStatus = form.watch("status");
     const selectedSource = form.watch("source");
 
     const availableGigs = useMemo(() => {
@@ -278,8 +287,8 @@ export default function OrdersPage() {
                 amount: order.amount,
                 source: order.source,
                 gig: order.gig,
+                status: order.status,
                 rating: order.rating,
-                isCancelled: order.status === 'Cancelled',
                 cancellationReasons: predefinedReasons,
                 customCancellationReason: customReason,
             });
@@ -292,8 +301,8 @@ export default function OrdersPage() {
                 amount: undefined,
                 source: "",
                 gig: "",
+                status: "In Progress",
                 rating: undefined,
-                isCancelled: false,
                 cancellationReasons: [],
                 customCancellationReason: "",
             });
@@ -303,7 +312,7 @@ export default function OrdersPage() {
 
     function onSubmit(values: OrderFormValues) {
         let finalCancellationReasons: string[] | undefined = undefined;
-        if (values.isCancelled) {
+        if (values.status === 'Cancelled') {
             const reasons = values.cancellationReasons || [];
             if (values.customCancellationReason && values.customCancellationReason.trim()) {
                 reasons.push(values.customCancellationReason.trim());
@@ -320,8 +329,8 @@ export default function OrdersPage() {
             amount: values.amount,
             source: values.source,
             gig: values.gig,
+            status: values.status,
             rating: values.rating,
-            status: values.isCancelled ? 'Cancelled' : 'Completed',
             cancellationReasons: finalCancellationReasons,
         };
 
@@ -755,47 +764,52 @@ export default function OrdersPage() {
                             
                             <div className="space-y-4 rounded-md border p-4">
                                 <FormLabel className="text-base font-semibold">Status & Rating</FormLabel>
-                                <FormField
-                                    control={form.control}
-                                    name="rating"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Rating (0.0 - 5.0)</FormLabel>
-                                            <FormControl>
-                                                <Input
-                                                    type="number"
-                                                    step="0.1"
-                                                    placeholder="e.g., 4.2"
-                                                    {...field}
-                                                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                                                    value={field.value ?? ""}
-                                                />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={form.control}
-                                    name="isCancelled"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                                        <FormControl>
-                                            <Checkbox
-                                                checked={field.value}
-                                                onCheckedChange={field.onChange}
-                                            />
-                                        </FormControl>
-                                        <div className="space-y-1 leading-none">
-                                            <FormLabel>
-                                            Mark as Cancelled
-                                            </FormLabel>
-                                        </div>
-                                        </FormItem>
-                                    )}
-                                />
-                                {isCancelled && (
-                                    <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="status"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Order Status*</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select a status" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="In Progress">In Progress</SelectItem>
+                                                        <SelectItem value="Completed">Completed</SelectItem>
+                                                        <SelectItem value="Cancelled">Cancelled</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="rating"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Rating (0.0 - 5.0)</FormLabel>
+                                                <FormControl>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.1"
+                                                        placeholder="e.g., 4.2"
+                                                        {...field}
+                                                        onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                                                        value={field.value ?? ""}
+                                                    />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                                {orderStatus === 'Cancelled' && (
+                                    <div className="space-y-4 pt-4">
                                         <FormField
                                             control={form.control}
                                             name="cancellationReasons"
@@ -1030,3 +1044,5 @@ export default function OrdersPage() {
     </main>
   );
 }
+
+    
