@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { listTimeZones } from "date-fns-tz";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -30,7 +29,7 @@ const SettingsPageComponent = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const allTimezones = listTimeZones();
+    const allTimezones = Intl.supportedValuesOf('timeZone');
     setTimezones(allTimezones);
     
     // Set user's current timezone as default
