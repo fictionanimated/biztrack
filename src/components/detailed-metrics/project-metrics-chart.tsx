@@ -1,16 +1,18 @@
 
 "use client";
 
-import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
-import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Dot } from 'recharts';
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Separator } from '../ui/separator';
+import { BookText } from 'lucide-react';
 
 const chartData = [
   { month: "Jan", revisions: 2.2, completionRate: 95 },
   { month: "Feb", revisions: 2.0, completionRate: 97 },
-  { month: "Mar", revisions: 1.9, completionRate: 98 },
+  { month: "Mar", revisions: 1.9, completionRate: 98, note: "Implemented new QA process." },
   { month: "Apr", revisions: 1.7, completionRate: 99 },
   { month: "May", revisions: 1.6, completionRate: 97 },
   { month: "Jun", revisions: 1.8, completionRate: 96 },
@@ -25,6 +27,57 @@ interface ProjectMetricsChartProps {
     activeMetrics: Record<string, boolean>;
     onMetricToggle: (metric: string) => void;
 }
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const note = payload[0].payload.note;
+    return (
+      <div className="z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md">
+        <p className="font-medium">{label}</p>
+        {payload.map((pld: any) => (
+          pld.value ? (
+            <div key={pld.dataKey} className="flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke || pld.fill }} />
+                <span>{chartConfig[pld.dataKey as keyof typeof chartConfig]?.label}:</span>
+              </div>
+              <span className="ml-4 font-mono font-medium">
+                {typeof pld.dataKey === 'string' && pld.dataKey.includes('Rate') ? `${pld.value}%` : (pld.value as number).toFixed(1)}
+              </span>
+            </div>
+          ) : null
+        ))}
+        {note && (
+          <>
+            <Separator className="my-2" />
+            <div className="flex items-start gap-2 text-muted-foreground">
+              <BookText className="size-4 shrink-0 mt-0.5" />
+              <p className="font-medium">{note}</p>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomDot = (props: any) => {
+  const { cx, cy, payload } = props;
+  if (payload.note) {
+    return (
+      <Dot
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="hsl(var(--primary))"
+        stroke="hsl(var(--background))"
+        strokeWidth={2}
+      />
+    );
+  }
+  return null;
+};
 
 export default function ProjectMetricsChart({ activeMetrics, onMetricToggle }: ProjectMetricsChartProps) {
     return (
@@ -81,13 +134,10 @@ export default function ProjectMetricsChart({ activeMetrics, onMetricToggle }: P
                         />
                         <Tooltip
                             cursor={false}
-                            content={<ChartTooltipContent
-                                indicator="dot"
-                                valueFormatter={(value, name) => typeof name === 'string' && name.includes('Rate') ? `${value}%` : (value as number).toFixed(1)}
-                            />}
+                            content={<CustomTooltip />}
                         />
-                        {activeMetrics.revisions && <Line yAxisId="left" dataKey="revisions" type="monotone" stroke="var(--color-revisions)" strokeWidth={2} dot={true} />}
-                        {activeMetrics.completionRate && <Line yAxisId="right" dataKey="completionRate" type="monotone" stroke="var(--color-completionRate)" strokeWidth={2} dot={true} />}
+                        {activeMetrics.revisions && <Line yAxisId="left" dataKey="revisions" type="monotone" stroke="var(--color-revisions)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.completionRate && <Line yAxisId="right" dataKey="completionRate" type="monotone" stroke="var(--color-completionRate)" strokeWidth={2} dot={<CustomDot />} />}
                     </LineChart>
                 </ChartContainer>
             </CardContent>

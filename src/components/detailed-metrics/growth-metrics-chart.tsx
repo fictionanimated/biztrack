@@ -1,17 +1,19 @@
 
 "use client";
 
-import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Dot } from 'recharts';
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Separator } from '../ui/separator';
+import { BookText } from 'lucide-react';
 
 const chartData = [
   { month: "Jan", revenueGrowth: 2.1, profitGrowth: 1.5, clientGrowth: 5, aovGrowth: 0.5, highValueClientGrowth: 1, sourceGrowth: 2 },
   { month: "Feb", revenueGrowth: 2.5, profitGrowth: 2.0, clientGrowth: 7, aovGrowth: 0.8, highValueClientGrowth: 2, sourceGrowth: 3 },
   { month: "Mar", revenueGrowth: 1.8, profitGrowth: 1.2, clientGrowth: 4, aovGrowth: -0.2, highValueClientGrowth: 1, sourceGrowth: 1.5 },
-  { month: "Apr", revenueGrowth: 3.0, profitGrowth: 2.5, clientGrowth: 10, aovGrowth: 1.2, highValueClientGrowth: 4, sourceGrowth: 5 },
+  { month: "Apr", revenueGrowth: 3.0, profitGrowth: 2.5, clientGrowth: 10, aovGrowth: 1.2, highValueClientGrowth: 4, sourceGrowth: 5, note: "New top-performing gig launched." },
   { month: "May", revenueGrowth: 2.8, profitGrowth: 2.2, clientGrowth: 8, aovGrowth: 1.0, highValueClientGrowth: 3, sourceGrowth: 4 },
   { month: "Jun", revenueGrowth: 3.5, profitGrowth: 3.0, clientGrowth: 12, aovGrowth: 1.5, highValueClientGrowth: 5, sourceGrowth: 6 },
 ];
@@ -47,6 +49,55 @@ interface GrowthMetricsChartProps {
     activeMetrics: Record<string, boolean>;
     onMetricToggle: (metric: string) => void;
 }
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const note = payload[0].payload.note;
+    return (
+      <div className="z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md">
+        <p className="font-medium">{label}</p>
+        {payload.map((pld: any) => (
+          pld.value ? (
+            <div key={pld.dataKey} className="flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke || pld.fill }} />
+                <span>{chartConfig[pld.dataKey as keyof typeof chartConfig]?.label}:</span>
+              </div>
+              <span className="ml-4 font-mono font-medium">{pld.value.toFixed(1)}%</span>
+            </div>
+          ) : null
+        ))}
+        {note && (
+          <>
+            <Separator className="my-2" />
+            <div className="flex items-start gap-2 text-muted-foreground">
+              <BookText className="size-4 shrink-0 mt-0.5" />
+              <p className="font-medium">{note}</p>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomDot = (props: any) => {
+  const { cx, cy, payload } = props;
+  if (payload.note) {
+    return (
+      <Dot
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="hsl(var(--primary))"
+        stroke="hsl(var(--background))"
+        strokeWidth={2}
+      />
+    );
+  }
+  return null;
+};
 
 export default function GrowthMetricsChart({ activeMetrics, onMetricToggle }: GrowthMetricsChartProps) {
     return (
@@ -95,17 +146,14 @@ export default function GrowthMetricsChart({ activeMetrics, onMetricToggle }: Gr
                         />
                         <Tooltip
                             cursor={false}
-                            content={<ChartTooltipContent
-                                indicator="dot"
-                                valueFormatter={(value) => `${value.toFixed(1)}%`}
-                            />}
+                            content={<CustomTooltip />}
                         />
-                        {activeMetrics.revenueGrowth && <Line dataKey="revenueGrowth" type="monotone" stroke="var(--color-revenueGrowth)" strokeWidth={2} dot={true} />}
-                        {activeMetrics.profitGrowth && <Line dataKey="profitGrowth" type="monotone" stroke="var(--color-profitGrowth)" strokeWidth={2} dot={true} />}
-                        {activeMetrics.clientGrowth && <Line dataKey="clientGrowth" type="monotone" stroke="var(--color-clientGrowth)" strokeWidth={2} dot={true} />}
-                        {activeMetrics.aovGrowth && <Line dataKey="aovGrowth" type="monotone" stroke="var(--color-aovGrowth)" strokeWidth={2} dot={true} />}
-                        {activeMetrics.highValueClientGrowth && <Line dataKey="highValueClientGrowth" type="monotone" stroke="var(--color-highValueClientGrowth)" strokeWidth={2} dot={true} />}
-                        {activeMetrics.sourceGrowth && <Line dataKey="sourceGrowth" type="monotone" stroke="var(--color-sourceGrowth)" strokeWidth={2} dot={true} />}
+                        {activeMetrics.revenueGrowth && <Line dataKey="revenueGrowth" type="monotone" stroke="var(--color-revenueGrowth)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.profitGrowth && <Line dataKey="profitGrowth" type="monotone" stroke="var(--color-profitGrowth)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.clientGrowth && <Line dataKey="clientGrowth" type="monotone" stroke="var(--color-clientGrowth)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.aovGrowth && <Line dataKey="aovGrowth" type="monotone" stroke="var(--color-aovGrowth)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.highValueClientGrowth && <Line dataKey="highValueClientGrowth" type="monotone" stroke="var(--color-highValueClientGrowth)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.sourceGrowth && <Line dataKey="sourceGrowth" type="monotone" stroke="var(--color-sourceGrowth)" strokeWidth={2} dot={<CustomDot />} />}
                     </LineChart>
                 </ChartContainer>
             </CardContent>

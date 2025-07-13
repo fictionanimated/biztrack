@@ -2,19 +2,21 @@
 "use client";
 
 import { useState } from "react";
-import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
-import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Dot } from 'recharts';
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Separator } from "../ui/separator";
+import { BookText } from "lucide-react";
 
 const chartData = [
   { month: "Jan", totalRevenue: 18000, totalExpenses: 8000, netProfit: 10000, cac: 120, cltv: 1800, aov: 110 },
   { month: "Feb", totalRevenue: 22000, totalExpenses: 9500, netProfit: 12500, cac: 135, cltv: 2100, aov: 115 },
-  { month: "Mar", totalRevenue: 25000, totalExpenses: 11000, netProfit: 14000, cac: 130, cltv: 2200, aov: 120 },
+  { month: "Mar", totalRevenue: 25000, totalExpenses: 11000, netProfit: 14000, cac: 130, cltv: 2200, aov: 120, note: "Major project payment received." },
   { month: "Apr", totalRevenue: 30000, totalExpenses: 12000, netProfit: 18000, cac: 110, cltv: 2500, aov: 125 },
   { month: "May", totalRevenue: 28000, totalExpenses: 11500, netProfit: 16500, cac: 115, cltv: 2400, aov: 122 },
-  { month: "Jun", totalRevenue: 45231, totalExpenses: 10543, netProfit: 34688, cac: 150, cltv: 2540, aov: 131 },
+  { month: "Jun", totalRevenue: 45231, totalExpenses: 10543, netProfit: 34688, cac: 150, cltv: 2540, aov: 131, note: "End of quarter rush." },
 ];
 
 const highValueChartConfig = {
@@ -28,6 +30,55 @@ const customerValueChartConfig = {
     cac: { label: "CAC", color: "hsl(var(--chart-4))" },
     aov: { label: "AOV", color: "hsl(var(--primary))" },
 } satisfies ChartConfig;
+
+const CustomTooltip = ({ active, payload, label, config }: any) => {
+  if (active && payload && payload.length) {
+    const note = payload[0].payload.note;
+    return (
+      <div className="z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md">
+        <p className="font-medium">{label}</p>
+        {payload.map((pld: any) => (
+          pld.value ? (
+            <div key={pld.dataKey} className="flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke || pld.fill }} />
+                <span>{config[pld.dataKey as keyof typeof config]?.label}:</span>
+              </div>
+              <span className="ml-4 font-mono font-medium">${pld.value.toLocaleString()}</span>
+            </div>
+          ) : null
+        ))}
+        {note && (
+          <>
+            <Separator className="my-2" />
+            <div className="flex items-start gap-2 text-muted-foreground">
+              <BookText className="size-4 shrink-0 mt-0.5" />
+              <p className="font-medium">{note}</p>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomDot = (props: any) => {
+  const { cx, cy, payload } = props;
+  if (payload.note) {
+    return (
+      <Dot
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="hsl(var(--primary))"
+        stroke="hsl(var(--background))"
+        strokeWidth={2}
+      />
+    );
+  }
+  return null;
+};
 
 export default function FinancialValueChart() {
     const [activeHighValueMetrics, setActiveHighValueMetrics] = useState({
@@ -81,10 +132,10 @@ export default function FinancialValueChart() {
                             <CartesianGrid vertical={false} />
                             <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
                             <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `$${value / 1000}k`} />
-                            <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" valueFormatter={(value) => `$${value.toLocaleString()}`} />} />
-                            {activeHighValueMetrics.totalRevenue && <Line dataKey="totalRevenue" type="monotone" stroke="var(--color-totalRevenue)" strokeWidth={2} dot={true} />}
-                            {activeHighValueMetrics.totalExpenses && <Line dataKey="totalExpenses" type="monotone" stroke="var(--color-totalExpenses)" strokeWidth={2} dot={true} />}
-                            {activeHighValueMetrics.netProfit && <Line dataKey="netProfit" type="monotone" stroke="var(--color-netProfit)" strokeWidth={2} dot={true} />}
+                            <Tooltip cursor={false} content={<CustomTooltip config={highValueChartConfig} />} />
+                            {activeHighValueMetrics.totalRevenue && <Line dataKey="totalRevenue" type="monotone" stroke="var(--color-totalRevenue)" strokeWidth={2} dot={<CustomDot />} />}
+                            {activeHighValueMetrics.totalExpenses && <Line dataKey="totalExpenses" type="monotone" stroke="var(--color-totalExpenses)" strokeWidth={2} dot={<CustomDot />} />}
+                            {activeHighValueMetrics.netProfit && <Line dataKey="netProfit" type="monotone" stroke="var(--color-netProfit)" strokeWidth={2} dot={<CustomDot />} />}
                         </LineChart>
                     </ChartContainer>
                 </CardContent>
@@ -119,10 +170,10 @@ export default function FinancialValueChart() {
                             <CartesianGrid vertical={false} />
                             <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
                             <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `$${value}`} />
-                            <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" valueFormatter={(value) => `$${value.toLocaleString()}`} />} />
-                            {activeCustomerValueMetrics.cltv && <Line dataKey="cltv" type="monotone" stroke="var(--color-cltv)" strokeWidth={2} dot={true} />}
-                            {activeCustomerValueMetrics.cac && <Line dataKey="cac" type="monotone" stroke="var(--color-cac)" strokeWidth={2} dot={true} />}
-                            {activeCustomerValueMetrics.aov && <Line dataKey="aov" type="monotone" stroke="var(--color-aov)" strokeWidth={2} dot={true} />}
+                            <Tooltip cursor={false} content={<CustomTooltip config={customerValueChartConfig} />} />
+                            {activeCustomerValueMetrics.cltv && <Line dataKey="cltv" type="monotone" stroke="var(--color-cltv)" strokeWidth={2} dot={<CustomDot />} />}
+                            {activeCustomerValueMetrics.cac && <Line dataKey="cac" type="monotone" stroke="var(--color-cac)" strokeWidth={2} dot={<CustomDot />} />}
+                            {activeCustomerValueMetrics.aov && <Line dataKey="aov" type="monotone" stroke="var(--color-aov)" strokeWidth={2} dot={<CustomDot />} />}
                         </LineChart>
                     </ChartContainer>
                 </CardContent>

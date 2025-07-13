@@ -1,18 +1,21 @@
+
 "use client";
 
-import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
-import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Dot } from 'recharts';
+import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Separator } from '../ui/separator';
+import { BookText } from 'lucide-react';
 
 const chartData = [
   { month: "Jan", profitMargin: 55.6, grossMargin: 80.0 },
-  { month: "Feb", profitMargin: 56.8, grossMargin: 82.5 },
+  { month: "Feb", profitMargin: 56.8, grossMargin: 82.5, note: "Reduced software costs." },
   { month: "Mar", profitMargin: 56.0, grossMargin: 81.0 },
   { month: "Apr", profitMargin: 60.0, grossMargin: 85.0 },
   { month: "May", profitMargin: 58.9, grossMargin: 84.5 },
-  { month: "Jun", profitMargin: 76.7, grossMargin: 85.2 },
+  { month: "Jun", profitMargin: 76.7, grossMargin: 85.2, note: "High-margin project completed." },
 ];
 
 const chartConfig = {
@@ -24,6 +27,56 @@ interface FinancialPercentageChartProps {
     activeMetrics: Record<string, boolean>;
     onMetricToggle: (metric: string) => void;
 }
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const note = payload[0].payload.note;
+    return (
+      <div className="z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md">
+        <p className="font-medium">{label}</p>
+        {payload.map((pld: any) => (
+          pld.value ? (
+            <div key={pld.dataKey} className="flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke || pld.fill }} />
+                <span>{chartConfig[pld.dataKey as keyof typeof chartConfig]?.label}:</span>
+              </div>
+              <span className="ml-4 font-mono font-medium">{pld.value.toFixed(1)}%</span>
+            </div>
+          ) : null
+        ))}
+        {note && (
+          <>
+            <Separator className="my-2" />
+            <div className="flex items-start gap-2 text-muted-foreground">
+              <BookText className="size-4 shrink-0 mt-0.5" />
+              <p className="font-medium">{note}</p>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
+const CustomDot = (props: any) => {
+  const { cx, cy, payload } = props;
+  if (payload.note) {
+    return (
+      <Dot
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="hsl(var(--primary))"
+        stroke="hsl(var(--background))"
+        strokeWidth={2}
+      />
+    );
+  }
+  return null;
+};
+
 
 export default function FinancialPercentageChart({ activeMetrics, onMetricToggle }: FinancialPercentageChartProps) {
     return (
@@ -72,13 +125,10 @@ export default function FinancialPercentageChart({ activeMetrics, onMetricToggle
                         />
                         <Tooltip
                             cursor={false}
-                            content={<ChartTooltipContent
-                                indicator="dot"
-                                valueFormatter={(value) => `${value.toFixed(1)}%`}
-                            />}
+                            content={<CustomTooltip />}
                         />
-                        {activeMetrics.profitMargin && <Line dataKey="profitMargin" type="monotone" stroke="var(--color-profitMargin)" strokeWidth={2} dot={true} />}
-                        {activeMetrics.grossMargin && <Line dataKey="grossMargin" type="monotone" stroke="var(--color-grossMargin)" strokeWidth={2} dot={true} />}
+                        {activeMetrics.profitMargin && <Line dataKey="profitMargin" type="monotone" stroke="var(--color-profitMargin)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.grossMargin && <Line dataKey="grossMargin" type="monotone" stroke="var(--color-grossMargin)" strokeWidth={2} dot={<CustomDot />} />}
                     </LineChart>
                 </ChartContainer>
             </CardContent>
