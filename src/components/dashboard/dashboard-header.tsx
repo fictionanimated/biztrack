@@ -31,7 +31,7 @@ export function DashboardHeader({
                 Dashboard
             </h1>
             <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
-                <div className="hidden items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm sm:flex">
+                <div className="hidden items-center gap-2 rounded-md border border-destructive bg-card px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm sm:flex">
                     <CalendarDays className="h-4 w-4" />
                     <span>{daysLeft} days left</span>
                 </div>
