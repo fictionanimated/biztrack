@@ -80,7 +80,7 @@ export default function MonthlyFinancialsChart({ allYearlyData, selectedYears }:
             });
         });
         
-        return { chartData: data, chartConfig: config, legendStats: legendData, isYoy };
+        return { chartData: data, chartConfig: config, legendStats: legendData, isYoy: yoy };
 
     }, [selectedYears, allYearlyData]);
 
