@@ -536,7 +536,7 @@ const OrdersPageComponent = () => {
         </h1>
         <div className="ml-auto flex items-center gap-2">
             <DateFilter date={date} setDate={handleSetDate} />
-             <Button variant="outline" onClick={() => setSingleImportDialogOpen(true)}>
+             <Button variant="secondary" onClick={() => setSingleImportDialogOpen(true)}>
                 <FileUp className="mr-2 h-4 w-4" />
                 Import Single Order
             </Button>
