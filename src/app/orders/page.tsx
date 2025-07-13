@@ -153,7 +153,7 @@ const importFormSchema = z.object({
     file: z.any().optional(),
 });
 
-const ORDERS_PER_PAGE = 10;
+const ORDERS_TO_LOAD = 50;
 
 interface OrdersTableProps {
     orders: (Order & { dateObj: Date })[];
@@ -162,33 +162,7 @@ interface OrdersTableProps {
 }
 
 const OrdersTable = ({ orders, onEdit, onDelete }: OrdersTableProps) => {
-    const [currentPage, setCurrentPage] = useState(1);
-    const totalPages = Math.ceil(orders.length / ORDERS_PER_PAGE);
-
-    const paginatedOrders = useMemo(() => {
-        const startIndex = (currentPage - 1) * ORDERS_PER_PAGE;
-        const endIndex = startIndex + ORDERS_PER_PAGE;
-        return orders.slice(startIndex, endIndex);
-    }, [orders, currentPage]);
-
-    const handlePrevPage = () => {
-        setCurrentPage(prev => Math.max(1, prev - 1));
-    };
-
-    const handleNextPage = () => {
-        setCurrentPage(prev => Math.min(totalPages, prev + 1));
-    };
-
-    useEffect(() => {
-      // Reset to page 1 if the orders data changes and current page is out of bounds
-      if (currentPage > totalPages) {
-        setCurrentPage(1);
-      }
-    }, [orders, currentPage, totalPages]);
-
-
     return (
-      <div>
         <Table>
             <TableHeader>
                 <TableRow>
@@ -204,8 +178,8 @@ const OrdersTable = ({ orders, onEdit, onDelete }: OrdersTableProps) => {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {paginatedOrders.length > 0 ? (
-                    paginatedOrders.map((order) => (
+                {orders.length > 0 ? (
+                    orders.map((order) => (
                         <TableRow key={order.id}>
                             <TableCell>{format(order.dateObj, 'PPP')}</TableCell>
                             <TableCell className="font-medium">{order.id}</TableCell>
@@ -269,30 +243,6 @@ const OrdersTable = ({ orders, onEdit, onDelete }: OrdersTableProps) => {
                 )}
             </TableBody>
         </Table>
-        {totalPages > 1 && (
-            <div className="flex items-center justify-end space-x-2 py-4">
-                <span className="text-sm text-muted-foreground">
-                    Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePrevPage}
-                    disabled={currentPage === 1}
-                >
-                    Previous
-                </Button>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleNextPage}
-                    disabled={currentPage === totalPages}
-                >
-                    Next
-                </Button>
-            </div>
-        )}
-      </div>
     );
 };
 
@@ -309,6 +259,7 @@ const OrdersPageComponent = () => {
     const searchParams = useSearchParams();
 
     const sortParam = searchParams.get('sort');
+    const [visibleOrdersCount, setVisibleOrdersCount] = useState(ORDERS_TO_LOAD);
 
     const [date, setDate] = useState<DateRange | undefined>(() => {
         const fromParam = searchParams.get('from');
@@ -562,6 +513,18 @@ const OrdersPageComponent = () => {
     const completedOrders = useMemo(() => sortedOrders.filter(o => o.status === 'Completed'), [sortedOrders]);
     const cancelledOrders = useMemo(() => sortedOrders.filter(o => o.status === 'Cancelled'), [sortedOrders]);
 
+    const visibleInProgressOrders = useMemo(() => inProgressOrders.slice(0, visibleOrdersCount), [inProgressOrders, visibleOrdersCount]);
+    const visibleCompletedOrders = useMemo(() => completedOrders.slice(0, visibleOrdersCount), [completedOrders, visibleOrdersCount]);
+    const visibleCancelledOrders = useMemo(() => cancelledOrders.slice(0, visibleOrdersCount), [cancelledOrders, visibleOrdersCount]);
+
+    const handleLoadMore = () => {
+        setVisibleOrdersCount(prev => prev + ORDERS_TO_LOAD);
+    };
+
+    const handleTabChange = () => {
+        setVisibleOrdersCount(ORDERS_TO_LOAD);
+    };
+
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -586,7 +549,7 @@ const OrdersPageComponent = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-            <Tabs defaultValue="in-progress">
+            <Tabs defaultValue="in-progress" onValueChange={handleTabChange}>
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="in-progress">In Progress ({inProgressOrders.length})</TabsTrigger>
                     <TabsTrigger value="completed">Completed ({completedOrders.length})</TabsTrigger>
@@ -594,24 +557,39 @@ const OrdersPageComponent = () => {
                 </TabsList>
                 <TabsContent value="in-progress" className="mt-4">
                     <OrdersTable
-                        orders={inProgressOrders}
+                        orders={visibleInProgressOrders}
                         onEdit={handleOpenDialog}
                         onDelete={setOrderToDelete}
                     />
+                    {inProgressOrders.length > visibleInProgressOrders.length && (
+                        <div className="mt-6 flex justify-center">
+                            <Button onClick={handleLoadMore}>Load More</Button>
+                        </div>
+                    )}
                 </TabsContent>
                 <TabsContent value="completed" className="mt-4">
                     <OrdersTable
-                        orders={completedOrders}
+                        orders={visibleCompletedOrders}
                         onEdit={handleOpenDialog}
                         onDelete={setOrderToDelete}
                     />
+                    {completedOrders.length > visibleCompletedOrders.length && (
+                        <div className="mt-6 flex justify-center">
+                            <Button onClick={handleLoadMore}>Load More</Button>
+                        </div>
+                    )}
                 </TabsContent>
                 <TabsContent value="cancelled" className="mt-4">
                      <OrdersTable
-                        orders={cancelledOrders}
+                        orders={visibleCancelledOrders}
                         onEdit={handleOpenDialog}
                         onDelete={setOrderToDelete}
                     />
+                    {cancelledOrders.length > visibleCancelledOrders.length && (
+                        <div className="mt-6 flex justify-center">
+                            <Button onClick={handleLoadMore}>Load More</Button>
+                        </div>
+                    )}
                 </TabsContent>
             </Tabs>
         </CardContent>
