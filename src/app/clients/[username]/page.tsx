@@ -67,29 +67,41 @@ export default function ClientDetailsPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
-      if (!username) return;
+      if (!username) {
+        setIsLoading(false);
+        setError(true);
+        return;
+      }
       setIsLoading(true);
+      setError(false);
       try {
         const [clientRes, incomesRes] = await Promise.all([
           fetch(`/api/clients/by-username/${username}`),
           fetch('/api/incomes')
         ]);
+        
+        if (clientRes.status === 404) {
+          setError(true);
+          return;
+        }
+
         if (!clientRes.ok || !incomesRes.ok) {
           throw new Error('Failed to fetch data');
         }
         const currentClient: Client = await clientRes.json();
         const incomesData: IncomeSource[] = await incomesRes.json();
         
-        setClient(currentClient || null);
+        setClient(currentClient);
         setIncomeSources(incomesData);
 
-      } catch (error) {
-        console.error("Failed to fetch client details:", error);
-        setClient(null);
+      } catch (err) {
+        console.error("Failed to fetch client details:", err);
+        setError(true);
       } finally {
         setIsLoading(false);
       }
@@ -156,7 +168,7 @@ export default function ClientDetailsPage() {
       },
     ];
   }, [client, clientStatus]);
-  
+
   if (isLoading) {
     return (
        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -180,8 +192,18 @@ export default function ClientDetailsPage() {
     )
   }
 
-  if (!client) {
+  if (error) {
     notFound();
+  }
+  
+  if (!client) {
+    // This case should ideally not be hit if loading and error are handled,
+    // but it's a safe fallback.
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p>Client could not be loaded.</p>
+      </div>
+    );
   }
 
   return (
@@ -331,5 +353,3 @@ export default function ClientDetailsPage() {
     </main>
   );
 }
-
-    
