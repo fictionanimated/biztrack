@@ -4,7 +4,7 @@
 import { useState, useMemo, useCallback, useEffect, memo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ArrowUpDown, Search, Sparkles, X, ChevronDown, Database, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -20,8 +20,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import { initialClients as staticClients, incomeSources, type Client } from "@/lib/data/clients-data";
+import { incomeSources, type Client } from "@/lib/data/clients-data";
 import { AddClientDialog } from "@/components/clients/add-client-dialog";
 import { ClientsTable } from "@/components/clients/clients-table";
 import { EditClientDialog } from "@/components/clients/edit-client-dialog";
@@ -29,6 +39,7 @@ import { filterClients, type ClientFilters } from "@/ai/flows/filter-clients-flo
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 
 const ClientsPageComponent = () => {
@@ -38,6 +49,9 @@ const ClientsPageComponent = () => {
 
     const [isAddClientOpen, setIsAddClientOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [deletingClient, setDeletingClient] = useState<Client | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     const [aiFilters, setAiFilters] = useState<ClientFilters | null>(null);
     const [aiSearchQuery, setAiSearchQuery] = useState("");
     const [isAiSearching, setIsAiSearching] = useState(false);
@@ -79,7 +93,6 @@ const ClientsPageComponent = () => {
             } catch (e) {
                 console.error(e);
                 setError('Could not connect to the database. Please ensure the connection string in .env is correct and the server is running.');
-                setClients(staticClients as Client[]); // Fallback to static data on error
             } finally {
                 setIsLoading(false);
             }
@@ -174,11 +187,35 @@ const ClientsPageComponent = () => {
     };
 
     const handleClientUpdated = (updatedClient: Client) => {
-        // In a real app, this would also post to the server
         setClients(prevClients => 
             prevClients.map(c => (c.id === updatedClient.id ? updatedClient : c))
         );
         setEditingClient(null);
+    };
+
+    const handleDeleteClient = async () => {
+        if (!deletingClient) return;
+        setIsDeleting(true);
+        try {
+            const response = await fetch(`/api/clients/${deletingClient.id}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete client');
+            }
+            setClients(prev => prev.filter(c => c.id !== deletingClient.id));
+            toast({ title: "Client Deleted", description: `Client "${deletingClient.name || deletingClient.username}" has been removed.`});
+        } catch (error) {
+             toast({
+                variant: "destructive",
+                title: "Error",
+                description: (error as Error).message || "Could not delete client. Please try again.",
+            });
+        } finally {
+            setIsDeleting(false);
+            setDeletingClient(null);
+        }
     };
 
     const requestSort = (key: keyof Client) => {
@@ -302,6 +339,7 @@ const ClientsPageComponent = () => {
                 requestSort={requestSort}
                 getSortIndicator={getSortIndicator}
                 onEdit={(client) => setEditingClient(client)}
+                onDelete={(client) => setDeletingClient(client)}
                 columnVisibility={columnVisibility}
             />
         )
@@ -379,7 +417,7 @@ const ClientsPageComponent = () => {
                 <Database className="h-4 w-4" />
                 <AlertTitle>Database Connection Error</AlertTitle>
                 <AlertDescription>
-                    {error} Using fallback data.
+                    {error}
                 </AlertDescription>
             </Alert>
         )}
@@ -446,6 +484,24 @@ const ClientsPageComponent = () => {
           onClientUpdated={handleClientUpdated}
         />
       )}
+
+      <AlertDialog open={!!deletingClient} onOpenChange={() => setDeletingClient(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently delete the client "{deletingClient?.name || deletingClient?.username}" and all of their associated data. This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteClient} disabled={isDeleting} className={cn(buttonVariants({ variant: "destructive" }))}>
+                    {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Delete
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

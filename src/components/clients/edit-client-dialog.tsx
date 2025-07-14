@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +49,7 @@ interface EditClientDialogProps {
 
 export function EditClientDialog({ open, onOpenChange, onClientUpdated, client, children }: EditClientDialogProps) {
     const { toast } = useToast();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<ClientFormValues>({
         resolver: zodResolver(clientFormSchema),
@@ -75,19 +76,37 @@ export function EditClientDialog({ open, onOpenChange, onClientUpdated, client, 
         name: "socialLinks",
     });
 
-    function onSubmit(values: ClientFormValues) {
-        const updatedClient: Client = {
-            ...client,
-            ...values,
-            avatarUrl: values.avatarUrl || undefined,
-            tags: values.tags ? values.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-        };
-        onClientUpdated(updatedClient);
-        toast({
-            title: "Client Updated",
-            description: `${values.name || values.username} has been updated.`,
-        });
-        onOpenChange(false);
+    async function onSubmit(values: ClientFormValues) {
+        setIsSubmitting(true);
+        try {
+            const response = await fetch(`/api/clients/${client.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(values),
+            });
+
+            if (!response.ok) {
+                 const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update client');
+            }
+
+            const updatedClient = await response.json();
+            onClientUpdated(updatedClient);
+            toast({
+                title: "Client Updated",
+                description: `${values.name || values.username} has been updated.`,
+            });
+            onOpenChange(false);
+        } catch (error) {
+             console.error(error);
+             toast({
+                variant: "destructive",
+                title: "Error",
+                description: (error as Error).message || "Could not update client. Please try again.",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     }
     
     return (
@@ -307,7 +326,10 @@ export function EditClientDialog({ open, onOpenChange, onClientUpdated, client, 
                                 Cancel
                             </Button>
                             </DialogClose>
-                            <Button type="submit">Save Changes</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save Changes
+                            </Button>
                         </DialogFooter>
                     </form>
                 </Form>

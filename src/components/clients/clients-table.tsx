@@ -20,6 +20,7 @@ interface ClientsTableProps {
     requestSort: (key: keyof Client) => void;
     getSortIndicator: (key: keyof Client) => React.ReactNode;
     onEdit: (client: Client) => void;
+    onDelete: (client: Client) => void;
     columnVisibility: Record<string, boolean>;
 }
 
@@ -30,7 +31,7 @@ const SocialIcon = ({ platform }: { platform: string }) => {
     return <Icon className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />;
 };
 
-const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit, columnVisibility }: ClientsTableProps) => {
+const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit, onDelete, columnVisibility }: ClientsTableProps) => {
     const router = useRouter();
 
     const handleRowClick = (clientId: string) => {
@@ -175,7 +176,7 @@ const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit,
                                                         <Edit className="mr-2 h-4 w-4" />
                                                         Edit
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem className="text-destructive">
+                                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={(e) => { e.stopPropagation(); onDelete(client); }}>
                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                         Delete
                                                     </DropdownMenuItem>
