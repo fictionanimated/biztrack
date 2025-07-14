@@ -10,7 +10,7 @@ export const orderFormSchema = z.object({
   source: z.string().min(1, "Source is required."),
   gig: z.string().min(1, "Gig is required."),
   status: z.enum(["Completed", "In Progress", "Cancelled"]),
-  rating: z.coerce.number().min(0, "Rating must be at least 0").max(5, "Rating cannot be more than 5").optional(),
+  rating: z.coerce.number().min(0, "Rating must be at least 0").max(5, "Rating cannot be more than 5").optional().nullable(),
   cancellationReasons: z.array(z.string()).optional(),
   customCancellationReason: z.string().optional(),
 }).refine(data => {
@@ -43,7 +43,7 @@ export interface Order {
     source: string;
     gig?: string;
     status: 'Completed' | 'In Progress' | 'Cancelled';
-    rating?: number;
+    rating?: number | null;
     cancellationReasons?: string[];
 }
 
