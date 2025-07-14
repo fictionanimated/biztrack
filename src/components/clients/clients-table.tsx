@@ -2,7 +2,6 @@
 "use client";
 
 import { memo } from "react";
-import { useRouter } from "next/navigation";
 import { MoreHorizontal, Edit, Trash2, Globe, Facebook, Twitter, Linkedin, Github, Star } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import type { Client } from "@/lib/data/clients-data";
 import { socialPlatforms, getClientStatus } from "@/lib/data/clients-data";
 import { cn } from "@/lib/utils";
+import NProgressLink from "../layout/nprogress-link";
 
 interface ClientsTableProps {
     clients: Client[];
@@ -32,11 +32,6 @@ const SocialIcon = ({ platform }: { platform: string }) => {
 };
 
 const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit, onDelete, columnVisibility }: ClientsTableProps) => {
-    const router = useRouter();
-
-    const handleRowClick = (username: string) => {
-        router.push(`/clients/${username}`);
-    };
 
     return (
         <Card>
@@ -96,30 +91,31 @@ const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit,
                                     return (
                                     <TableRow 
                                         key={client.id}
-                                        onClick={() => handleRowClick(client.username)}
                                         className="cursor-pointer"
                                     >
                                         <TableCell>
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-10 w-10">
-                                                    <AvatarImage src={client.avatarUrl || `https://placehold.co/100x100.png?text=${(client.name || client.username).charAt(0)}`} alt="Avatar" data-ai-hint="avatar person" />
-                                                    <AvatarFallback>{(client.name || client.username).charAt(0).toUpperCase()}</AvatarFallback>
-                                                </Avatar>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-medium">{client.name || client.username}</span>
-                                                         {client.isVip && (
-                                                            <Tooltip>
-                                                                <TooltipTrigger>
-                                                                    <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
-                                                                </TooltipTrigger>
-                                                                <TooltipContent><p>VIP Client</p></TooltipContent>
-                                                            </Tooltip>
-                                                        )}
+                                           <NProgressLink href={`/clients/${client.username}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-10 w-10">
+                                                        <AvatarImage src={client.avatarUrl || `https://placehold.co/100x100.png?text=${(client.name || client.username).charAt(0)}`} alt="Avatar" data-ai-hint="avatar person" />
+                                                        <AvatarFallback>{(client.name || client.username).charAt(0).toUpperCase()}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-medium hover:underline">{client.name || client.username}</span>
+                                                            {client.isVip && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger>
+                                                                        <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent><p>VIP Client</p></TooltipContent>
+                                                                </Tooltip>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-sm text-muted-foreground">@{client.username}</div>
                                                     </div>
-                                                    <div className="text-sm text-muted-foreground">@{client.username}</div>
                                                 </div>
-                                            </div>
+                                            </NProgressLink>
                                         </TableCell>
                                         {columnVisibility.status && <TableCell>
                                             <div className="flex items-center gap-2">
@@ -203,3 +199,5 @@ const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit,
 }
 
 export const ClientsTable = memo(ClientsTableComponent);
+
+    
