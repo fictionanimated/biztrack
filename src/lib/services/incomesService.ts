@@ -9,25 +9,7 @@ import { randomBytes } from 'crypto';
 
 import clientPromise from '@/lib/mongodb';
 import type { IncomeSource, Gig } from '@/lib/data/incomes-data';
-import { initialIncomeSources } from '@/lib/data/incomes-data';
-
-export const formSchema = z.object({
-  sourceName: z.string().min(2, {
-    message: "Source name must be at least 2 characters.",
-  }),
-  gigs: z
-    .array(
-      z.object({
-        name: z.string().min(2, {
-          message: "Gig name must be at least 2 characters.",
-        }),
-        date: z.date({
-          required_error: "A date for the gig is required.",
-        }),
-      })
-    )
-    .min(1, { message: "You must add at least one gig." }),
-});
+import { initialIncomeSources, formSchema } from '@/lib/data/incomes-data';
 
 const addGigFormSchema = z.object({
     name: z.string().min(2, { message: "Gig name must be at least 2 characters." }),
@@ -194,4 +176,17 @@ export async function deleteGig(sourceId: string, gigId: string): Promise<boolea
     );
 
     return result.modifiedCount > 0;
+}
+
+/**
+ * Deletes an entire income source.
+ * @param sourceId The ID of the income source to delete.
+ * @returns A boolean indicating success.
+ */
+export async function deleteIncomeSource(sourceId: string): Promise<boolean> {
+    const incomesCollection = await getIncomesCollection();
+
+    const result = await incomesCollection.deleteOne({ _id: new ObjectId(sourceId) });
+
+    return result.deletedCount > 0;
 }
