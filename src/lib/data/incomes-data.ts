@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { format } from "date-fns";
 
 export interface Gig {
@@ -26,6 +27,25 @@ export interface IncomeSource {
   gigs: Gig[];
   dataPoints?: SourceDataPoint[];
 }
+
+export const formSchema = z.object({
+  sourceName: z.string().min(2, {
+    message: "Source name must be at least 2 characters.",
+  }),
+  gigs: z
+    .array(
+      z.object({
+        name: z.string().min(2, {
+          message: "Gig name must be at least 2 characters.",
+        }),
+        date: z.date({
+          required_error: "A date for the gig is required.",
+        }),
+      })
+    )
+    .min(1, { message: "You must add at least one gig." }),
+});
+
 
 const generateAnalytics = (startDate: Date, days: number, baseImpressions: number, baseClicks: number, baseOrders: number, baseRevenuePerOrder: number) => {
     return Array.from({ length: days }, (_, i) => {

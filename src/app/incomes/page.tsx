@@ -75,27 +75,9 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import type { IncomeSource, Gig, SourceDataPoint } from "@/lib/data/incomes-data";
-import { initialIncomeSources } from "@/lib/data/incomes-data";
+import { initialIncomeSources, formSchema } from "@/lib/data/incomes-data";
 
 const staticDate = new Date("2024-01-01T12:00:00Z");
-
-const formSchema = z.object({
-  sourceName: z.string().min(2, {
-    message: "Source name must be at least 2 characters.",
-  }),
-  gigs: z
-    .array(
-      z.object({
-        name: z.string().min(2, {
-          message: "Gig name must be at least 2 characters.",
-        }),
-        date: z.date({
-          required_error: "A date for the gig is required.",
-        }),
-      })
-    )
-    .min(1, { message: "You must add at least one gig." }),
-});
 
 const addGigFormSchema = z.object({
     name: z.string().min(2, { message: "Gig name must be at least 2 characters." }),
@@ -130,6 +112,7 @@ const IncomesPageComponent = () => {
     useState<IncomeSource[]>(initialIncomeSources);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [mergingSourceId, setMergingSourceId] = useState<string | null>(null);
   const [selectedGigs, setSelectedGigs] = useState<Record<string, boolean>>({});
@@ -198,28 +181,42 @@ const IncomesPageComponent = () => {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    const newSource: IncomeSource = {
-      id: `source-${Date.now()}`,
-      name: values.sourceName,
-      gigs: values.gigs.map((gig, index) => ({
-        id: `g-${Date.now()}-${index}`,
-        name: gig.name,
-        date: format(gig.date, "yyyy-MM-dd"),
-        analytics: [],
-      })),
-      dataPoints: [],
-    };
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/incomes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
 
-    setIncomeSources([newSource, ...incomeSources]);
+      if (!response.ok) {
+        throw new Error('Failed to add income source');
+      }
 
-    toast({
-      title: "Success",
-      description: `Added new source: ${newSource.name}.`,
-    });
-    form.reset();
-    form.setValue("gigs", [{ name: "", date: new Date() }]);
-    setOpen(false);
+      const { source: newSource } = await response.json();
+
+      setIncomeSources(prev => [newSource, ...prev]);
+
+      toast({
+        title: "Success",
+        description: `Added new source: ${newSource.name}.`,
+      });
+      form.reset({
+        sourceName: "",
+        gigs: [{ name: "", date: new Date() }],
+      });
+      setOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not save the new income source. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function onAddGigSubmit(values: AddGigFormValues) {
@@ -577,7 +574,9 @@ const IncomesPageComponent = () => {
                         Cancel
                       </Button>
                     </DialogClose>
-                    <Button type="submit">Save Source</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? "Saving..." : "Save Source"}
+                    </Button>
                   </DialogFooter>
                 </form>
               </Form>
