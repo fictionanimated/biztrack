@@ -34,8 +34,8 @@ const SocialIcon = ({ platform }: { platform: string }) => {
 const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit, onDelete, columnVisibility }: ClientsTableProps) => {
     const router = useRouter();
 
-    const handleRowClick = (clientId: string) => {
-        router.push(`/clients/${clientId}`);
+    const handleRowClick = (username: string) => {
+        router.push(`/clients/${username}`);
     };
 
     return (
@@ -96,7 +96,7 @@ const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit,
                                     return (
                                     <TableRow 
                                         key={client.id}
-                                        onClick={() => handleRowClick(client.id)}
+                                        onClick={() => handleRowClick(client.username)}
                                         className="cursor-pointer"
                                     >
                                         <TableCell>

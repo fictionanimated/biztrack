@@ -62,7 +62,7 @@ const parseDateString = (dateString: string): Date => {
 
 export default function ClientDetailsPage() {
   const params = useParams();
-  const clientId = params.clientId as string;
+  const username = params.username as string;
   
   const [client, setClient] = useState<Client | null>(null);
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
@@ -71,19 +71,19 @@ export default function ClientDetailsPage() {
 
   useEffect(() => {
     async function fetchData() {
+      if (!username) return;
       setIsLoading(true);
       try {
-        const [clientsRes, incomesRes] = await Promise.all([
-          fetch('/api/clients'),
+        const [clientRes, incomesRes] = await Promise.all([
+          fetch(`/api/clients/by-username/${username}`),
           fetch('/api/incomes')
         ]);
-        if (!clientsRes.ok || !incomesRes.ok) {
+        if (!clientRes.ok || !incomesRes.ok) {
           throw new Error('Failed to fetch data');
         }
-        const allClients: Client[] = await clientsRes.json();
+        const currentClient: Client = await clientRes.json();
         const incomesData: IncomeSource[] = await incomesRes.json();
         
-        const currentClient = allClients.find(c => c.id === clientId);
         setClient(currentClient || null);
         setIncomeSources(incomesData);
 
@@ -95,7 +95,7 @@ export default function ClientDetailsPage() {
       }
     }
     fetchData();
-  }, [clientId]);
+  }, [username]);
 
 
   const initialOrders = useMemo(() => {

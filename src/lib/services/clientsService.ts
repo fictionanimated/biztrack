@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Service for managing client data.
  * This service abstracts the data access layer for clients.
@@ -56,6 +57,25 @@ export async function getClients(): Promise<Client[]> {
 }
 
 /**
+ * Retrieves a single client by their username.
+ * @param username - The username of the client to fetch.
+ * @returns The client object, or null if not found.
+ */
+export async function getClientByUsername(username: string): Promise<Client | null> {
+    const clientsCollection = await getClientsCollection();
+    const client = await clientsCollection.findOne({ username });
+
+    if (!client) {
+        return null;
+    }
+
+    return {
+        ...client,
+        id: client._id.toString(),
+    } as Client;
+}
+
+/**
  * Adds a new client to the database.
  * @param clientData - The data for the new client, validated against the form schema.
  * @returns The newly created client object.
@@ -86,7 +106,7 @@ export async function addClient(clientData: ClientFormValues): Promise<Client> {
 }
 
 /**
- * Updates an existing client in the database.
+ * Updates an existing client in the database by their ID.
  * @param clientId - The ID of the client to update.
  * @param clientData - The new data for the client.
  * @returns The updated client object, or null if not found.
@@ -120,7 +140,7 @@ export async function updateClient(clientId: string, clientData: ClientFormValue
 }
 
 /**
- * Deletes a client from the database.
+ * Deletes a client from the database by their ID.
  * @param clientId - The ID of the client to delete.
  * @returns A boolean indicating whether the deletion was successful.
  */
