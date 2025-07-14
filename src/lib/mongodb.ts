@@ -29,6 +29,13 @@ if (process.env.NODE_ENV === 'development') {
   clientPromise = client.connect();
 }
 
+export function getDbName() {
+  const url = new URL(uri);
+  // The database name is the first part of the pathname, after the leading slash.
+  const dbName = url.pathname.substring(1).split('/')[0];
+  return dbName || 'biztrack-pro'; // Fallback to a default name if not in URI
+}
+
 // Export a module-scoped MongoClient promise. By doing this in a
 // separate module, the client can be shared across functions.
 export default clientPromise;

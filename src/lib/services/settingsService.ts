@@ -1,5 +1,5 @@
 
-import clientPromise from '@/lib/mongodb';
+import clientPromise, { getDbName } from '@/lib/mongodb';
 import { z } from 'zod';
 
 const settingsSchema = z.object({
@@ -12,7 +12,8 @@ const SETTINGS_ID = 'user_settings'; // Use a consistent ID for the settings doc
 
 async function getDb() {
   const client = await clientPromise;
-  return client.db(); 
+  const dbName = getDbName();
+  return client.db(dbName); 
 }
 
 export async function getSettings(): Promise<Settings> {
