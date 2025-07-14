@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
-import { CalendarIcon, MoreHorizontal, Star, ArrowUpDown, Edit, Trash2, Upload, FileUp, Loader2 } from "lucide-react";
+import { CalendarIcon, MoreHorizontal, Star, ArrowUpDown, Edit, Trash2, Upload, FileUp, Loader2, Search } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -230,6 +230,9 @@ const OrdersPageComponent = () => {
     const searchParams = useSearchParams();
 
     const sortParam = searchParams.get('sort');
+    const searchQuery = searchParams.get('q') || "";
+    const [localSearch, setLocalSearch] = useState(searchQuery);
+
     const [visibleOrdersCount, setVisibleOrdersCount] = useState(ORDERS_TO_LOAD);
 
     const [date, setDate] = useState<DateRange | undefined>(() => {
@@ -288,12 +291,29 @@ const OrdersPageComponent = () => {
         },
         [searchParams]
     );
+    
+    useEffect(() => {
+      setLocalSearch(searchQuery);
+    }, [searchQuery]);
+
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        if (localSearch !== searchQuery) {
+          router.push(`${pathname}?${createQueryString({ q: localSearch || null })}`);
+        }
+      }, 300);
+
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [localSearch, searchQuery, router, pathname, createQueryString]);
 
     const handleSetDate = (newDate: DateRange | undefined) => {
         setDate(newDate);
         router.push(`${pathname}?${createQueryString({
             from: newDate?.from ? newDate.from.toISOString().split('T')[0] : null,
             to: newDate?.to ? newDate.to.toISOString().split('T')[0] : null,
+            q: searchQuery || null
         })}`, { scroll: false });
     };
 
@@ -391,7 +411,7 @@ const OrdersPageComponent = () => {
             const response = await fetch(endpoint, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(values),
+                body: JSON.stringify({...values, date: format(values.date, "yyyy-MM-dd")}),
             });
 
             if (!response.ok) {
@@ -492,29 +512,43 @@ const OrdersPageComponent = () => {
 
 
     const filteredOrders = useMemo(() => {
-        if (!date) {
-            return parsedOrders;
-        }
-        return parsedOrders.filter(order => {
-            const orderDate = order.dateObj;
-            const from = date?.from;
-            const to = date?.to;
+        let results = parsedOrders;
+        
+        if (date?.from || date?.to) {
+            results = results.filter(order => {
+                const orderDate = order.dateObj;
+                const from = date?.from;
+                const to = date?.to;
 
-            if (from && !isNaN(from.getTime()) && orderDate < from) {
-                return false;
-            }
-
-            if (to && !isNaN(to.getTime())) {
-                const toDateEnd = new Date(to);
-                toDateEnd.setHours(23, 59, 59, 999);
-                if (orderDate > toDateEnd) {
+                if (from && !isNaN(from.getTime()) && orderDate < from) {
                     return false;
                 }
-            }
-            
-            return true;
-        });
-    }, [date, parsedOrders]);
+
+                if (to && !isNaN(to.getTime())) {
+                    const toDateEnd = new Date(to);
+                    toDateEnd.setHours(23, 59, 59, 999);
+                    if (orderDate > toDateEnd) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+        }
+
+        if (searchQuery) {
+            const lowercasedQuery = searchQuery.toLowerCase();
+            results = results.filter(order =>
+                order.id.toLowerCase().includes(lowercasedQuery) ||
+                order.clientUsername.toLowerCase().includes(lowercasedQuery) ||
+                order.source.toLowerCase().includes(lowercasedQuery) ||
+                (order.gig && order.gig.toLowerCase().includes(lowercasedQuery))
+            );
+        }
+
+        return results;
+
+    }, [date, parsedOrders, searchQuery]);
 
     const sortedOrders = useMemo(() => {
         let sortableItems = [...filteredOrders];
@@ -553,6 +587,8 @@ const OrdersPageComponent = () => {
     const visibleInProgressOrders = useMemo(() => inProgressOrders.slice(0, visibleOrdersCount), [inProgressOrders, visibleOrdersCount]);
     const visibleCompletedOrders = useMemo(() => completedOrders.slice(0, visibleOrdersCount), [completedOrders, visibleOrdersCount]);
     const visibleCancelledOrders = useMemo(() => cancelledOrders.slice(0, visibleOrdersCount), [cancelledOrders, visibleOrdersCount]);
+    const visibleAllOrders = useMemo(() => sortedOrders.slice(0, visibleOrdersCount), [sortedOrders, visibleOrdersCount]);
+
 
     const handleLoadMore = () => {
         setVisibleOrdersCount(prev => prev + ORDERS_TO_LOAD);
@@ -568,10 +604,11 @@ const OrdersPageComponent = () => {
         }
         return (
             <Tabs defaultValue="in-progress" onValueChange={handleTabChange}>
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="in-progress">In Progress ({inProgressOrders.length})</TabsTrigger>
                     <TabsTrigger value="completed">Completed ({completedOrders.length})</TabsTrigger>
                     <TabsTrigger value="cancelled">Cancelled ({cancelledOrders.length})</TabsTrigger>
+                    <TabsTrigger value="all">All ({sortedOrders.length})</TabsTrigger>
                 </TabsList>
                 <TabsContent value="in-progress" className="mt-4">
                     <OrdersTable
@@ -609,6 +646,18 @@ const OrdersPageComponent = () => {
                         </div>
                     )}
                 </TabsContent>
+                <TabsContent value="all" className="mt-4">
+                     <OrdersTable
+                        orders={visibleAllOrders}
+                        onEdit={handleOpenDialog}
+                        onDelete={setOrderToDelete}
+                    />
+                    {sortedOrders.length > visibleAllOrders.length && (
+                        <div className="mt-6 flex justify-center">
+                            <Button onClick={handleLoadMore}>Load More</Button>
+                        </div>
+                    )}
+                </TabsContent>
             </Tabs>
         )
     }
@@ -620,7 +669,17 @@ const OrdersPageComponent = () => {
         <h1 className="font-headline text-lg font-semibold md:text-2xl">
           Orders
         </h1>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+            <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search orders..."
+                    className="pl-8 sm:w-[200px] md:w-[250px]"
+                    value={localSearch}
+                    onChange={(e) => setLocalSearch(e.target.value)}
+                />
+            </div>
             <DateFilter date={date} setDate={handleSetDate} />
              <Button variant="default" onClick={() => setSingleImportDialogOpen(true)}>
                 <FileUp className="mr-2 h-4 w-4" />
