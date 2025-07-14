@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
-import { addIncomeSource, getIncomeSources, formSchema } from '@/lib/services/incomesService';
+import { addIncomeSource, getIncomeSources } from '@/lib/services/incomesService';
+import { formSchema } from '@/lib/data/incomes-data';
 import { z } from 'zod';
 
 /**
