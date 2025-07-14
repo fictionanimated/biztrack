@@ -5,12 +5,21 @@ if (!process.env.MONGODB_URI) {
   throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
 }
 
-const uri = process.env.MONGODB_URI;
+let uri = process.env.MONGODB_URI;
 
-// This option is a workaround for specific SSL handshake errors in some development environments.
-const options: MongoClientOptions = {
-  tls: false,
-};
+// For development environments experiencing persistent SSL handshake errors,
+// we can bypass TLS by appending a query parameter to the URI.
+// This is a more reliable method than using the options object.
+if (process.env.NODE_ENV === 'development') {
+    if (uri.includes('?')) {
+        uri = `${uri}&tls=false`;
+    } else {
+        uri = `${uri}?tls=false`;
+    }
+}
+
+
+const options: MongoClientOptions = {};
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
