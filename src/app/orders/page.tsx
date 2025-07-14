@@ -98,8 +98,8 @@ const clients = [
   { username: "sofia.d", name: "Sofia Davis" },
 ];
 
-const StarDisplay = ({ rating }: { rating?: number }) => {
-    if (rating === undefined) return <span className="text-muted-foreground">N/A</span>;
+const StarDisplay = ({ rating }: { rating?: number | null }) => {
+    if (rating == null) return <span className="text-muted-foreground">N/A</span>;
     return (
         <div className="flex items-center gap-1">
             <Star className="h-4 w-4 text-primary" />
@@ -409,6 +409,7 @@ const OrdersPageComponent = () => {
                 } else {
                     throw new Error(errorData.error || 'Failed to add order');
                 }
+                setIsSubmitting(false); // Make sure to stop submitting on validation error
                 return; // Stop execution if there was a validation error
             }
             
