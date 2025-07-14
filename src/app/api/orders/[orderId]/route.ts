@@ -13,7 +13,9 @@ import { z } from 'zod';
 export async function PUT(request: Request, { params }: { params: { orderId: string } }) {
   try {
     const json = await request.json();
-    const parsedData = orderFormSchema.parse(json);
+     // The date comes in as a string, so we need to parse it before validation.
+    const parsedJson = { ...json, date: new Date(json.date) };
+    const parsedData = orderFormSchema.parse(parsedJson);
 
     // The order ID might have changed, so we use the param for lookup
     // and the body's ID for the new value if it exists.
