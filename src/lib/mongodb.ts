@@ -7,7 +7,8 @@ if (!process.env.MONGODB_URI) {
 
 const uri = process.env.MONGODB_URI;
 const options = {
-  tlsDisableOCSPEndpointCheck: true,
+  tls: true,
+  tlsVersion: 'TLSv1.2' as any,
 };
 
 let client: MongoClient;
