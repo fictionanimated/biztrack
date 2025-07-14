@@ -1,5 +1,5 @@
 
-import { MongoClient } from 'mongodb';
+import { MongoClient, MongoClientOptions } from 'mongodb';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
@@ -7,10 +7,10 @@ if (!process.env.MONGODB_URI) {
 
 const uri = process.env.MONGODB_URI;
 
-// Append tlsAllowInvalidCertificates=true to the connection string
-const modifiedUri = `${uri}${uri.includes('?') ? '&' : '?'}tlsAllowInvalidCertificates=true`;
-
-const options = {};
+// This option is a workaround for specific SSL handshake errors in some development environments.
+const options: MongoClientOptions = {
+  tls: false,
+};
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
@@ -23,13 +23,13 @@ if (process.env.NODE_ENV === 'development') {
   }
 
   if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(modifiedUri, options);
+    client = new MongoClient(uri, options);
     globalWithMongo._mongoClientPromise = client.connect();
   }
   clientPromise = globalWithMongo._mongoClientPromise;
 } else {
   // In production mode, it's best to not use a global variable.
-  client = new MongoClient(modifiedUri, options);
+  client = new MongoClient(uri, options);
   clientPromise = client.connect();
 }
 
