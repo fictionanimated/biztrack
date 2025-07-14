@@ -144,44 +144,54 @@ const ClientsPageComponent = () => {
         let clientsToFilter = [...clients];
 
         if (aiFilters) {
-            if (aiFilters.nameOrUsername) {
-                const lowerQuery = aiFilters.nameOrUsername.toLowerCase();
-                clientsToFilter = clientsToFilter.filter(c =>
-                    c.name?.toLowerCase().includes(lowerQuery) || c.username.toLowerCase().includes(lowerQuery)
-                );
-            }
-            if (aiFilters.source) {
-                 clientsToFilter = clientsToFilter.filter(c => c.source === aiFilters.source);
-            }
-            if (aiFilters.clientType) {
-                 clientsToFilter = clientsToFilter.filter(c => c.clientType === aiFilters.clientType);
-            }
-            if (aiFilters.isVip !== undefined) {
-                 clientsToFilter = clientsToFilter.filter(c => c.isVip === aiFilters.isVip);
-            }
-            if (aiFilters.minTotalOrders) {
-                clientsToFilter = clientsToFilter.filter(c => c.totalOrders >= aiFilters.minTotalOrders!);
-            }
-            if (aiFilters.dateRange?.from) {
-                const fromDate = new Date(`${aiFilters.dateRange.from}T00:00:00Z`);
-                clientsToFilter = clientsToFilter.filter(c => c.lastOrder !== 'N/A' && new Date(c.lastOrder) >= fromDate);
-            }
-            if (aiFilters.dateRange?.to) {
-                const toDate = new Date(`${aiFilters.dateRange.to}T23:59:59Z`);
-                clientsToFilter = clientsToFilter.filter(c => c.lastOrder !== 'N/A' && new Date(c.lastOrder) <= toDate);
-            }
-        } else {
-             if (filterSource !== 'all') {
-                clientsToFilter = clientsToFilter.filter(client => client.source.toLowerCase().replace(/\s+/g, '-') === filterSource);
-            }
+            return clientsToFilter.filter(client => {
+                if (aiFilters.nameOrUsername) {
+                    const lowerQuery = aiFilters.nameOrUsername.toLowerCase();
+                    if (!(client.name?.toLowerCase().includes(lowerQuery) || client.username.toLowerCase().includes(lowerQuery))) {
+                        return false;
+                    }
+                }
+                if (aiFilters.source && client.source !== aiFilters.source) {
+                    return false;
+                }
+                if (aiFilters.clientType && client.clientType !== aiFilters.clientType) {
+                    return false;
+                }
+                if (aiFilters.isVip !== undefined && client.isVip !== aiFilters.isVip) {
+                    return false;
+                }
+                if (aiFilters.minTotalOrders && client.totalOrders < aiFilters.minTotalOrders) {
+                    return false;
+                }
+                if (client.lastOrder === 'N/A' && aiFilters.dateRange) {
+                    return false;
+                }
+                if (aiFilters.dateRange) {
+                    const lastOrderDate = new Date(client.lastOrder.replace(/-/g, '/'));
+                    if (aiFilters.dateRange.from) {
+                        const fromDate = new Date(aiFilters.dateRange.from.replace(/-/g, '/'));
+                        if (lastOrderDate < fromDate) return false;
+                    }
+                    if (aiFilters.dateRange.to) {
+                        const toDate = new Date(aiFilters.dateRange.to.replace(/-/g, '/'));
+                        toDate.setHours(23, 59, 59, 999);
+                        if (lastOrderDate > toDate) return false;
+                    }
+                }
+                return true;
+            });
+        }
+        
+        if (filterSource !== 'all') {
+            clientsToFilter = clientsToFilter.filter(client => client.source.toLowerCase().replace(/\s+/g, '-') === filterSource);
+        }
 
-            if (searchQuery.trim() !== "") {
-                const lowercasedQuery = searchQuery.toLowerCase();
-                clientsToFilter = clientsToFilter.filter(client => 
-                    client.name?.toLowerCase().includes(lowercasedQuery) ||
-                    client.username.toLowerCase().includes(lowercasedQuery)
-                );
-            }
+        if (searchQuery.trim() !== "") {
+            const lowercasedQuery = searchQuery.toLowerCase();
+            clientsToFilter = clientsToFilter.filter(client => 
+                client.name?.toLowerCase().includes(lowercasedQuery) ||
+                client.username.toLowerCase().includes(lowercasedQuery)
+            );
         }
 
         return clientsToFilter;
