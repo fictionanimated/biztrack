@@ -385,40 +385,31 @@ const OrdersPageComponent = () => {
     async function onSubmit(values: OrderFormValues) {
         setIsSubmitting(true);
         try {
-            // This is just a placeholder logic for now.
-            // In a real app, this would be an API call.
-            let finalCancellationReasons: string[] | undefined = undefined;
-            if (values.status === 'Cancelled') {
-                const reasons = values.cancellationReasons || [];
-                if (values.customCancellationReason && values.customCancellationReason.trim()) {
-                    reasons.push(values.customCancellationReason.trim());
-                }
-                if (reasons.length > 0) {
-                    finalCancellationReasons = reasons;
-                }
-            }
-
-            const orderPayload: Omit<Order, 'date'> & { date: Date } = {
-                id: values.id,
-                clientUsername: values.username,
-                date: values.date,
-                amount: values.amount,
-                source: values.source,
-                gig: values.gig,
-                status: values.status,
-                rating: values.rating,
-                cancellationReasons: finalCancellationReasons,
-            };
-
             const response = await fetch('/api/orders', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderPayload),
+                body: JSON.stringify(values),
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to add order');
+                 const errorData = await response.json();
+                if (response.status === 400 && errorData.details) {
+                    // Handle Zod validation errors
+                    errorData.details.forEach((err: any) => {
+                        form.setError(err.path[0] as keyof OrderFormValues, {
+                            type: 'server',
+                            message: err.message,
+                        });
+                    });
+                     toast({
+                        variant: "destructive",
+                        title: "Invalid Input",
+                        description: "Please check the highlighted fields.",
+                    });
+                } else {
+                    throw new Error(errorData.error || 'Failed to add order');
+                }
+                return; // Stop execution if there was a validation error
             }
             
             const newOrder = await response.json();
@@ -439,9 +430,9 @@ const OrdersPageComponent = () => {
             setDialogOpen(false);
             setEditingOrder(null);
         } catch (error) {
-            toast({
+             toast({
                 variant: "destructive",
-                title: "Error",
+                title: "Error submitting form",
                 description: (error as Error).message,
             });
         } finally {
