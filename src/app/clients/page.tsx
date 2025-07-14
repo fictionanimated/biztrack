@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useCallback, useEffect, memo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { ArrowUpDown, Search } from "lucide-react";
+import { ArrowUpDown, Search, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -17,12 +17,18 @@ import { initialClients, incomeSources, type Client } from "@/lib/data/clients-d
 import { AddClientDialog } from "@/components/clients/add-client-dialog";
 import { ClientsTable } from "@/components/clients/clients-table";
 import { EditClientDialog } from "@/components/clients/edit-client-dialog";
+import { filterClients, type ClientFilters } from "@/ai/flows/filter-clients-flow";
+import { useToast } from "@/hooks/use-toast";
 
 
 const ClientsPageComponent = () => {
     const [clients, setClients] = useState<Client[]>(initialClients);
     const [open, setOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [aiFilters, setAiFilters] = useState<ClientFilters | null>(null);
+    const [aiSearchQuery, setAiSearchQuery] = useState("");
+    const [isAiSearching, setIsAiSearching] = useState(false);
+    const { toast } = useToast();
     
     const router = useRouter();
     const pathname = usePathname();
@@ -71,6 +77,33 @@ const ClientsPageComponent = () => {
         clearTimeout(handler);
       };
     }, [localSearch, searchQuery, router, pathname, createQueryString]);
+    
+    const handleAiSearch = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!aiSearchQuery.trim()) return;
+
+        setIsAiSearching(true);
+        try {
+            const filters = await filterClients(aiSearchQuery);
+            setAiFilters(filters);
+            toast({ title: "AI Filters Applied", description: `Showing clients based on your prompt.` });
+        } catch (error) {
+            console.error("AI search failed:", error);
+            toast({
+                variant: "destructive",
+                title: "AI Search Failed",
+                description: "Could not apply filters. Please try a different prompt.",
+            });
+        } finally {
+            setIsAiSearching(false);
+        }
+    };
+
+    const clearAiFilters = () => {
+        setAiFilters(null);
+        setAiSearchQuery("");
+        toast({ title: "AI Filters Cleared" });
+    };
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setLocalSearch(e.target.value);
@@ -110,20 +143,49 @@ const ClientsPageComponent = () => {
     const filteredClients = useMemo(() => {
         let clientsToFilter = [...clients];
 
-        if (filterSource !== 'all') {
-            clientsToFilter = clientsToFilter.filter(client => client.source.toLowerCase().replace(/\s+/g, '-') === filterSource);
-        }
+        if (aiFilters) {
+            if (aiFilters.nameOrUsername) {
+                const lowerQuery = aiFilters.nameOrUsername.toLowerCase();
+                clientsToFilter = clientsToFilter.filter(c =>
+                    c.name?.toLowerCase().includes(lowerQuery) || c.username.toLowerCase().includes(lowerQuery)
+                );
+            }
+            if (aiFilters.source) {
+                 clientsToFilter = clientsToFilter.filter(c => c.source === aiFilters.source);
+            }
+            if (aiFilters.clientType) {
+                 clientsToFilter = clientsToFilter.filter(c => c.clientType === aiFilters.clientType);
+            }
+            if (aiFilters.isVip !== undefined) {
+                 clientsToFilter = clientsToFilter.filter(c => c.isVip === aiFilters.isVip);
+            }
+            if (aiFilters.minTotalOrders) {
+                clientsToFilter = clientsToFilter.filter(c => c.totalOrders >= aiFilters.minTotalOrders!);
+            }
+            if (aiFilters.dateRange?.from) {
+                const fromDate = new Date(aiFilters.dateRange.from);
+                clientsToFilter = clientsToFilter.filter(c => c.lastOrder !== 'N/A' && new Date(c.lastOrder) >= fromDate);
+            }
+            if (aiFilters.dateRange?.to) {
+                const toDate = new Date(aiFilters.dateRange.to);
+                clientsToFilter = clientsToFilter.filter(c => c.lastOrder !== 'N/A' && new Date(c.lastOrder) <= toDate);
+            }
+        } else {
+             if (filterSource !== 'all') {
+                clientsToFilter = clientsToFilter.filter(client => client.source.toLowerCase().replace(/\s+/g, '-') === filterSource);
+            }
 
-        if (searchQuery.trim() !== "") {
-            const lowercasedQuery = searchQuery.toLowerCase();
-            clientsToFilter = clientsToFilter.filter(client => 
-                client.name?.toLowerCase().includes(lowercasedQuery) ||
-                client.username.toLowerCase().includes(lowercasedQuery)
-            );
+            if (searchQuery.trim() !== "") {
+                const lowercasedQuery = searchQuery.toLowerCase();
+                clientsToFilter = clientsToFilter.filter(client => 
+                    client.name?.toLowerCase().includes(lowercasedQuery) ||
+                    client.username.toLowerCase().includes(lowercasedQuery)
+                );
+            }
         }
 
         return clientsToFilter;
-    }, [clients, filterSource, searchQuery]);
+    }, [clients, filterSource, searchQuery, aiFilters]);
 
     const sortedClients = useMemo(() => {
         let sortableItems = [...filteredClients];
@@ -135,7 +197,11 @@ const ClientsPageComponent = () => {
                 if (key === 'name') {
                     aValue = a.name || a.username;
                     bValue = b.name || b.username;
-                } else {
+                } else if (key === 'lastOrder' || key === 'clientSince') {
+                    aValue = a[key] === 'N/A' ? 0 : new Date(a[key]!).getTime();
+                    bValue = b[key] === 'N/A' ? 0 : new Date(b[key]!).getTime();
+                }
+                else {
                     aValue = a[key];
                     bValue = b[key];
                 }
@@ -151,6 +217,11 @@ const ClientsPageComponent = () => {
         }
         return sortableItems;
     }, [filteredClients, sortConfig]);
+    
+    const activeFilterCount = useMemo(() => {
+      if (!aiFilters) return 0;
+      return Object.values(aiFilters).filter(v => v !== undefined && v !== null && v !== "" && !(typeof v === 'object' && Object.keys(v).length === 0)).length;
+    }, [aiFilters]);
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -184,6 +255,58 @@ const ClientsPageComponent = () => {
         </div>
       </div>
       
+      <div className="space-y-4 rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
+        <form onSubmit={handleAiSearch} className="flex gap-2">
+            <div className="relative flex-grow">
+                 <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+                 <Input
+                    type="text"
+                    placeholder="Ask AI to filter clients... (e.g., 'show me VIP clients from last year')"
+                    className="pl-9"
+                    value={aiSearchQuery}
+                    onChange={e => setAiSearchQuery(e.target.value)}
+                    disabled={isAiSearching}
+                />
+            </div>
+            <Button type="submit" disabled={isAiSearching || !aiSearchQuery.trim()}>
+                {isAiSearching ? "Searching..." : "Ask AI"}
+            </Button>
+        </form>
+         {aiFilters && (
+            <div className="flex items-center gap-4">
+                <div className="text-sm font-medium">
+                    Active AI Filters ({activeFilterCount}):
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {Object.entries(aiFilters).map(([key, value]) => {
+                        if (!value || (typeof value === 'object' && Object.keys(value).length === 0)) return null;
+                        let displayValue = "";
+                        if (key === 'dateRange') {
+                            const { from, to } = value as {from?: string, to?: string};
+                            if (from && to) displayValue = `${from} to ${to}`;
+                            else if (from) displayValue = `from ${from}`;
+                            else if (to) displayValue = `until ${to}`;
+                        } else if (typeof value === 'boolean') {
+                            displayValue = value ? "Yes" : "No";
+                        } else {
+                            displayValue = String(value);
+                        }
+                        
+                        return (
+                            <div key={key} className="flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
+                                <strong>{key.replace(/([A-Z])/g, ' $1')}:</strong> {displayValue}
+                            </div>
+                        )
+                    })}
+                </div>
+                <Button variant="ghost" size="sm" onClick={clearAiFilters} className="ml-auto">
+                    <X className="mr-2 h-4 w-4" />
+                    Clear Filters
+                </Button>
+            </div>
+        )}
+      </div>
+
       <ClientsTable 
         clients={sortedClients}
         requestSort={requestSort}
