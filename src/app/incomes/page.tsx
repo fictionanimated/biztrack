@@ -607,21 +607,11 @@ const IncomesPageComponent = () => {
                         <Badge variant="secondary">{source.gigs.length} Gigs</Badge>
                     </div>
                     </AccordionTrigger>
-                     <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <NProgressLink href={`/incomes/${source.id}`}>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => e.stopPropagation()}>
-                                        <BarChart className="h-4 w-4" />
-                                        <span className="sr-only">View Analytics</span>
-                                    </Button>
-                                </NProgressLink>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>View Source Analytics</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    <NProgressLink href={`/incomes/${source.id}`} className="ml-auto">
+                        <Button variant="outline" size="sm" onClick={e => e.stopPropagation()}>
+                            Analytics
+                        </Button>
+                    </NProgressLink>
                 </div>
                 <AccordionContent className="px-4">
                   <div className="flex justify-end gap-2 mb-4">
