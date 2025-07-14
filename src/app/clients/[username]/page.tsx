@@ -67,14 +67,13 @@ export default function ClientDetailsPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [clientFound, setClientFound] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
       if (!username) {
         setIsLoading(false);
-        setClientFound(false);
+        notFound();
         return;
       }
       setIsLoading(true);
@@ -85,7 +84,8 @@ export default function ClientDetailsPage() {
         ]);
         
         if (clientRes.status === 404) {
-          setClientFound(false);
+          setIsLoading(false);
+          notFound();
           return;
         }
 
@@ -96,12 +96,11 @@ export default function ClientDetailsPage() {
         const incomesData: IncomeSource[] = await incomesRes.json();
         
         setClient(currentClient);
-        setClientFound(true);
         setIncomeSources(incomesData);
 
       } catch (err) {
         console.error("Failed to fetch client details:", err);
-        setClientFound(false);
+        setClient(null); // Set client to null on error to prevent rendering with stale data
       } finally {
         setIsLoading(false);
       }
@@ -191,18 +190,25 @@ export default function ClientDetailsPage() {
        </main>
     )
   }
-
-  if (!clientFound) {
-    notFound();
-  }
   
   if (!client) {
-    // This case will be hit if loading is done but client is still null,
-    // which shouldn't happen if notFound() is called correctly.
-    // It's a safe fallback.
+    // This case handles errors after loading, where client is null but it's not a 404.
     return (
-      <div className="flex h-full items-center justify-center">
-        <p>Client could not be loaded.</p>
+      <div className="flex h-full items-center justify-center p-8">
+        <Card className="w-full max-w-md">
+            <CardHeader>
+                <CardTitle>Error Loading Client</CardTitle>
+                <CardDescription>We couldn&apos;t load the details for this client. Please try again later.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <NProgressLink href="/clients">
+                  <Button variant="outline" className="w-full">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Client List
+                  </Button>
+                </NProgressLink>
+            </CardContent>
+        </Card>
       </div>
     );
   }
