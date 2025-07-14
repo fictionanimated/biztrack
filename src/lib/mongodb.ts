@@ -31,8 +31,7 @@ if (process.env.NODE_ENV === 'development') {
 
 export function getDbName() {
   try {
-    const url = new URL(uri);
-    const dbName = url.pathname.slice(1).split('/')[0];
+    const dbName = new URL(uri).pathname.substring(1);
     return dbName || 'biztrack-pro'; // Fallback to a default name if not in URI
   } catch (e) {
     console.error("Could not parse MONGODB_URI, using default DB name.", e);
