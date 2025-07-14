@@ -384,9 +384,12 @@ const OrdersPageComponent = () => {
 
     async function onSubmit(values: OrderFormValues) {
         setIsSubmitting(true);
+        const endpoint = editingOrder ? `/api/orders/${editingOrder.id}` : '/api/orders';
+        const method = editingOrder ? 'PUT' : 'POST';
+
         try {
-            const response = await fetch('/api/orders', {
-                method: 'POST',
+            const response = await fetch(endpoint, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(values),
             });
@@ -394,7 +397,6 @@ const OrdersPageComponent = () => {
             if (!response.ok) {
                  const errorData = await response.json();
                 if (response.status === 400 && errorData.details) {
-                    // Handle Zod validation errors
                     errorData.details.forEach((err: any) => {
                         form.setError(err.path[0] as keyof OrderFormValues, {
                             type: 'server',
@@ -407,25 +409,25 @@ const OrdersPageComponent = () => {
                         description: "Please check the highlighted fields.",
                     });
                 } else {
-                    throw new Error(errorData.error || 'Failed to add order');
+                    throw new Error(errorData.error || `Failed to ${editingOrder ? 'update' : 'add'} order`);
                 }
-                setIsSubmitting(false); // Make sure to stop submitting on validation error
-                return; // Stop execution if there was a validation error
+                setIsSubmitting(false);
+                return;
             }
             
-            const newOrder = await response.json();
+            const resultOrder = await response.json();
             
             if (editingOrder) {
-                setOrders(orders.map(o => o.id === editingOrder.id ? newOrder : o));
+                setOrders(orders.map(o => o.id === editingOrder.id ? resultOrder : o));
                 toast({
                     title: "Order Updated",
-                    description: `Order ${newOrder.id} has been successfully updated.`,
+                    description: `Order ${resultOrder.id} has been successfully updated.`,
                 });
             } else {
-                setOrders([newOrder, ...orders]);
+                setOrders([resultOrder, ...orders]);
                 toast({
                     title: "Order Added",
-                    description: `Order ${newOrder.id} has been successfully created.`,
+                    description: `Order ${resultOrder.id} has been successfully created.`,
                 });
             }
             setDialogOpen(false);
@@ -441,14 +443,31 @@ const OrdersPageComponent = () => {
         }
     }
 
-    const handleDeleteOrder = () => {
+    const handleDeleteOrder = async () => {
         if (!orderToDelete) return;
-        setOrders(orders.filter(o => o.id !== orderToDelete.id));
-        toast({
-            title: "Order Deleted",
-            description: `Order ${orderToDelete.id} has been removed.`,
-        });
-        setOrderToDelete(null);
+        setIsSubmitting(true);
+        try {
+            const response = await fetch(`/api/orders/${orderToDelete.id}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                throw new Error('Failed to delete order');
+            }
+            setOrders(orders.filter(o => o.id !== orderToDelete.id));
+            toast({
+                title: "Order Deleted",
+                description: `Order ${orderToDelete.id} has been removed.`,
+            });
+        } catch (error) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: (error as Error).message,
+            });
+        } finally {
+            setIsSubmitting(false);
+            setOrderToDelete(null);
+        }
     };
 
     const requestSort = (key: keyof Order) => {
@@ -686,7 +705,7 @@ const OrdersPageComponent = () => {
                                         <FormItem>
                                             <FormLabel>Order ID*</FormLabel>
                                             <FormControl>
-                                            <Input placeholder="Manually enter order ID" {...field} disabled={!!editingOrder} />
+                                            <Input placeholder="Manually enter order ID" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -1044,7 +1063,8 @@ const OrdersPageComponent = () => {
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteOrder} className={buttonVariants({ variant: "destructive" })}>
+            <AlertDialogAction onClick={handleDeleteOrder} className={cn(buttonVariants({ variant: "destructive" }), { "opacity-50": isSubmitting })} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Delete
             </AlertDialogAction>
             </AlertDialogFooter>

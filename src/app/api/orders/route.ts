@@ -23,9 +23,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const json = await request.json();
-        // The date comes in as a string, so we need to parse it.
-        const parsedJson = { ...json, date: new Date(json.date) };
-        const parsedData = orderFormSchema.parse(parsedJson);
+        const parsedData = orderFormSchema.parse(json);
 
         const newOrder = await addOrder(parsedData);
         return NextResponse.json(newOrder, { status: 201 });
