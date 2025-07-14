@@ -1,5 +1,5 @@
 
-import clientPromise, { getDbName } from '@/lib/mongodb';
+import clientPromise from '@/lib/mongodb';
 import { z } from 'zod';
 
 const settingsSchema = z.object({
@@ -10,20 +10,25 @@ type Settings = z.infer<typeof settingsSchema>;
 
 const SETTINGS_ID = 'user_settings'; // Use a consistent ID for the settings document
 
-async function getDb() {
+async function getSettingsCollection() {
   const client = await clientPromise;
-  const dbName = getDbName();
-  return client.db(dbName); 
+  const db = client.db(); // When no db name is in the URI, this defaults to the one configured in Atlas
+  return db.collection<Settings>('settings');
 }
 
-export async function getSettings(): Promise<Settings> {
+export async function getSettings(): Promise<Partial<Settings>> {
   try {
-    const db = await getDb();
-    const settingsCollection = db.collection('settings');
-    const settings = await settingsCollection.findOne({ _id: SETTINGS_ID });
+    const settingsCollection = await getSettingsCollection();
+    const settings = await settingsCollection.findOne({ _id: SETTINGS_ID as any });
+
+    if (!settings) {
+      return {};
+    }
     
-    // Return only what's in the DB, or an empty object.
-    return settings ? { timezone: settings.timezone } : {};
+    // Return only the properties defined in our schema
+    return {
+      timezone: settings.timezone,
+    };
   } catch (error) {
     console.error('Error fetching settings from DB:', error);
     // On error, return an empty object to let the client handle defaults.
@@ -32,9 +37,9 @@ export async function getSettings(): Promise<Settings> {
 }
 
 export async function updateSettings(newSettings: Partial<Settings>): Promise<void> {
-  const db = await getDb();
-  await db.collection('settings').updateOne(
-    { _id: SETTINGS_ID },
+  const settingsCollection = await getSettingsCollection();
+  await settingsCollection.updateOne(
+    { _id: SETTINGS_ID as any },
     { $set: newSettings },
     { upsert: true } // Creates the document if it doesn't exist
   );
