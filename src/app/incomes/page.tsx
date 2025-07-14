@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import NProgressLink from "@/components/layout/nprogress-link";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -690,12 +690,6 @@ const IncomesPageComponent = () => {
                             Analytics
                         </NProgressLink>
                     </Button>
-                    <Button variant="destructive" size="sm" className="ml-2" onClick={(e) => {
-                        e.stopPropagation();
-                        setSourceToDelete(source);
-                    }}>
-                        Delete Source
-                    </Button>
                 </div>
                 <AccordionContent className="px-4">
                   <div className="flex justify-end gap-2 mb-4">
@@ -853,7 +847,7 @@ const IncomesPageComponent = () => {
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteSource} className={cn(buttonVariants({ variant: "destructive" }))} disabled={isSubmitting}>
+                <AlertDialogAction onClick={handleDeleteSource} disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Delete
                 </AlertDialogAction>
