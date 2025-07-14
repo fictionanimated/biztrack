@@ -151,7 +151,7 @@ const ClientsPageComponent = () => {
                         return false;
                     }
                 }
-                if (aiFilters.source && client.source !== aiFilters.source) {
+                if (aiFilters.source && client.source.toLowerCase() !== aiFilters.source.toLowerCase()) {
                     return false;
                 }
                 if (aiFilters.clientType && client.clientType !== aiFilters.clientType) {
@@ -160,22 +160,21 @@ const ClientsPageComponent = () => {
                 if (aiFilters.isVip !== undefined && client.isVip !== aiFilters.isVip) {
                     return false;
                 }
-                if (aiFilters.minTotalOrders && client.totalOrders < aiFilters.minTotalOrders) {
+                if (aiFilters.minTotalOrders !== undefined && client.totalOrders < aiFilters.minTotalOrders) {
                     return false;
                 }
                 if (aiFilters.dateRange) {
-                    // If client has no orders, they can't match a date range filter.
                     if (client.lastOrder === 'N/A') {
                         return false;
                     }
-                    const lastOrderDate = new Date(client.lastOrder); // Direct conversion is fine for YYYY-MM-DD
+                    const lastOrderDate = new Date(client.lastOrder); 
                     if (aiFilters.dateRange.from) {
                         const fromDate = new Date(aiFilters.dateRange.from);
                         if (lastOrderDate < fromDate) return false;
                     }
                     if (aiFilters.dateRange.to) {
                         const toDate = new Date(aiFilters.dateRange.to);
-                        toDate.setHours(23, 59, 59, 999); // Include the whole end day
+                        toDate.setHours(23, 59, 59, 999); 
                         if (lastOrderDate > toDate) return false;
                     }
                 }
@@ -290,7 +289,7 @@ const ClientsPageComponent = () => {
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {Object.entries(aiFilters).map(([key, value]) => {
-                        if (!value || (typeof value === 'object' && Object.keys(value).length === 0)) return null;
+                        if (value === undefined || value === null || value === "" || (typeof value === 'object' && Object.keys(value).length === 0)) return null;
                         let displayValue = "";
                         if (key === 'dateRange') {
                             const { from, to } = value as {from?: string, to?: string};
