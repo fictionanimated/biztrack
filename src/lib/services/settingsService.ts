@@ -25,22 +25,25 @@ export async function getSettings(): Promise<Partial<Settings>> {
       return {};
     }
     
-    // Return only the properties defined in our schema
     return {
       timezone: settings.timezone,
     };
   } catch (error) {
     console.error('Error fetching settings from DB:', error);
-    // On error, return an empty object to let the client handle defaults.
     return {};
   }
 }
 
 export async function updateSettings(newSettings: Partial<Settings>): Promise<void> {
-  const settingsCollection = await getSettingsCollection();
-  await settingsCollection.updateOne(
-    { _id: SETTINGS_ID as any },
-    { $set: newSettings },
-    { upsert: true } // Creates the document if it doesn't exist
-  );
+  try {
+    const settingsCollection = await getSettingsCollection();
+    await settingsCollection.updateOne(
+      { _id: SETTINGS_ID as any },
+      { $set: newSettings },
+      { upsert: true } // Creates the document if it doesn't exist
+    );
+  } catch (error) {
+      console.error('Error updating settings in DB:', error);
+      throw new Error('Failed to update settings in the database.');
+  }
 }
