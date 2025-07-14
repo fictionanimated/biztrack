@@ -73,18 +73,18 @@ const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit 
                                         Orders {getSortIndicator('totalOrders')}
                                     </Button>
                                 </TableHead>
-                                <TableHead>
+                                <TableHead className="hidden lg:table-cell">
                                     <Button variant="ghost" onClick={() => requestSort('clientSince')}>
                                         Client Since {getSortIndicator('clientSince')}
                                     </Button>
                                 </TableHead>
-                                <TableHead>
+                                <TableHead className="hidden lg:table-cell">
                                     <Button variant="ghost" onClick={() => requestSort('lastOrder')}>
                                         Last Order {getSortIndicator('lastOrder')}
                                     </Button>
                                 </TableHead>
-                                <TableHead>Social</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead className="w-24">Social</TableHead>
+                                <TableHead className="text-right w-24">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -141,8 +141,8 @@ const ClientsTableComponent = ({ clients, requestSort, getSortIndicator, onEdit 
                                     </TableCell>
                                     <TableCell className="text-right">${client.totalEarning.toLocaleString()}</TableCell>
                                     <TableCell className="text-right">{client.totalOrders}</TableCell>
-                                    <TableCell>{client.clientSince}</TableCell>
-                                    <TableCell>{client.lastOrder}</TableCell>
+                                    <TableCell className="hidden lg:table-cell">{client.clientSince}</TableCell>
+                                    <TableCell className="hidden lg:table-cell">{client.lastOrder}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             {client.socialLinks?.map((link, i) => (
