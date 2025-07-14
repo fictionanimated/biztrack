@@ -8,6 +8,7 @@ import clientPromise from '@/lib/mongodb';
 import { type Order, orderFormSchema, type OrderFormValues } from '@/lib/data/orders-data';
 import { ObjectId } from 'mongodb';
 import { format } from 'date-fns';
+import { getClientByUsername, addClient } from './clientsService';
 
 async function getOrdersCollection() {
   const client = await clientPromise;
@@ -66,6 +67,24 @@ export async function checkOrderExists(orderId: string): Promise<boolean> {
  */
 export async function addOrder(orderData: OrderFormValues): Promise<Order> {
     const ordersCollection = await getOrdersCollection();
+
+    // Check if client exists, if not, create one.
+    const existingClient = await getClientByUsername(orderData.username);
+    if (!existingClient) {
+        await addClient({
+            username: orderData.username,
+            source: orderData.source,
+            // You can add other default fields for auto-created clients if needed
+            name: orderData.username, // Default name to username
+            email: '',
+            avatarUrl: '',
+            socialLinks: [],
+            notes: `Client auto-created from order ${orderData.id}.`,
+            tags: 'auto-created',
+            isVip: false,
+        });
+    }
+
 
     let finalCancellationReasons: string[] | undefined = undefined;
     if (orderData.status === 'Cancelled') {

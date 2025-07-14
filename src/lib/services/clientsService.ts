@@ -84,8 +84,15 @@ export async function addClient(clientData: ClientFormValues): Promise<Client> {
     const clientsCollection = await getClientsCollection();
 
     const newClientDocument: Omit<Client, 'id' | '_id'> = {
-        ...clientData,
+        username: clientData.username,
+        name: clientData.name || clientData.username,
+        email: clientData.email || '',
+        avatarUrl: clientData.avatarUrl || '',
+        source: clientData.source,
+        socialLinks: clientData.socialLinks || [],
+        notes: clientData.notes || '',
         tags: clientData.tags ? clientData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+        isVip: clientData.isVip || false,
         clientType: 'New',
         clientSince: format(new Date(), 'yyyy-MM-dd'),
         totalOrders: 0,
