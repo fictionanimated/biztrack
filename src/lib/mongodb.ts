@@ -6,10 +6,7 @@ if (!process.env.MONGODB_URI) {
 }
 
 const uri = process.env.MONGODB_URI;
-const options = {
-  tls: true,
-  tlsVersion: 'TLSv1.2' as any,
-};
+const options = {};
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
