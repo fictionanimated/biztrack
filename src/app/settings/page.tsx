@@ -26,28 +26,78 @@ const SettingsPageComponent = () => {
   const [timezones, setTimezones] = useState<string[]>([]);
   const [selectedTimezone, setSelectedTimezone] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    const allTimezones = Intl.supportedValuesOf('timeZone');
-    setTimezones(allTimezones);
-    
-    // Set user's current timezone as default
-    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (allTimezones.includes(userTimezone)) {
-      setSelectedTimezone(userTimezone);
-    } else if (allTimezones.length > 0) {
-      setSelectedTimezone(allTimezones[0]);
-    }
-    setIsLoading(false);
-  }, []);
+    async function fetchSettingsAndTz() {
+      setIsLoading(true);
+      try {
+        // Fetch saved settings
+        const response = await fetch('/api/settings');
+        if (!response.ok) throw new Error('Failed to fetch settings');
+        const savedSettings = await response.json();
+        
+        // Populate timezones
+        const allTimezones = Intl.supportedValuesOf('timeZone');
+        setTimezones(allTimezones);
 
-  const handleSaveChanges = () => {
-    // In a real app, you would save this to a user profile in a database.
-    toast({
-      title: "Settings Saved",
-      description: `Timezone set to ${selectedTimezone}.`,
-    });
+        // Set selected timezone from DB or default
+        if (savedSettings.timezone && allTimezones.includes(savedSettings.timezone)) {
+          setSelectedTimezone(savedSettings.timezone);
+        } else if (allTimezones.length > 0) {
+           const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+           setSelectedTimezone(allTimezones.includes(userTimezone) ? userTimezone : allTimezones[0]);
+        }
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not load settings. Using defaults.",
+        });
+        // Fallback to browser default on error
+        const allTimezones = Intl.supportedValuesOf('timeZone');
+        if (allTimezones.length > 0) {
+            const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            setTimezones(allTimezones);
+            setSelectedTimezone(allTimezones.includes(userTimezone) ? userTimezone : allTimezones[0]);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchSettingsAndTz();
+  }, [toast]);
+
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timezone: selectedTimezone }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
+
+      toast({
+        title: "Settings Saved",
+        description: `Timezone set to ${selectedTimezone}.`,
+      });
+    } catch (error) {
+       console.error("Failed to save settings:", error);
+       toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not save settings. Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -73,7 +123,7 @@ const SettingsPageComponent = () => {
           ) : (
             <div className="space-y-2">
               <Label htmlFor="timezone">Select Timezone</Label>
-              <Select value={selectedTimezone} onValueChange={setSelectedTimezone}>
+              <Select value={selectedTimezone} onValueChange={setSelectedTimezone} disabled={timezones.length === 0}>
                 <SelectTrigger id="timezone" className="w-full max-w-sm">
                   <SelectValue placeholder="Select a timezone" />
                 </SelectTrigger>
@@ -89,8 +139,8 @@ const SettingsPageComponent = () => {
           )}
         </CardContent>
         <CardFooter>
-          <Button className="ml-auto" onClick={handleSaveChanges} disabled={isLoading}>
-            Save Changes
+          <Button className="ml-auto" onClick={handleSaveChanges} disabled={isLoading || isSaving}>
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </Button>
         </CardFooter>
       </Card>
