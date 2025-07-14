@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, memo } from "react";
+import { useState, memo, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -76,26 +76,8 @@ import {
 } from "@/components/ui/tooltip";
 import type { IncomeSource, Gig, SourceDataPoint } from "@/lib/data/incomes-data";
 import { initialIncomeSources } from "@/lib/data/incomes-data";
+import { formSchema as incomesFormSchema } from "@/lib/services/incomesService";
 
-const formSchema = z.object({
-  sourceName: z.string().min(2, {
-    message: "Source name must be at least 2 characters.",
-  }),
-  gigs: z
-    .array(
-      z.object({
-        name: z.string().min(2, {
-          message: "Gig name must be at least 2 characters.",
-        }),
-        date: z.date({
-          required_error: "A date for the gig is required.",
-        }),
-      })
-    )
-    .min(1, { message: "You must add at least one gig." }),
-});
-
-const staticDate = new Date("2024-01-01T12:00:00Z");
 
 const addGigFormSchema = z.object({
     name: z.string().min(2, { message: "Gig name must be at least 2 characters." }),
@@ -156,11 +138,11 @@ const IncomesPageComponent = () => {
   const [deleteStep, setDeleteStep] = useState(0);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState("");
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof incomesFormSchema>>({
+    resolver: zodResolver(incomesFormSchema),
     defaultValues: {
       sourceName: "",
-      gigs: [{ name: "", date: staticDate }],
+      gigs: [{ name: "", date: new Date() }],
     },
   });
 
@@ -173,7 +155,7 @@ const IncomesPageComponent = () => {
     resolver: zodResolver(addGigFormSchema),
     defaultValues: {
       name: "",
-      date: staticDate,
+      date: new Date(),
     },
   });
 
@@ -184,7 +166,7 @@ const IncomesPageComponent = () => {
   const addDataForm = useForm<AddDataFormValues>({
     resolver: zodResolver(addDataFormSchema),
     defaultValues: {
-        date: staticDate,
+        date: new Date(),
         messages: 0,
     },
   });
@@ -192,29 +174,27 @@ const IncomesPageComponent = () => {
   const addGigDataForm = useForm<AddGigDataFormValues>({
     resolver: zodResolver(addGigDataFormSchema),
     defaultValues: {
-        date: staticDate,
+        date: new Date(),
         impressions: 0,
         clicks: 0,
         ctr: 0,
     },
   });
+  
+  useEffect(() => {
+    // In a real app with a DB, you'd fetch initial data here.
+    // For our file-based persistence, we can re-read if needed,
+    // but for now, we'll rely on the API to update the store and
+    // the local state to reflect the UI changes.
+  }, []);
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof incomesFormSchema>) {
     setIsSubmitting(true);
     try {
-      // Convert Date objects to ISO strings before sending
-      const payload = {
-        ...values,
-        gigs: values.gigs.map(gig => ({
-          ...gig,
-          date: gig.date.toISOString(),
-        })),
-      };
-      
       const response = await fetch('/api/incomes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(values),
       });
 
       if (!response.ok) {
@@ -340,6 +320,8 @@ const IncomesPageComponent = () => {
         impressions: values.impressions,
         clicks: values.clicks,
         ctr: values.ctr,
+        orders: 0,
+        revenue: 0,
     };
 
     setIncomeSources(prevSources => 
@@ -828,7 +810,7 @@ const IncomesPageComponent = () => {
                 {gigsForMergeConfirmation.map(gig => (
                     <div key={gig.id} className="flex items-center space-x-2 rounded-md border p-3">
                         <RadioGroupItem value={gig.id} id={gig.id} />
-                        <Label htmlFor={gig.id} className="flex-grow font-normal cursor-pointer">{gig.name} ({format(new Date(gig.date), "PPP")})</Label>
+                        <Label htmlFor={gig.id} className="flex-grow font-normal cursor-pointer">{gig.name} ({format(new Date(gig.date.replace(/-/g, '/')), "PPP")})</Label>
                     </div>
                 ))}
             </RadioGroup>

@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     const json = await request.json();
     const parsedData = formSchema.parse(json);
 
-    const newSource = addIncomeSource(parsedData);
+    const newSource = await addIncomeSource(parsedData);
 
     return NextResponse.json(
       { message: 'Income source added successfully', source: newSource },
