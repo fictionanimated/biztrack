@@ -28,10 +28,12 @@ import {
   Notebook,
   Gauge,
   CalendarRange,
+  LogOut,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from "./theme-toggle";
 import NProgressLink from "./nprogress-link";
+import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -84,6 +86,11 @@ function AppLogo() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleSignOut = () => {
+    router.push("/");
+  };
   
   return (
     <SidebarProvider>
@@ -133,6 +140,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ))}
               <SidebarMenuItem>
                 <ThemeToggle />
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={handleSignOut} tooltip="Sign Out">
+                    <LogOut />
+                    <span className="group-data-[collapsed=true]:hidden">Sign Out</span>
+                </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
 
