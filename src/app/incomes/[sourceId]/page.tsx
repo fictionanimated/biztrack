@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, lazy, Suspense, useState } from "react";
+import { useMemo, lazy, Suspense, useState, useEffect } from "react";
 import { notFound, useParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -25,7 +25,7 @@ import StatCard from "@/components/dashboard/stat-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import NProgressLink from "@/components/layout/nprogress-link";
 import { Button } from "@/components/ui/button";
-import { initialIncomeSources, type IncomeSource } from "@/lib/data/incomes-data";
+import { type IncomeSource } from "@/lib/data/incomes-data";
 import { format } from "date-fns";
 
 import { type ChartConfig } from "@/components/ui/chart";
@@ -76,13 +76,38 @@ const getInitialDateRangeForSource = (source?: IncomeSource): DateRange => {
 export default function SourceAnalyticsPage() {
   const params = useParams();
   const sourceId = params.sourceId as string;
-  const source = useMemo(() => initialIncomeSources.find((s) => s.id === sourceId), [sourceId]);
+  const [source, setSource] = useState<IncomeSource | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!source) {
-    notFound();
-  }
+  useEffect(() => {
+    if (!sourceId) return;
+    const fetchSource = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/incomes/${sourceId}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch income source');
+        }
+        const data = await response.json();
+        setSource(data);
+      } catch (error) {
+        console.error("Error fetching source:", error);
+        setSource(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSource();
+  }, [sourceId]);
   
-  const [date, setDate] = useState<DateRange | undefined>(() => getInitialDateRangeForSource(source));
+  const [date, setDate] = useState<DateRange | undefined>(() => getInitialDateRangeForSource(source ?? undefined));
+
+  useEffect(() => {
+    if (source) {
+      setDate(getInitialDateRangeForSource(source));
+    }
+  }, [source]);
+
   const [activeMetrics, setActiveMetrics] = useState({
     impressions: true,
     clicks: true,
@@ -98,10 +123,25 @@ export default function SourceAnalyticsPage() {
     }));
   };
   
-  const { chartDataForRender, sourceStats } = useMemo(
-    () => processSourceData(source, date), 
-    [source, date]
-  );
+  const { chartDataForRender, sourceStats } = useMemo(() => {
+    if (!source) return { chartDataForRender: [], sourceStats: [] };
+    return processSourceData(source, date);
+  }, [source, date]);
+
+  if (loading) {
+    return (
+        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <Skeleton className="h-9 w-72" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-96 w-full" />
+            <Skeleton className="h-64 w-full" />
+        </main>
+    );
+  }
+  
+  if (!source) {
+    notFound();
+  }
   
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -189,7 +229,7 @@ export default function SourceAnalyticsPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {source.gigs.map(gig => (
+                    {source.gigs.map((gig) => (
                          <TableRow key={gig.id}>
                             <TableCell className="font-medium">
                                 <NProgressLink href={`/gigs/${gig.id}`} className="hover:underline">
