@@ -144,7 +144,7 @@ const ClientsPageComponent = () => {
         let clientsToFilter = [...clients];
 
         if (aiFilters) {
-            return clientsToFilter.filter(client => {
+            clientsToFilter = clientsToFilter.filter(client => {
                 if (aiFilters.nameOrUsername) {
                     const lowerQuery = aiFilters.nameOrUsername.toLowerCase();
                     if (!(client.name?.toLowerCase().includes(lowerQuery) || client.username.toLowerCase().includes(lowerQuery))) {
@@ -163,18 +163,19 @@ const ClientsPageComponent = () => {
                 if (aiFilters.minTotalOrders && client.totalOrders < aiFilters.minTotalOrders) {
                     return false;
                 }
-                if (client.lastOrder === 'N/A' && aiFilters.dateRange) {
-                    return false;
-                }
                 if (aiFilters.dateRange) {
-                    const lastOrderDate = new Date(client.lastOrder.replace(/-/g, '/'));
+                    // If client has no orders, they can't match a date range filter.
+                    if (client.lastOrder === 'N/A') {
+                        return false;
+                    }
+                    const lastOrderDate = new Date(client.lastOrder); // Direct conversion is fine for YYYY-MM-DD
                     if (aiFilters.dateRange.from) {
-                        const fromDate = new Date(aiFilters.dateRange.from.replace(/-/g, '/'));
+                        const fromDate = new Date(aiFilters.dateRange.from);
                         if (lastOrderDate < fromDate) return false;
                     }
                     if (aiFilters.dateRange.to) {
-                        const toDate = new Date(aiFilters.dateRange.to.replace(/-/g, '/'));
-                        toDate.setHours(23, 59, 59, 999);
+                        const toDate = new Date(aiFilters.dateRange.to);
+                        toDate.setHours(23, 59, 59, 999); // Include the whole end day
                         if (lastOrderDate > toDate) return false;
                     }
                 }
