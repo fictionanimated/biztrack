@@ -821,7 +821,7 @@ const OrdersPageComponent = () => {
                                                         placeholder="e.g., 4.2"
                                                         {...field}
                                                         onChange={(e) => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                                                        value={field.value ?? ""}
+                                                        value={field.value ?? ''}
                                                     />
                                                 </FormControl>
                                                 <FormMessage />
