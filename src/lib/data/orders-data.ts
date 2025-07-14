@@ -1,4 +1,6 @@
+
 import { z } from "zod";
+import type { ObjectId } from "mongodb";
 
 export const orderFormSchema = z.object({
   date: z.date({ required_error: "An order date is required." }),
@@ -21,6 +23,8 @@ export const orderFormSchema = z.object({
     path: ["cancellationReasons"],
 });
 
+export type OrderFormValues = z.infer<typeof orderFormSchema>;
+
 export const cancellationReasonsList = [
     "Cancelled without requirements",
     "Expectations beyond requirements",
@@ -31,6 +35,7 @@ export const cancellationReasonsList = [
 ];
 
 export interface Order {
+    _id?: ObjectId;
     id: string;
     clientUsername: string;
     date: string;
@@ -42,6 +47,7 @@ export interface Order {
     cancellationReasons?: string[];
 }
 
+// This data will no longer be used as we are fetching from the DB.
 export const initialOrders: Order[] = [
     { id: 'ORD001', clientUsername: 'olivia.m', date: '2024-05-20', amount: 1999.00, source: 'Web Design', gig: 'Acme Corp Redesign', status: 'Completed', rating: 5 },
     { id: 'ORD002', clientUsername: 'jackson.l', date: '2024-05-21', amount: 399.00, source: 'Consulting', gig: 'Q1 Strategy Session', status: 'Completed', rating: 4.2 },

@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
-import { CalendarIcon, MoreHorizontal, Star, ArrowUpDown, Edit, Trash2, Upload, FileUp } from "lucide-react";
+import { CalendarIcon, MoreHorizontal, Star, ArrowUpDown, Edit, Trash2, Upload, FileUp, Loader2 } from "lucide-react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -84,9 +84,10 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { DateFilter } from "@/components/dashboard/date-filter";
 import { Textarea } from "@/components/ui/textarea";
-import { initialIncomeSources } from "@/lib/data/incomes-data";
-import { initialOrders as staticOrders, type Order } from "@/lib/data/orders-data";
+import type { IncomeSource } from "@/lib/data/incomes-data";
+import { orderFormSchema, type Order, cancellationReasonsList, type OrderFormValues } from "@/lib/data/orders-data";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 const clients = [
@@ -95,41 +96,6 @@ const clients = [
   { username: "isabella.n", name: "Isabella Nguyen" },
   { username: "will.k", name: "William Kim" },
   { username: "sofia.d", name: "Sofia Davis" },
-];
-
-const incomeSourceNames = initialIncomeSources.map(s => s.name);
-
-const orderFormSchema = z.object({
-  date: z.date({ required_error: "An order date is required." }),
-  id: z.string().min(1, "Order ID is required."),
-  username: z.string().min(1, "Username is required."),
-  amount: z.coerce.number().positive({ message: "Amount must be positive." }),
-  source: z.string().min(1, "Source is required."),
-  gig: z.string().min(1, "Gig is required."),
-  status: z.enum(["Completed", "In Progress", "Cancelled"]),
-  rating: z.coerce.number().min(0, "Rating must be at least 0").max(5, "Rating cannot be more than 5").optional(),
-  cancellationReasons: z.array(z.string()).optional(),
-  customCancellationReason: z.string().optional(),
-}).refine(data => {
-    if (data.status === 'Cancelled') {
-        return (data.cancellationReasons?.length ?? 0) > 0 || (data.customCancellationReason?.trim() ?? "") !== "";
-    }
-    return true;
-}, {
-    message: "At least one cancellation reason must be provided for cancelled orders.",
-    path: ["cancellationReasons"],
-});
-
-
-export type OrderFormValues = z.infer<typeof orderFormSchema>;
-
-const cancellationReasonsList = [
-    "Cancelled without requirements",
-    "Expectations beyond requirements",
-    "Not satisfied with design",
-    "Not satisfied with animations",
-    "Late delivery",
-    "Unresponsive buyer",
 ];
 
 const StarDisplay = ({ rating }: { rating?: number }) => {
@@ -248,7 +214,10 @@ const OrdersTable = ({ orders, onEdit, onDelete }: OrdersTableProps) => {
 };
 
 const OrdersPageComponent = () => {
-    const [orders, setOrders] = useState<Order[]>(staticOrders);
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [importDialogOpen, setImportDialogOpen] = useState(false);
     const [singleImportDialogOpen, setSingleImportDialogOpen] = useState(false);
@@ -275,6 +244,35 @@ const OrdersPageComponent = () => {
         }
         return undefined;
     });
+
+     useEffect(() => {
+        async function fetchData() {
+            setIsLoading(true);
+            try {
+                const [ordersRes, incomesRes] = await Promise.all([
+                    fetch('/api/orders'),
+                    fetch('/api/incomes')
+                ]);
+
+                if (!ordersRes.ok || !incomesRes.ok) {
+                    throw new Error('Failed to fetch initial data');
+                }
+
+                const ordersData = await ordersRes.json();
+                const incomesData = await incomesRes.json();
+                
+                setOrders(ordersData);
+                setIncomeSources(incomesData);
+
+            } catch (e) {
+                console.error(e);
+                toast({ variant: "destructive", title: "Error", description: "Failed to load data." });
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchData();
+    }, [toast]);
 
     const createQueryString = useCallback(
         (paramsToUpdate: Record<string, string | null>) => {
@@ -305,7 +303,7 @@ const OrdersPageComponent = () => {
             const startOfYear = new Date(today.getFullYear(), 0, 1);
             setDate({ from: startOfYear, to: today });
         }
-    }, []);
+    }, [searchParams]);
 
     const sortConfig = useMemo(() => {
         if (!sortParam) return { key: 'date' as keyof Order, direction: 'descending' as const };
@@ -338,9 +336,9 @@ const OrdersPageComponent = () => {
 
     const availableGigs = useMemo(() => {
         if (!selectedSource) return [];
-        const sourceData = initialIncomeSources.find(s => s.name === selectedSource);
+        const sourceData = incomeSources.find(s => s.name === selectedSource);
         return sourceData ? sourceData.gigs : [];
-    }, [selectedSource]);
+    }, [selectedSource, incomeSources]);
 
     useEffect(() => {
         if (selectedSource) {
@@ -370,7 +368,7 @@ const OrdersPageComponent = () => {
             setEditingOrder(null);
             form.reset({
                 date: new Date(),
-                id: `ORD${Math.floor(Math.random() * 1000)}`,
+                id: "",
                 username: "",
                 amount: undefined,
                 source: "",
@@ -384,45 +382,71 @@ const OrdersPageComponent = () => {
         setDialogOpen(true);
     };
 
-    function onSubmit(values: OrderFormValues) {
-        let finalCancellationReasons: string[] | undefined = undefined;
-        if (values.status === 'Cancelled') {
-            const reasons = values.cancellationReasons || [];
-            if (values.customCancellationReason && values.customCancellationReason.trim()) {
-                reasons.push(values.customCancellationReason.trim());
+    async function onSubmit(values: OrderFormValues) {
+        setIsSubmitting(true);
+        try {
+            // This is just a placeholder logic for now.
+            // In a real app, this would be an API call.
+            let finalCancellationReasons: string[] | undefined = undefined;
+            if (values.status === 'Cancelled') {
+                const reasons = values.cancellationReasons || [];
+                if (values.customCancellationReason && values.customCancellationReason.trim()) {
+                    reasons.push(values.customCancellationReason.trim());
+                }
+                if (reasons.length > 0) {
+                    finalCancellationReasons = reasons;
+                }
             }
-            if (reasons.length > 0) {
-                finalCancellationReasons = reasons;
+
+            const orderPayload: Omit<Order, 'date'> & { date: Date } = {
+                id: values.id,
+                clientUsername: values.username,
+                date: values.date,
+                amount: values.amount,
+                source: values.source,
+                gig: values.gig,
+                status: values.status,
+                rating: values.rating,
+                cancellationReasons: finalCancellationReasons,
+            };
+
+            const response = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderPayload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to add order');
             }
-        }
-
-        const newOrder: Order = {
-            id: values.id,
-            clientUsername: values.username,
-            date: format(values.date, "yyyy-MM-dd"),
-            amount: values.amount,
-            source: values.source,
-            gig: values.gig,
-            status: values.status,
-            rating: values.rating,
-            cancellationReasons: finalCancellationReasons,
-        };
-
-        if (editingOrder) {
-            setOrders(orders.map(o => o.id === editingOrder.id ? newOrder : o));
+            
+            const newOrder = await response.json();
+            
+            if (editingOrder) {
+                setOrders(orders.map(o => o.id === editingOrder.id ? newOrder : o));
+                toast({
+                    title: "Order Updated",
+                    description: `Order ${newOrder.id} has been successfully updated.`,
+                });
+            } else {
+                setOrders([newOrder, ...orders]);
+                toast({
+                    title: "Order Added",
+                    description: `Order ${newOrder.id} has been successfully created.`,
+                });
+            }
+            setDialogOpen(false);
+            setEditingOrder(null);
+        } catch (error) {
             toast({
-                title: "Order Updated",
-                description: `Order ${newOrder.id} has been successfully updated.`,
+                variant: "destructive",
+                title: "Error",
+                description: (error as Error).message,
             });
-        } else {
-            setOrders([newOrder, ...orders]);
-            toast({
-                title: "Order Added",
-                description: `Order ${newOrder.id} has been successfully created.`,
-            });
+        } finally {
+            setIsSubmitting(false);
         }
-        setDialogOpen(false);
-        setEditingOrder(null);
     }
 
     const handleDeleteOrder = () => {
@@ -527,34 +551,11 @@ const OrdersPageComponent = () => {
         setVisibleOrdersCount(ORDERS_TO_LOAD);
     };
 
-
-  return (
-    <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-      <div className="flex items-center">
-        <h1 className="font-headline text-lg font-semibold md:text-2xl">
-          Orders
-        </h1>
-        <div className="ml-auto flex items-center gap-2">
-            <DateFilter date={date} setDate={handleSetDate} />
-             <Button variant="default" onClick={() => setSingleImportDialogOpen(true)}>
-                <FileUp className="mr-2 h-4 w-4" />
-                Import Single Order
-            </Button>
-            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-                <Upload className="mr-2 h-4 w-4" />
-                Import Orders
-            </Button>
-            <Button onClick={() => handleOpenDialog()}>Add New Order</Button>
-        </div>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Manage Orders</CardTitle>
-          <CardDescription>
-            A sortable list of all your recent orders.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    const renderContent = () => {
+        if (isLoading) {
+            return <Skeleton className="h-[400px] w-full" />
+        }
+        return (
             <Tabs defaultValue="in-progress" onValueChange={handleTabChange}>
                 <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="in-progress">In Progress ({inProgressOrders.length})</TabsTrigger>
@@ -598,6 +599,38 @@ const OrdersPageComponent = () => {
                     )}
                 </TabsContent>
             </Tabs>
+        )
+    }
+
+
+  return (
+    <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+      <div className="flex items-center">
+        <h1 className="font-headline text-lg font-semibold md:text-2xl">
+          Orders
+        </h1>
+        <div className="ml-auto flex items-center gap-2">
+            <DateFilter date={date} setDate={handleSetDate} />
+             <Button variant="default" onClick={() => setSingleImportDialogOpen(true)}>
+                <FileUp className="mr-2 h-4 w-4" />
+                Import Single Order
+            </Button>
+            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import Orders
+            </Button>
+            <Button onClick={() => handleOpenDialog()}>Add New Order</Button>
+        </div>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Manage Orders</CardTitle>
+          <CardDescription>
+            A sortable list of all your recent orders.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+            {renderContent()}
         </CardContent>
       </Card>
 
@@ -661,7 +694,7 @@ const OrdersPageComponent = () => {
                                         <FormItem>
                                             <FormLabel>Order ID*</FormLabel>
                                             <FormControl>
-                                            <Input placeholder="e.g., ORD006" {...field} disabled={!!editingOrder} />
+                                            <Input placeholder="Manually enter order ID" {...field} disabled={!!editingOrder} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -712,8 +745,8 @@ const OrdersPageComponent = () => {
                                                     </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        {incomeSourceNames.map(source => (
-                                                            <SelectItem key={source} value={source}>{source}</SelectItem>
+                                                        {incomeSources.map(source => (
+                                                            <SelectItem key={source.id} value={source.name}>{source.name}</SelectItem>
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
@@ -870,7 +903,10 @@ const OrdersPageComponent = () => {
                             <DialogClose asChild>
                                 <Button type="button" variant="secondary">Cancel</Button>
                             </DialogClose>
-                            <Button type="submit">{editingOrder ? 'Save Changes' : 'Add Order'}</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {editingOrder ? 'Save Changes' : 'Add Order'}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </Form>
@@ -913,8 +949,8 @@ const OrdersPageComponent = () => {
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        {incomeSourceNames.map(source => (
-                                            <SelectItem key={source} value={source}>{source}</SelectItem>
+                                        {incomeSources.map(source => (
+                                            <SelectItem key={source.id} value={source.name}>{source.name}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
@@ -977,8 +1013,8 @@ const OrdersPageComponent = () => {
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        {incomeSourceNames.map(source => (
-                                            <SelectItem key={source} value={source}>{source}</SelectItem>
+                                        {incomeSources.map(source => (
+                                            <SelectItem key={source.id} value={source.name}>{source.name}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>

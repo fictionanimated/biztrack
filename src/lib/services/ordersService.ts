@@ -1,0 +1,90 @@
+
+/**
+ * @fileoverview Service for managing order data.
+ * This service abstracts the data access layer for orders.
+ */
+import { z } from 'zod';
+import clientPromise from '@/lib/mongodb';
+import { type Order, orderFormSchema, type OrderFormValues } from '@/lib/data/orders-data';
+import { ObjectId } from 'mongodb';
+import { format } from 'date-fns';
+
+async function getOrdersCollection() {
+  const client = await clientPromise;
+  const db = client.db("biztrack-pro");
+  return db.collection<Omit<Order, 'id'>>('orders');
+}
+
+/**
+ * Seeds the database with initial data if the collection is empty.
+ */
+async function seedDatabase() {
+    const ordersCollection = await getOrdersCollection();
+    const count = await ordersCollection.countDocuments();
+    if (count === 0) {
+        console.log("Seeding 'orders' collection... No initial orders to seed.");
+    }
+}
+
+/**
+ * Retrieves all orders from the database.
+ * @returns A promise that resolves to an array of all orders.
+ */
+export async function getOrders(): Promise<Order[]> {
+  try {
+    const ordersCollection = await getOrdersCollection();
+    await seedDatabase();
+    const orders = await ordersCollection.find({}).sort({ date: -1 }).toArray();
+    
+    return orders.map(order => ({
+      ...order,
+      id: order._id.toString(),
+    } as Order));
+  } catch (error) {
+    console.error('Error fetching orders from DB:', error);
+    return [];
+  }
+}
+
+/**
+ * Adds a new order to the database.
+ * @param orderData - The data for the new order, validated against the form schema.
+ * @returns The newly created order object.
+ */
+export async function addOrder(orderData: OrderFormValues): Promise<Order> {
+    const ordersCollection = await getOrdersCollection();
+
+    let finalCancellationReasons: string[] | undefined = undefined;
+    if (orderData.status === 'Cancelled') {
+        const reasons = orderData.cancellationReasons || [];
+        if (orderData.customCancellationReason && orderData.customCancellationReason.trim()) {
+            reasons.push(orderData.customCancellationReason.trim());
+        }
+        if (reasons.length > 0) {
+            finalCancellationReasons = reasons;
+        }
+    }
+
+    const newOrderDocument: Omit<Order, 'id' | '_id'> = {
+        id: orderData.id,
+        clientUsername: orderData.username,
+        date: format(orderData.date, "yyyy-MM-dd"),
+        amount: orderData.amount,
+        source: orderData.source,
+        gig: orderData.gig,
+        status: orderData.status,
+        rating: orderData.rating,
+        cancellationReasons: finalCancellationReasons,
+    };
+
+    const result = await ordersCollection.insertOne(newOrderDocument as any);
+    if (!result.insertedId) {
+        throw new Error('Failed to insert new order.');
+    }
+
+    return {
+        ...newOrderDocument,
+        _id: result.insertedId,
+        id: newOrderDocument.id, // Use the user-provided ID
+    };
+}
