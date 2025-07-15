@@ -14,10 +14,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
   DialogDescription,
   DialogFooter,
   DialogClose,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -296,30 +296,31 @@ const MemoizedExpensesDashboard = () => {
       }
   };
 
- const filteredData = useMemo(() => {
-    let filtered = expenses;
-    let previousFiltered: Expense[] = [];
-
-    if (date?.from) {
-        const fromDate = date.from;
-        const toDate = date.to || new Date();
-
-        filtered = expenses.filter(exp => {
-            const expDate = new Date(exp.date.replace(/-/g, '/'));
-            const toDateEnd = new Date(toDate);
-            toDateEnd.setHours(23, 59, 59, 999);
-            return expDate >= fromDate && expDate <= toDateEnd;
-        });
-
-        const duration = differenceInDays(toDate, fromDate);
-        const prevToDate = subDays(fromDate, 1);
-        const prevFromDate = subDays(prevToDate, duration);
-        
-        previousFiltered = expenses.filter(exp => {
-            const expDate = new Date(exp.date.replace(/-/g, '/'));
-            return expDate >= prevFromDate && expDate <= prevToDate;
-        });
+  const filteredData = useMemo(() => {
+    if (!date) { // "All Time" is selected or initial state
+        return { filteredExpenses: expenses, previousPeriodExpenses: [] };
     }
+
+    const { from, to } = date;
+    if (!from || !to) { // Should not happen with current logic but good practice
+        return { filteredExpenses: expenses, previousPeriodExpenses: [] };
+    }
+
+    const filtered = expenses.filter(exp => {
+        const expDate = new Date(exp.date.replace(/-/g, '/'));
+        const toDateEnd = new Date(to);
+        toDateEnd.setHours(23, 59, 59, 999);
+        return expDate >= from && expDate <= toDateEnd;
+    });
+
+    const duration = differenceInDays(to, from);
+    const prevToDate = subDays(from, 1);
+    const prevFromDate = subDays(prevToDate, duration);
+    
+    const previousFiltered = expenses.filter(exp => {
+        const expDate = new Date(exp.date.replace(/-/g, '/'));
+        return expDate >= prevFromDate && expDate <= prevToDate;
+    });
 
     return { filteredExpenses: filtered, previousPeriodExpenses: previousFiltered };
   }, [expenses, date]);
@@ -507,6 +508,14 @@ const MemoizedExpensesDashboard = () => {
               />
           </Suspense>
 
+           <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+              <ExpensesTable
+                  expenses={filteredExpenses}
+                  onEdit={handleOpenDialog}
+                  onDelete={setDeletingExpense}
+              />
+          </Suspense>
+
           <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
                 {pieChartData.length > 0 ? (
                     <ExpenseChart data={pieChartData} />
@@ -515,16 +524,7 @@ const MemoizedExpensesDashboard = () => {
                         <p className="text-muted-foreground">No expense category data for this period.</p>
                     </div>
                 )}
-            </Suspense>
-
-          <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
-            <ExpensesTable
-                expenses={filteredExpenses}
-                onEdit={handleOpenDialog}
-                onDelete={setDeletingExpense}
-            />
-          </Suspense>
-          
+            </Suspense>          
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -629,6 +629,9 @@ const MemoizedExpensesDashboard = () => {
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                                 <div className="space-y-0.5">
                                     <FormLabel>Recurring Expense</FormLabel>
+                                    <FormDescription>
+                                        Mark this if it's a regular, predictable cost.
+                                    </FormDescription>
                                 </div>
                                 <FormControl>
                                     <Switch
@@ -690,3 +693,6 @@ const MemoizedExpensesDashboard = () => {
 }
 
 export const ExpensesDashboard = memo(MemoizedExpensesDashboard);
+
+
+    
