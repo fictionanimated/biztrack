@@ -298,27 +298,31 @@ const MemoizedExpensesDashboard = () => {
   };
 
  const filteredData = useMemo(() => {
-    if (!date?.from || !date?.to) return { filteredExpenses: [], previousPeriodExpenses: [] };
+    let filtered = expenses;
+    let previousFiltered = [];
 
-    const fromDate = date.from;
-    const toDate = date.to;
+    if (date?.from && date?.to) {
+        const fromDate = date.from;
+        const toDate = date.to;
 
-    const filtered = expenses.filter(exp => {
-      const expDate = new Date(exp.date.replace(/-/g, '/'));
-      return expDate >= fromDate && expDate <= toDate;
-    });
+        filtered = expenses.filter(exp => {
+            const expDate = new Date(exp.date.replace(/-/g, '/'));
+            const toDateEnd = new Date(toDate);
+            toDateEnd.setHours(23, 59, 59, 999);
+            return expDate >= fromDate && expDate <= toDateEnd;
+        });
 
-    const duration = differenceInDays(toDate, fromDate);
-    const prevToDate = subDays(fromDate, 1);
-    const prevFromDate = subDays(prevToDate, duration);
+        const duration = differenceInDays(toDate, fromDate);
+        const prevToDate = subDays(fromDate, 1);
+        const prevFromDate = subDays(prevToDate, duration);
+        
+        previousFiltered = expenses.filter(exp => {
+            const expDate = new Date(exp.date.replace(/-/g, '/'));
+            return expDate >= prevFromDate && expDate <= prevToDate;
+        });
+    }
 
-    const previousFiltered = expenses.filter(exp => {
-      const expDate = new Date(exp.date.replace(/-/g, '/'));
-      return expDate >= prevFromDate && expDate <= prevToDate;
-    });
-    
     return { filteredExpenses: filtered, previousPeriodExpenses: previousFiltered };
-
   }, [expenses, date]);
 
   const { filteredExpenses, previousPeriodExpenses } = filteredData;
@@ -329,7 +333,7 @@ const MemoizedExpensesDashboard = () => {
     const totalExpensesChange = prevTotalExpenses > 0 ? ((totalExpenses - prevTotalExpenses) / prevTotalExpenses) * 100 : null;
     
     const daysInPeriod = date?.from && date?.to ? differenceInDays(date.to, date.from) + 1 : 1;
-    const avgDailyBurn = totalExpenses / daysInPeriod;
+    const avgDailyBurn = totalExpenses / (daysInPeriod || 1);
     const prevDaysInPeriod = date?.from && date?.to ? differenceInDays(subDays(date.from, 1), subDays(subDays(date.from, 1), daysInPeriod - 1)) + 1 : 1;
     const prevAvgDailyBurn = prevTotalExpenses / (prevDaysInPeriod || 1);
     const avgDailyBurnChange = prevAvgDailyBurn > 0 ? ((avgDailyBurn - prevAvgDailyBurn) / prevAvgDailyBurn) * 100 : null;
@@ -490,19 +494,19 @@ const MemoizedExpensesDashboard = () => {
         )}
       <div className="grid grid-cols-1 gap-6">
           <ExpensesKpiCards {...kpiData} />
+          <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+              <ExpenseTrendChart
+                  data={trendChartData}
+                  previousData={previousTrendChartData}
+                  showComparison={showComparison}
+                  onShowComparisonChange={setShowComparison}
+                  chartView={chartView}
+                  onChartViewChange={setChartView}
+                  chartType={chartType}
+                  onChartTypeChange={setChartType}
+              />
+          </Suspense>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
-                <ExpenseTrendChart
-                    data={trendChartData}
-                    previousData={previousTrendChartData}
-                    showComparison={showComparison}
-                    onShowComparisonChange={setShowComparison}
-                    chartView={chartView}
-                    onChartViewChange={setChartView}
-                    chartType={chartType}
-                    onChartTypeChange={setChartType}
-                />
-            </Suspense>
             <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
                 {pieChartData.length > 0 ? (
                     <ExpenseChart data={pieChartData} />
@@ -512,12 +516,12 @@ const MemoizedExpensesDashboard = () => {
                     </div>
                 )}
             </Suspense>
-          </div>
-          <ExpensesTable
+             <ExpensesTable
               expenses={filteredExpenses}
               onEdit={handleOpenDialog}
               onDelete={setDeletingExpense}
           />
+          </div>
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

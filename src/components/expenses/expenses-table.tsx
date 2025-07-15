@@ -20,9 +20,9 @@ const ExpensesTableComponent = ({ expenses, onEdit, onDelete }: ExpensesTablePro
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Manage Expenses</CardTitle>
+                <CardTitle>Expense Transactions</CardTitle>
                 <CardDescription>
-                    Track and manage all your business expenses.
+                    A list of your expenses for the selected period.
                 </CardDescription>
             </CardHeader>
             <CardContent>
