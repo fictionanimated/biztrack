@@ -1,3 +1,4 @@
+
 "use client";
 
 import { memo } from "react";
@@ -22,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import type { Order } from "@/lib/data/orders-data";
+import NProgressLink from "../layout/nprogress-link";
 
 const StarDisplay = ({ rating }: { rating?: number | null }) => {
     if (rating === undefined || rating === null) return <span className="text-muted-foreground">N/A</span>;
@@ -61,7 +63,11 @@ const OrdersTableComponent = ({ orders, onEdit, onDelete }: OrdersTableProps) =>
                         <TableRow key={order.id}>
                             <TableCell>{format(order.dateObj, 'PPP')}</TableCell>
                             <TableCell className="font-medium">{order.id}</TableCell>
-                            <TableCell>{order.clientUsername}</TableCell>
+                            <TableCell>
+                                <NProgressLink href={`/clients/${order.clientUsername}`} className="font-medium hover:underline">
+                                    {order.clientUsername}
+                                </NProgressLink>
+                            </TableCell>
                             <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
                             <TableCell>
                                 <TooltipProvider>
