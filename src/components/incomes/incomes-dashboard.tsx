@@ -1,0 +1,292 @@
+
+"use client";
+
+import { useState, memo, useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import NProgressLink from "@/components/layout/nprogress-link";
+
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import type { IncomeSource, Gig } from "@/lib/data/incomes-data";
+import { Skeleton } from "@/components/ui/skeleton";
+import { IncomeSourceAccordion } from "./income-source-accordion";
+import { AddSourceDialog } from "./dialogs/add-source-dialog";
+import { AddGigDialog } from "./dialogs/add-gig-dialog";
+import { EditGigDialog } from "./dialogs/edit-gig-dialog";
+import { AddSourceDataDialog } from "./dialogs/add-source-data-dialog";
+import { AddGigDataDialog } from "./dialogs/add-gig-data-dialog";
+import { MergeGigsDialog } from "./dialogs/merge-gigs-dialog";
+import { DeleteGigDialog } from "./dialogs/delete-gig-dialog";
+
+export function IncomesDashboard() {
+  const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+  
+  const [isAddSourceDialogOpen, setIsAddSourceDialogOpen] = useState(false);
+
+  const [addGigDialogOpen, setAddGigDialogOpen] = useState(false);
+  const [addingToSourceId, setAddingToSourceId] = useState<string | null>(null);
+
+  const [editGigDialogOpen, setEditGigDialogOpen] = useState(false);
+  const [editingGigInfo, setEditingGigInfo] = useState<{sourceId: string; gig: Gig} | null>(null);
+  
+  const [isAddDataDialogOpen, setIsAddDataDialogOpen] = useState(false);
+  const [updatingSourceId, setUpdatingSourceId] = useState<string | null>(null);
+  
+  const [isAddGigDataDialogOpen, setIsAddGigDataDialogOpen] = useState(false);
+  const [updatingGigInfo, setUpdatingGigInfo] = useState<{sourceId: string; gigId: string} | null>(null);
+  
+  const [gigToDelete, setGigToDelete] = useState<{ gig: Gig, sourceId: string } | null>(null);
+  
+  const [sourceToDelete, setSourceToDelete] = useState<IncomeSource | null>(null);
+  const [isDeletingSource, setIsDeletingSource] = useState(false);
+
+  const fetchIncomeSources = async () => {
+    setIsLoading(true);
+    try {
+        const response = await fetch('/api/incomes');
+        if (!response.ok) {
+            throw new Error('Failed to fetch income sources');
+        }
+        const data = await response.json();
+        setIncomeSources(data);
+    } catch (error) {
+        console.error(error);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not load income sources. Please try again later.",
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchIncomeSources();
+  }, []);
+
+  const handleSourceAdded = (newSource: IncomeSource) => {
+    setIncomeSources(prev => [newSource, ...prev]);
+  };
+
+  const handleGigAdded = (newGig: Gig, sourceId: string) => {
+     setIncomeSources(prev => 
+        prev.map(source => {
+            if (source.id === sourceId) {
+                return { ...source, gigs: [...source.gigs, newGig].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) };
+            }
+            return source;
+        })
+    );
+  };
+
+  const handleGigUpdated = (updatedGig: Gig, sourceId: string) => {
+     setIncomeSources(prev => 
+        prev.map(source => {
+            if (source.id === sourceId) {
+                return {
+                    ...source,
+                    gigs: source.gigs.map(g => g.id === updatedGig.id ? updatedGig : g),
+                };
+            }
+            return source;
+        })
+    );
+  };
+  
+  const handleGigDataAdded = (updatedGig: Gig, sourceId: string) => {
+    setIncomeSources(prev => 
+        prev.map(source => {
+            if (source.id === sourceId) {
+                return {
+                    ...source,
+                    gigs: source.gigs.map(g => g.id === updatedGig.id ? updatedGig : g),
+                };
+            }
+            return source;
+        })
+    );
+  }
+
+  const handleDeleteGig = async (gig: Gig, sourceId: string) => {
+      setIncomeSources(prev => 
+          prev.map(source => {
+              if (source.id === sourceId) {
+                  return { ...source, gigs: source.gigs.filter(g => g.id !== gig.id) };
+              }
+              return source;
+          })
+      );
+  };
+
+  const handleDeleteSource = async () => {
+    if (!sourceToDelete) return;
+    setIsDeletingSource(true);
+    try {
+        const response = await fetch(`/api/incomes/${sourceToDelete.id}`, {
+            method: 'DELETE',
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete income source');
+        }
+        
+        setIncomeSources(prev => prev.filter(s => s.id !== sourceToDelete.id));
+        toast({ title: "Success", description: `Income source "${sourceToDelete.name}" deleted.` });
+
+    } catch (error) {
+        console.error(error);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not delete the income source. Please try again.",
+        });
+    } finally {
+        setIsDeletingSource(false);
+        setSourceToDelete(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <div className="flex items-center">
+                <Skeleton className="h-9 w-48" />
+                <Skeleton className="ml-auto h-10 w-32" />
+            </div>
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-6 w-72" />
+                    <Skeleton className="h-4 w-96 mt-2" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                </CardContent>
+            </Card>
+        </main>
+    )
+  }
+
+  return (
+    <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+      <div className="flex items-center">
+        <h1 className="font-headline text-lg font-semibold md:text-2xl">
+          Income Sources
+        </h1>
+        <div className="ml-auto">
+            <Button onClick={() => setIsAddSourceDialogOpen(true)}>Add New Source</Button>
+        </div>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Manage Your Income Sources</CardTitle>
+          <CardDescription>
+            Here you can add, edit, or delete your income sources and their gigs.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <IncomeSourceAccordion
+            incomeSources={incomeSources}
+            onAddGig={(sourceId) => { setAddingToSourceId(sourceId); setAddGigDialogOpen(true); }}
+            onAddSourceData={(sourceId) => { setUpdatingSourceId(sourceId); setIsAddDataDialogOpen(true); }}
+            onAddGigData={(sourceId, gigId) => { setUpdatingGigInfo({ sourceId, gigId }); setIsAddGigDataDialogOpen(true); }}
+            onEditGig={(sourceId, gig) => { setEditingGigInfo({ sourceId, gig }); setEditGigDialogOpen(true); }}
+            onDeleteGig={(sourceId, gig) => setGigToDelete({ sourceId, gig })}
+            onDeleteSource={setSourceToDelete}
+          />
+        </CardContent>
+      </Card>
+      
+      <AddSourceDialog 
+        open={isAddSourceDialogOpen} 
+        onOpenChange={setIsAddSourceDialogOpen} 
+        onSourceAdded={handleSourceAdded}
+      />
+      
+      <AddGigDialog
+        open={addGigDialogOpen}
+        onOpenChange={setAddGigDialogOpen}
+        sourceId={addingToSourceId}
+        onGigAdded={handleGigAdded}
+      />
+      
+      {editingGigInfo && (
+        <EditGigDialog
+          open={editGigDialogOpen}
+          onOpenChange={setEditGigDialogOpen}
+          editingGigInfo={editingGigInfo}
+          onGigUpdated={handleGigUpdated}
+        />
+      )}
+
+      {updatingSourceId && (
+        <AddSourceDataDialog 
+            open={isAddDataDialogOpen}
+            onOpenChange={setIsAddDataDialogOpen}
+            sourceId={updatingSourceId}
+            onDataAdded={() => { /* Can add state update if needed */ }}
+        />
+      )}
+
+      {updatingGigInfo && (
+        <AddGigDataDialog
+            open={isAddGigDataDialogOpen}
+            onOpenChange={setIsAddGigDataDialogOpen}
+            updatingGigInfo={updatingGigInfo}
+            onGigDataAdded={handleGigDataAdded}
+        />
+      )}
+
+      {gigToDelete && (
+        <DeleteGigDialog
+            gigToDelete={gigToDelete}
+            onOpenChange={(open) => !open && setGigToDelete(null)}
+            onGigDeleted={handleDeleteGig}
+        />
+      )}
+
+      <AlertDialog open={!!sourceToDelete} onOpenChange={() => setSourceToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently delete the income source "{sourceToDelete?.name}" and all of its associated gigs and data. This action cannot be undone.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteSource} disabled={isDeletingSource} className={cn(buttonVariants({ variant: "destructive" }))}>
+                    {isDeletingSource ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Delete
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </main>
+  );
+}
+
+const MemoizedIncomesDashboard = memo(IncomesDashboard);
