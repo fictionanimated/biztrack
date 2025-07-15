@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,6 +34,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import type { IncomeSource } from "@/lib/data/incomes-data";
 
 const addDataFormSchema = z.object({
     date: z.date({ required_error: "A date is required." }),
@@ -45,11 +46,13 @@ interface AddSourceDataDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     sourceId: string;
-    onDataAdded: (sourceId: string, data: AddDataFormValues) => void;
+    onDataAdded: (updatedSource: IncomeSource) => void;
 }
 
 export function AddSourceDataDialog({ open, onOpenChange, sourceId, onDataAdded }: AddSourceDataDialogProps) {
     const { toast } = useToast();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    
     const form = useForm<AddDataFormValues>({
         resolver: zodResolver(addDataFormSchema),
         defaultValues: {
@@ -58,12 +61,33 @@ export function AddSourceDataDialog({ open, onOpenChange, sourceId, onDataAdded 
         },
     });
 
-    function onSubmit(values: AddDataFormValues) {
-        // This function will need a corresponding API endpoint
-        console.log("Adding data to source:", sourceId, values);
-        onDataAdded(sourceId, values);
-        toast({ title: "Data Added (Simulated)" });
-        onOpenChange(false);
+    async function onSubmit(values: AddDataFormValues) {
+        setIsSubmitting(true);
+        try {
+            const response = await fetch(`/api/incomes/${sourceId}/data`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(values),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to add data to source');
+            }
+
+            const { source: updatedSource } = await response.json();
+            onDataAdded(updatedSource);
+            toast({ title: "Data Added", description: "New message data point saved." });
+            onOpenChange(false);
+        } catch (error) {
+            console.error(error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Could not save data. Please try again.",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     return (
@@ -134,7 +158,10 @@ export function AddSourceDataDialog({ open, onOpenChange, sourceId, onDataAdded 
                             <DialogClose asChild>
                                 <Button type="button" variant="secondary">Cancel</Button>
                             </DialogClose>
-                            <Button type="submit">Add Data</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Add Data
+                            </Button>
                         </DialogFooter>
                     </form>
                 </Form>

@@ -30,6 +30,12 @@ const addGigDataFormSchema = z.object({
 });
 type AddGigDataFormValues = z.infer<typeof addGigDataFormSchema>;
 
+const addSourceDataFormSchema = z.object({
+    date: z.date({ required_error: "A date is required." }),
+    messages: z.coerce.number().int().min(0, { message: "Number of messages must be a non-negative number." }),
+});
+type AddSourceDataFormValues = z.infer<typeof addSourceDataFormSchema>;
+
 
 async function getIncomesCollection() {
   const client = await clientPromise;
@@ -224,4 +230,35 @@ export async function addAnalyticsToGig(sourceId: string, gigId: string, analyti
 
     const updatedSource = await incomesCollection.findOne({ _id: new ObjectId(sourceId) });
     return updatedSource?.gigs.find(g => g.id === gigId) || null;
+}
+
+/**
+ * Adds a new general data point to an income source.
+ * @param sourceId The ID of the income source.
+ * @param dataPoint The new data point (date and messages).
+ * @returns The updated income source.
+ */
+export async function addDataToSource(sourceId: string, dataPoint: AddSourceDataFormValues): Promise<IncomeSource | null> {
+    const incomesCollection = await getIncomesCollection();
+    const _id = new ObjectId(sourceId);
+
+    const newDataPoint: SourceDataPoint = {
+        date: format(dataPoint.date, "yyyy-MM-dd"),
+        messages: dataPoint.messages,
+    };
+
+    const result = await incomesCollection.findOneAndUpdate(
+        { _id },
+        { $push: { dataPoints: newDataPoint } },
+        { returnDocument: 'after' }
+    );
+
+    if (!result) {
+        return null;
+    }
+    
+    return {
+        ...result,
+        id: result._id.toString(),
+    } as IncomeSource;
 }
