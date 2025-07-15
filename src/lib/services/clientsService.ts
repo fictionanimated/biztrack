@@ -16,24 +16,79 @@ async function getClientsCollection() {
 }
 
 /**
- * Retrieves all clients from the database.
- * @returns A promise that resolves to an array of all clients.
+ * Retrieves all clients from the database, aggregating their order data in real-time.
+ * @returns A promise that resolves to an array of all clients with up-to-date stats.
  */
 export async function getClients(): Promise<Client[]> {
   try {
     const clientsCollection = await getClientsCollection();
-    // find({}).toArray() returns all documents in the collection
-    const clients = await clientsCollection.find({}).sort({ clientSince: -1 }).toArray();
     
-    // The _id from MongoDB is an ObjectId, which is not directly serializable for Next.js API routes.
-    // We map it to a simple string.
-    return clients.map(client => ({
+    const aggregationPipeline = [
+      // Stage 1: Lookup orders for each client
+      {
+        '$lookup': {
+          'from': 'orders', 
+          'localField': 'username', 
+          'foreignField': 'clientUsername', 
+          'as': 'orders'
+        }
+      },
+      // Stage 2: Add fields to calculate totals and last order date
+      {
+        '$addFields': {
+          'totalOrders': { '$size': '$orders' }, 
+          'totalEarning': { '$sum': '$orders.amount' }, 
+          'lastOrder': { '$max': '$orders.date' },
+          'clientSince': { 
+            '$ifNull': [ 
+              '$clientSince', 
+              { '$dateToString': { 'format': '%Y-%m-%d', 'date': '$_id' } }
+            ] 
+          }
+        }
+      },
+       // Stage 3: Add clientType based on order count
+      {
+        '$addFields': {
+            'clientType': {
+                '$cond': {
+                    'if': { '$gt': ['$totalOrders', 1] },
+                    'then': 'Repeat',
+                    'else': 'New'
+                }
+            }
+        }
+      },
+      // Stage 4: Project the final fields to match the Client interface
+      {
+        '$project': {
+          '_id': 1,
+          'username': 1,
+          'name': 1,
+          'email': 1,
+          'avatarUrl': 1,
+          'source': 1,
+          'socialLinks': 1,
+          'notes': 1,
+          'tags': 1,
+          'isVip': 1,
+          'clientSince': 1,
+          'totalOrders': 1,
+          'totalEarning': 1,
+          'clientType': 1,
+          'lastOrder': { '$ifNull': ['$lastOrder', 'N/A'] } // Handle clients with no orders
+        }
+      }
+    ];
+
+    const clients = await clientsCollection.aggregate(aggregationPipeline).toArray();
+    
+    return clients.map((client: any) => ({
       ...client,
       id: client._id.toString(),
     } as Client));
   } catch (error) {
     console.error('Error fetching clients from DB:', error);
-    // In case of an error, return an empty array.
     return [];
   }
 }
@@ -64,8 +119,10 @@ export async function getClientByUsername(username: string): Promise<Client | nu
  */
 export async function addClient(clientData: ClientFormValues): Promise<Client> {
     const clientsCollection = await getClientsCollection();
+    const _id = new ObjectId();
 
-    const newClientDocument: Omit<Client, 'id' | '_id'> = {
+    const newClientDocument: Omit<Client, 'id' > = {
+        _id: _id,
         username: clientData.username,
         name: clientData.name || clientData.username,
         email: clientData.email || '',
@@ -89,7 +146,6 @@ export async function addClient(clientData: ClientFormValues): Promise<Client> {
 
     return {
         ...newClientDocument,
-        _id: result.insertedId,
         id: result.insertedId.toString(),
     };
 }
