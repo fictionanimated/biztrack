@@ -6,16 +6,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, subDays, differenceInDays } from "date-fns";
 import type { DateRange } from "react-day-picker";
-import { CalendarIcon, Pencil, Trash2, Loader2 } from "lucide-react";
+import { CalendarIcon, Pencil, Trash2, Loader2, Database } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -32,7 +30,6 @@ import {
 import {
     Form,
     FormControl,
-    FormDescription,
     FormField,
     FormItem,
     FormLabel,
@@ -61,7 +58,6 @@ import { expenseFormSchema, type Expense, type ExpenseFormValues } from "@/lib/d
 import { ExpensesKpiCards } from "./expenses-kpi-cards";
 import { ExpensesTable } from "./expenses-table";
 import { Alert, AlertTitle, AlertDescription as AlertDesc } from "@/components/ui/alert";
-import { Database } from "lucide-react";
 
 const ExpenseChart = lazy(() => import("@/components/expenses/expense-chart"));
 const ExpenseTrendChart = lazy(() => import("@/components/expenses/expense-trend-chart"));
@@ -82,7 +78,6 @@ const MemoizedExpensesDashboard = () => {
   const { toast } = useToast();
   
   const [date, setDate] = useState<DateRange | undefined>();
-  const [filterCategory, setFilterCategory] = useState('all');
   
   const [editingCategory, setEditingCategory] = useState<{ oldName: string; newName: string } | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
@@ -299,7 +294,7 @@ const MemoizedExpensesDashboard = () => {
 
  const filteredData = useMemo(() => {
     let filtered = expenses;
-    let previousFiltered = [];
+    let previousFiltered: Expense[] = [];
 
     if (date?.from && date?.to) {
         const fromDate = date.from;
@@ -506,22 +501,20 @@ const MemoizedExpensesDashboard = () => {
                   onChartTypeChange={setChartType}
               />
           </Suspense>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
-                {pieChartData.length > 0 ? (
-                    <ExpenseChart data={pieChartData} />
-                ) : (
-                    <div className="flex h-full items-center justify-center rounded-lg border">
-                        <p className="text-muted-foreground">No expense category data for this period.</p>
-                    </div>
-                )}
-            </Suspense>
-             <ExpensesTable
+          <ExpensesTable
               expenses={filteredExpenses}
               onEdit={handleOpenDialog}
               onDelete={setDeletingExpense}
           />
-          </div>
+          <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+              {pieChartData.length > 0 ? (
+                  <ExpenseChart data={pieChartData} />
+              ) : (
+                  <div className="flex h-full items-center justify-center rounded-lg border min-h-[300px]">
+                      <p className="text-muted-foreground">No expense category data for this period.</p>
+                  </div>
+              )}
+          </Suspense>
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -626,9 +619,7 @@ const MemoizedExpensesDashboard = () => {
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                                 <div className="space-y-0.5">
                                     <FormLabel>Recurring Expense</FormLabel>
-                                    <FormDescription>
-                                        Mark this if it's a regular, predictable cost.
-                                    </FormDescription>
+                                    <FormMessage />
                                 </div>
                                 <FormControl>
                                     <Switch
