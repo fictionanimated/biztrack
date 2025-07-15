@@ -20,16 +20,14 @@ const calculateMetricsForPeriod = (source: IncomeSource, periodFrom?: Date, peri
         return true;
     }
 
-    const analyticsMap = new Map<string, { impressions: number; clicks: number; orders: number; revenue: number; }>();
+    const analyticsMap = new Map<string, { impressions: number; clicks: number; }>();
     source.gigs.flatMap(gig => gig.analytics ?? [])
         .filter(analytic => isDateInRange(new Date(analytic.date.replace(/-/g, '/'))))
         .forEach(analytic => {
-            const existing = analyticsMap.get(analytic.date) || { impressions: 0, clicks: 0, orders: 0, revenue: 0 };
+            const existing = analyticsMap.get(analytic.date) || { impressions: 0, clicks: 0 };
             analyticsMap.set(analytic.date, {
                 impressions: existing.impressions + analytic.impressions,
                 clicks: existing.clicks + analytic.clicks,
-                orders: existing.orders + (analytic.orders || 0),
-                revenue: existing.revenue + (analytic.revenue || 0),
             });
         });
     const aggregatedAnalyticsData = Array.from(analyticsMap.entries())
@@ -38,8 +36,8 @@ const calculateMetricsForPeriod = (source: IncomeSource, periodFrom?: Date, peri
     
     const impressions = aggregatedAnalyticsData.reduce((acc, curr) => acc + curr.impressions, 0);
     const clicks = aggregatedAnalyticsData.reduce((acc, curr) => acc + curr.clicks, 0);
-    const orders = aggregatedAnalyticsData.reduce((acc, curr) => acc + (curr.orders || 0), 0);
-    const revenue = aggregatedAnalyticsData.reduce((acc, curr) => acc + (curr.revenue || 0), 0);
+    const orders = 0; // This will be calculated from the Orders collection now.
+    const revenue = 0; // This will be calculated from the Orders collection now.
 
     const messagesMap = new Map<string, { messages: number }>();
     (source.dataPoints ?? [])
@@ -165,7 +163,7 @@ export function processSourceData(source: IncomeSource, date: DateRange | undefi
     
     const combinedMap = new Map<string, { impressions?: number; clicks?: number; orders?: number; messages?: number }>();
     currentPeriodMetrics.aggregatedAnalytics.forEach(item => {
-        combinedMap.set(item.date, { ...combinedMap.get(item.date), impressions: item.impressions, clicks: item.clicks, orders: item.orders });
+        combinedMap.set(item.date, { ...combinedMap.get(item.date), impressions: item.impressions, clicks: item.clicks });
     });
     currentPeriodMetrics.aggregatedMessages.forEach(item => {
         combinedMap.set(item.date, { ...combinedMap.get(item.date), messages: item.messages });
@@ -176,7 +174,7 @@ export function processSourceData(source: IncomeSource, date: DateRange | undefi
 
     const prevCombinedMap = new Map<string, { impressions?: number; clicks?: number; orders?: number; messages?: number }>();
     prevPeriodMetrics.aggregatedAnalytics.forEach(item => {
-        prevCombinedMap.set(item.date, { ...prevCombinedMap.get(item.date), impressions: item.impressions, clicks: item.clicks, orders: item.orders });
+        prevCombinedMap.set(item.date, { ...prevCombinedMap.get(item.date), impressions: item.impressions, clicks: item.clicks });
     });
     prevPeriodMetrics.aggregatedMessages.forEach(item => {
         prevCombinedMap.set(item.date, { ...prevCombinedMap.get(item.date), messages: item.messages });

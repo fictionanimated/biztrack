@@ -1,7 +1,8 @@
+
 "use client";
 
-import { useState, useMemo, lazy, Suspense } from "react";
-import { ArrowUp, ArrowDown, ArrowLeft } from "lucide-react";
+import { useState, useMemo, lazy, Suspense, useEffect } from "react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -26,117 +27,12 @@ import { DateFilter } from "@/components/dashboard/date-filter";
 import { Skeleton } from "@/components/ui/skeleton";
 import NProgressLink from "@/components/layout/nprogress-link";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
+import { notFound, useParams, useRouter } from 'next/navigation';
+import type { GigAnalyticsData } from "@/lib/services/analyticsService";
+import { useToast } from "@/hooks/use-toast";
 
 const GigAnalyticsChart = lazy(() => import("@/components/gigs/analytics-chart"));
-
-// Mock data for a single gig. In a real app, you'd fetch this.
-const gigData = {
-  name: "Acme Corp Redesign",
-  source: "Web Design",
-  creationDate: "2023-01-15",
-  stats: [
-    {
-      icon: "Eye",
-      title: "Impressions",
-      value: "12,450",
-      change: "+20.1%",
-      changeType: "increase" as const,
-      description: "from last month",
-    },
-    {
-      icon: "MousePointerClick",
-      title: "Clicks",
-      value: "980",
-      change: "+15.2%",
-      changeType: "increase" as const,
-      description: "from last month",
-    },
-    {
-      icon: "MessageSquare",
-      title: "Messages",
-      value: "125",
-      change: "+30",
-      changeType: "increase" as const,
-      description: "from last month",
-    },
-    {
-      icon: "ShoppingCart",
-      title: "Orders",
-      value: "45",
-      change: "+5",
-      changeType: "increase" as const,
-      description: (
-        <div className="flex flex-wrap items-center gap-x-2">
-          <span>
-            RB: 20
-            <span className="ml-1 inline-flex items-center text-green-600">
-              (40%
-              <ArrowUp className="inline h-3 w-3" />)
-            </span>
-          </span>
-          <span>
-            NB: 10
-            <span className="ml-1 inline-flex items-center text-red-600">
-              (50%
-              <ArrowDown className="inline h-3 w-3" />)
-            </span>
-          </span>
-        </div>
-      ),
-    },
-    {
-      icon: "Percent",
-      title: "Click-Through Rate (CTR)",
-      value: "7.87%",
-      change: "-1.2%",
-      changeType: "decrease" as const,
-      description: "from last month",
-    },
-    {
-      icon: "DollarSign",
-      title: "Revenue",
-      value: "$2,250",
-      change: "+15%",
-      changeType: "increase" as const,
-      description: "from last month",
-    },
-    {
-      icon: "ShoppingCart",
-      title: "Total Source Orders",
-      value: "120",
-      description: "All orders from Web Design",
-    },
-  ],
-  analyticsData: [
-    { date: "2024-05-01", impressions: 300, clicks: 20, messages: 5, orders: 2 },
-    { date: "2024-05-05", impressions: 450, clicks: 35, messages: 10, orders: 4 },
-    { date: "2024-05-10", impressions: 600, clicks: 50, messages: 15, orders: 7 },
-    { date: "2024-05-15", impressions: 550, clicks: 45, messages: 20, orders: 6 },
-    { date: "2024-05-20", impressions: 700, clicks: 60, messages: 25, orders: 9 },
-    { date: "2024-05-25", impressions: 820, clicks: 75, messages: 30, orders: 12 },
-  ],
-  prevAnalyticsData: [
-    { date: "2024-04-01", impressions: 280, clicks: 18, messages: 4, orders: 1 },
-    { date: "2024-04-05", impressions: 420, clicks: 30, messages: 8, orders: 3 },
-    { date: "2024-04-10", impressions: 580, clicks: 48, messages: 12, orders: 5 },
-    { date: "2024-04-15", impressions: 520, clicks: 40, messages: 18, orders: 5 },
-    { date: "2024-04-20", impressions: 650, clicks: 55, messages: 22, orders: 7 },
-    { date: "2024-04-25", impressions: 780, clicks: 70, messages: 28, orders: 10 },
-  ],
-  mergeHistory: [
-    {
-      date: "2023-03-10",
-      mergedGig: "Old Acme Project",
-      action: "Merged into 'Acme Corp Redesign'",
-    },
-    {
-      date: "2023-02-20",
-      mergedGig: "Acme Landing Page Draft",
-      action: "Merged into 'Acme Corp Redesign'",
-    },
-  ],
-};
 
 const chartConfig = {
     impressions: { label: "Impressions", color: "hsl(var(--chart-1))" },
@@ -150,9 +46,21 @@ const chartConfig = {
   } as const;
 
 
-export default function GigAnalyticsPage({ params }: { params: { gigId: string } }) {
-  // In a real app, you would use params.gigId to fetch data.
-  // For now, we'll use the mock data.
+export default function GigAnalyticsPage() {
+  const params = useParams();
+  const gigId = params.gigId as string;
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const [analyticsData, setAnalyticsData] = useState<GigAnalyticsData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [date, setDate] = useState<DateRange | undefined>(() => {
+    const today = new Date();
+    const from = subDays(today, 29);
+    return { from, to: today };
+  });
+
   const [activeMetrics, setActiveMetrics] = useState<Record<string, boolean>>({
     impressions: true,
     clicks: true,
@@ -161,10 +69,43 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
   });
   const [showComparison, setShowComparison] = useState(false);
 
-  const [date, setDate] = useState<DateRange | undefined>({
-    from: new Date(gigData.analyticsData[0].date),
-    to: new Date(gigData.analyticsData[gigData.analyticsData.length - 1].date),
-  });
+  useEffect(() => {
+    async function fetchAnalytics() {
+        if (!gigId) return;
+        setIsLoading(true);
+
+        const from = date?.from ? format(date.from, 'yyyy-MM-dd') : undefined;
+        const to = date?.to ? format(date.to, 'yyyy-MM-dd') : undefined;
+
+        const query = new URLSearchParams({
+            ...(from && { from }),
+            ...(to && { to }),
+        }).toString();
+
+        try {
+            const res = await fetch(`/api/analytics/gig/${gigId}?${query}`);
+            if (res.status === 404) {
+                notFound();
+                return;
+            }
+            if (!res.ok) {
+                throw new Error('Failed to fetch analytics data');
+            }
+            const data: GigAnalyticsData = await res.json();
+            setAnalyticsData(data);
+        } catch (error) {
+            console.error("Error fetching gig analytics:", error);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Could not load analytics data for this gig."
+            })
+        } finally {
+            setIsLoading(false);
+        }
+    }
+    fetchAnalytics();
+  }, [gigId, date, toast]);
 
   const handleMetricToggle = (metric: keyof typeof chartConfig) => {
     setActiveMetrics((prev) => ({
@@ -173,47 +114,85 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
     }));
   };
 
-  const chartDataForRender = useMemo(() => {
-    const filterDataByPeriod = (dataToFilter: typeof gigData.analyticsData, periodFrom?: Date, periodTo?: Date) => {
-        if (!periodFrom || !periodTo) return [];
-        return dataToFilter.filter(item => {
-            const itemDate = new Date(item.date.replace(/-/g, "/"));
-            if (itemDate < periodFrom) return false;
-            const toDateEnd = new Date(periodTo);
-            toDateEnd.setHours(23, 59, 59, 999);
-            if (itemDate > toDateEnd) return false;
-            return true;
-        });
-    }
+  const statCards = useMemo(() => {
+      if (!analyticsData) return [];
+      const { totals } = analyticsData;
+      return [
+          {
+              icon: "DollarSign", title: "Revenue", value: `$${totals.revenue.toFixed(2)}`,
+              description: `from ${totals.orders} orders`,
+          },
+          {
+              icon: "ShoppingCart", title: "Orders", value: totals.orders.toString(),
+              description: "in selected period",
+          },
+          {
+              icon: "Eye", title: "Impressions", value: totals.impressions.toLocaleString(),
+              description: "in selected period",
+          },
+          {
+              icon: "MousePointerClick", title: "Clicks", value: totals.clicks.toLocaleString(),
+              description: "in selected period",
+          },
+          {
+              icon: "Percent", title: "Click-Through Rate (CTR)", value: `${totals.ctr.toFixed(2)}%`,
+              description: "Clicks / Impressions",
+          },
+          {
+              icon: "TrendingUp", title: "Conversion Rate", value: `${totals.conversionRate.toFixed(2)}%`,
+              description: "Orders / Impressions"
+          },
+          {
+              icon: "MessageSquare", title: "Messages", value: 'N/A', // Not available at gig level currently
+              description: "Feature coming soon",
+          },
+          {
+              icon: "ShoppingCart", title: "Total Source Orders", value: analyticsData.sourceTotalOrders?.toLocaleString() ?? 'N/A',
+              description: `All orders from ${analyticsData.sourceName}`,
+          },
+      ];
+  }, [analyticsData]);
 
-    const currentPeriodData = filterDataByPeriod(gigData.analyticsData, date?.from, date?.to);
+  if (isLoading) {
+    return (
+       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+            <div className="flex items-center">
+                <Skeleton className="h-9 w-96" />
+                <div className="ml-auto flex items-center gap-2">
+                    <Skeleton className="h-10 w-28" />
+                    <Skeleton className="h-10 w-[260px]" />
+                </div>
+            </div>
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-[400px] w-full" />
+       </main>
+    )
+  }
 
-    let prevPeriodData: typeof gigData.analyticsData = [];
-    if (date?.from && date.to) {
-        const duration = date.to.getTime() - date.from.getTime();
-        const prevTo = new Date(date.from.getTime() - 1);
-        const prevFrom = new Date(prevTo.getTime() - duration);
-        prevPeriodData = filterDataByPeriod(gigData.prevAnalyticsData, prevFrom, prevTo);
-    }
-    
-    return currentPeriodData.map((current, index) => {
-        const prev = prevPeriodData[index];
-        return {
-            ...current,
-            prevImpressions: prev?.impressions,
-            prevClicks: prev?.clicks,
-            prevMessages: prev?.messages,
-            prevOrders: prev?.orders,
-        }
-    });
-
-  }, [date]);
+  if (!analyticsData) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center p-8 text-center">
+          <Card className="w-full max-w-lg">
+              <CardHeader>
+                  <CardTitle>Could Not Load Analytics</CardTitle>
+                  <CardDescription>There was an issue fetching the data for this gig. Please try again later or check if the gig exists.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <Button variant="outline" onClick={() => router.back()}>
+                      <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
+                  </Button>
+              </CardContent>
+          </Card>
+      </div>
+    );
+  }
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
       <div className="flex items-center">
         <h1 className="font-headline text-lg font-semibold md:text-2xl">
-          Gig Analytics: <span className="text-primary">{gigData.name}</span>
+          Gig Analytics: <span className="text-primary">{analyticsData.gigName}</span>
         </h1>
         <div className="ml-auto flex items-center gap-2">
             <NProgressLink href="/incomes">
@@ -225,19 +204,19 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
             <DateFilter date={date} setDate={setDate} />
         </div>
       </div>
-       <CardDescription>From Income Source: {gigData.source}</CardDescription>
+       <CardDescription>From Income Source: {analyticsData.sourceName}</CardDescription>
 
       <section>
         <h2 className="text-xl font-semibold mb-4">Performance Overview</h2>
-        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {gigData.stats.map((stat) => (
-            <StatCard key={stat.title} {...stat} />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {statCards.map((stat, i) => (
+            <StatCard key={i} {...stat} />
           ))}
         </div>
       </section>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-         <Card className="lg:col-span-2">
+         <Card className="lg:col-span-3">
             <CardHeader>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -270,43 +249,8 @@ export default function GigAnalyticsPage({ params }: { params: { gigId: string }
             </CardHeader>
             <CardContent>
               <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
-                <GigAnalyticsChart data={chartDataForRender} activeMetrics={activeMetrics} showComparison={showComparison} />
+                <GigAnalyticsChart data={analyticsData.timeSeries} activeMetrics={activeMetrics} showComparison={showComparison} />
               </Suspense>
-            </CardContent>
-        </Card>
-         <Card>
-            <CardHeader>
-                <CardTitle>Gig History</CardTitle>
-                <CardDescription>
-                    Key events in this gig's lifecycle.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Event</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                         <TableRow>
-                            <TableCell>{format(new Date(gigData.creationDate.replace(/-/g, '/')), "PPP")}</TableCell>
-                            <TableCell>
-                                <Badge variant="secondary">Gig Created</Badge>
-                            </TableCell>
-                        </TableRow>
-                        {gigData.mergeHistory.map((event, index) => (
-                            <TableRow key={index}>
-                                <TableCell>{format(new Date(event.date.replace(/-/g, '/')), "PPP")}</TableCell>
-                                <TableCell>
-                                    <div className="font-medium">{event.action}</div>
-                                    <div className="text-sm text-muted-foreground">Source: {event.mergedGig}</div>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
             </CardContent>
         </Card>
       </div>
