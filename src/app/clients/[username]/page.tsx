@@ -74,7 +74,6 @@ export default function ClientDetailsPage() {
     async function fetchData() {
       if (!username) {
         setIsLoading(false);
-        // Do not call notFound() here, let the render logic handle it
         return;
       }
       setIsLoading(true);
@@ -86,7 +85,6 @@ export default function ClientDetailsPage() {
         ]);
         
         if (clientRes.status === 404) {
-          // Explicitly trigger notFound only when API confirms it
           notFound();
           return;
         }
@@ -94,6 +92,7 @@ export default function ClientDetailsPage() {
         if (!clientRes.ok || !incomesRes.ok || !ordersRes.ok) {
           throw new Error('Failed to fetch data');
         }
+        
         const currentClient: Client = await clientRes.json();
         const incomesData: IncomeSource[] = await incomesRes.json();
         const ordersData: Order[] = await ordersRes.json();
@@ -104,7 +103,6 @@ export default function ClientDetailsPage() {
 
       } catch (err) {
         console.error("Failed to fetch client details:", err);
-        // If it's a notFound error that was thrown, re-throw it.
         if ((err as any).digest?.startsWith('NEXT_NOT_FOUND')) {
           throw err;
         }

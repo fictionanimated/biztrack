@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Service for managing client data.
  * This service abstracts the data access layer for clients.
@@ -38,7 +37,7 @@ export async function getClients(): Promise<Client[]> {
         '$addFields': {
           'totalOrders': { '$size': '$orders' }, 
           'totalEarning': { '$sum': '$orders.amount' }, 
-          'lastOrder': { '$max': '$orders.date' },
+          'lastOrder': { '$ifNull': [ { '$max': '$orders.date' }, 'N/A' ] },
           'clientSince': { 
             '$ifNull': [ 
               '$clientSince', 
@@ -76,9 +75,10 @@ export async function getClients(): Promise<Client[]> {
           'totalOrders': 1,
           'totalEarning': 1,
           'clientType': 1,
-          'lastOrder': { '$ifNull': ['$lastOrder', 'N/A'] } // Handle clients with no orders
+          'lastOrder': 1,
         }
-      }
+      },
+      { '$sort': { 'lastOrder': -1 } }
     ];
 
     const clients = await clientsCollection.aggregate(aggregationPipeline).toArray();
@@ -94,23 +94,82 @@ export async function getClients(): Promise<Client[]> {
 }
 
 /**
- * Retrieves a single client by their username.
+ * Retrieves a single client by their username, with aggregated order data.
  * @param username - The username of the client to fetch.
- * @returns The client object, or null if not found.
+ * @returns The client object with calculated stats, or null if not found.
  */
 export async function getClientByUsername(username: string): Promise<Client | null> {
     const clientsCollection = await getClientsCollection();
-    const client = await clientsCollection.findOne({ username });
+    
+    const aggregationPipeline = [
+      { '$match': { 'username': username } },
+      { '$limit': 1 },
+      {
+        '$lookup': {
+          'from': 'orders', 
+          'localField': 'username', 
+          'foreignField': 'clientUsername', 
+          'as': 'orders'
+        }
+      },
+      {
+        '$addFields': {
+          'totalOrders': { '$size': '$orders' }, 
+          'totalEarning': { '$sum': '$orders.amount' }, 
+          'lastOrder': { '$ifNull': [ { '$max': '$orders.date' }, 'N/A' ] },
+          'clientSince': { 
+            '$ifNull': [ 
+              '$clientSince', 
+              { '$dateToString': { 'format': '%Y-%m-%d', 'date': '$_id' } }
+            ] 
+          }
+        }
+      },
+      {
+        '$addFields': {
+            'clientType': {
+                '$cond': {
+                    'if': { '$gt': ['$totalOrders', 1] },
+                    'then': 'Repeat',
+                    'else': 'New'
+                }
+            }
+        }
+      },
+      {
+        '$project': {
+          '_id': 1,
+          'username': 1,
+          'name': 1,
+          'email': 1,
+          'avatarUrl': 1,
+          'source': 1,
+          'socialLinks': 1,
+          'notes': 1,
+          'tags': 1,
+          'isVip': 1,
+          'clientSince': 1,
+          'totalOrders': 1,
+          'totalEarning': 1,
+          'clientType': 1,
+          'lastOrder': 1,
+        }
+      }
+    ];
 
-    if (!client) {
+    const results = await clientsCollection.aggregate(aggregationPipeline).toArray();
+    
+    if (results.length === 0) {
         return null;
     }
 
+    const client = results[0];
     return {
         ...client,
         id: client._id.toString(),
     } as Client;
 }
+
 
 /**
  * Adds a new client to the database.
@@ -119,10 +178,16 @@ export async function getClientByUsername(username: string): Promise<Client | nu
  */
 export async function addClient(clientData: ClientFormValues): Promise<Client> {
     const clientsCollection = await getClientsCollection();
+    
+    const existingClient = await clientsCollection.findOne({ username: clientData.username });
+    if (existingClient) {
+        throw new Error('A client with this username already exists.');
+    }
+
     const _id = new ObjectId();
 
-    const newClientDocument: Omit<Client, 'id' > = {
-        _id: _id,
+    const newClientDocument: Omit<Client, 'id' | 'totalOrders' | 'totalEarning' | 'lastOrder' | 'clientType'> & { _id: ObjectId } = {
+        _id,
         username: clientData.username,
         name: clientData.name || clientData.username,
         email: clientData.email || '',
@@ -132,11 +197,7 @@ export async function addClient(clientData: ClientFormValues): Promise<Client> {
         notes: clientData.notes || '',
         tags: clientData.tags ? clientData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         isVip: clientData.isVip || false,
-        clientType: 'New',
         clientSince: format(new Date(), 'yyyy-MM-dd'),
-        totalOrders: 0,
-        totalEarning: 0,
-        lastOrder: 'N/A',
     };
 
     const result = await clientsCollection.insertOne(newClientDocument as any);
@@ -147,6 +208,10 @@ export async function addClient(clientData: ClientFormValues): Promise<Client> {
     return {
         ...newClientDocument,
         id: result.insertedId.toString(),
+        totalOrders: 0,
+        totalEarning: 0,
+        lastOrder: 'N/A',
+        clientType: 'New',
     };
 }
 
@@ -165,24 +230,20 @@ export async function updateClient(clientId: string, clientData: ClientFormValue
         tags: clientData.tags ? clientData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
     };
     
-    const result = await clientsCollection.findOneAndUpdate(
+    const result = await clientsCollection.updateOne(
         { _id },
-        { $set: updateData },
-        { returnDocument: 'after' }
+        { $set: updateData }
     );
-
-    if (!result) {
+    
+    if (result.modifiedCount === 0 && result.upsertedCount === 0 && result.matchedCount === 0) {
         return null;
     }
 
-    // Convert the returned document to the Client type
-    const { _id: newId, ...rest } = result;
-    return {
-        _id: newId,
-        id: newId.toString(),
-        ...rest,
-    } as Client;
+    // Fetch the updated client with aggregated data
+    const updatedClient = await getClientByUsername(clientData.username);
+    return updatedClient;
 }
+
 
 /**
  * Deletes a client from the database by their ID.
