@@ -1,4 +1,3 @@
-
 "use client";
 
 import { memo } from "react";
@@ -24,19 +23,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import type { Order } from "@/lib/data/orders-data";
 
-const clients = [
-  { username: "olivia.m", name: "Olivia Martin" },
-  { username: "jackson.l", name: "Jackson Lee" },
-  { username: "isabella.n", name: "Isabella Nguyen" },
-  { username: "will.k", name: "William Kim" },
-  { username: "sofia.d", name: "Sofia Davis" },
-];
-
 const StarDisplay = ({ rating }: { rating?: number | null }) => {
     if (rating === undefined || rating === null) return <span className="text-muted-foreground">N/A</span>;
     return (
         <div className="flex items-center gap-1">
-            <Star className="h-4 w-4 text-primary" />
+            <Star className="h-4 w-4 text-primary fill-current" />
             <span>{rating.toFixed(1)}</span>
         </div>
     );
@@ -55,7 +46,7 @@ const OrdersTableComponent = ({ orders, onEdit, onDelete }: OrdersTableProps) =>
                 <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Order ID</TableHead>
-                    <TableHead>Client</TableHead>
+                    <TableHead>Client Username</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>Gig</TableHead>
@@ -70,7 +61,7 @@ const OrdersTableComponent = ({ orders, onEdit, onDelete }: OrdersTableProps) =>
                         <TableRow key={order.id}>
                             <TableCell>{format(order.dateObj, 'PPP')}</TableCell>
                             <TableCell className="font-medium">{order.id}</TableCell>
-                            <TableCell>{clients.find(c => c.username === order.clientUsername)?.name || order.clientUsername}</TableCell>
+                            <TableCell>{order.clientUsername}</TableCell>
                             <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
                             <TableCell>
                                 <TooltipProvider>
