@@ -143,8 +143,8 @@ export default function GigAnalyticsPage() {
               description: "Orders / Impressions"
           },
           {
-              icon: "MessageSquare", title: "Messages", value: 'N/A', // Not available at gig level currently
-              description: "Feature coming soon",
+              icon: "MessageSquare", title: "Source Messages", value: totals.messages.toLocaleString(),
+              description: `For entire ${analyticsData.sourceName} source`,
           },
           {
               icon: "ShoppingCart", title: "Total Source Orders", value: analyticsData.sourceTotalOrders?.toLocaleString() ?? 'N/A',
