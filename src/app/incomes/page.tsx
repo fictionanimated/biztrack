@@ -114,6 +114,8 @@ const addGigDataFormSchema = z.object({
     impressions: z.coerce.number().int().min(0, { message: "Impressions must be a non-negative number." }),
     clicks: z.coerce.number().int().min(0, { message: "Clicks must be a non-negative number." }),
     ctr: z.coerce.number().min(0, { message: "CTR must be a non-negative number." }),
+    orders: z.coerce.number().int().min(0, "Orders must be a non-negative number."),
+    revenue: z.coerce.number().min(0, "Revenue must be a non-negative number."),
 });
 type AddGigDataFormValues = z.infer<typeof addGigDataFormSchema>;
 
@@ -190,6 +192,8 @@ const IncomesPageComponent = () => {
         impressions: 0,
         clicks: 0,
         ctr: 0,
+        orders: 0,
+        revenue: 0,
     },
   });
   
@@ -355,12 +359,51 @@ const IncomesPageComponent = () => {
     setIsAddDataDialogOpen(false);
   }
 
-  function onAddGigDataSubmit(values: AddGigDataFormValues) {
-    // This function will need a corresponding API endpoint
+  async function onAddGigDataSubmit(values: AddGigDataFormValues) {
     if (!updatingGigInfo) return;
-    console.log("Adding data to gig:", updatingGigInfo, values);
-    toast({ title: "Gig Data Added (Simulated)" });
-    setIsAddGigDataDialogOpen(false);
+    setIsSubmitting(true);
+    const { sourceId, gigId } = updatingGigInfo;
+
+    try {
+        const response = await fetch(`/api/incomes/${sourceId}/gigs/${gigId}/analytics`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(values),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to add analytics data');
+        }
+        
+        const { gig: updatedGig } = await response.json();
+
+        setIncomeSources(prev => 
+            prev.map(source => {
+                if (source.id === sourceId) {
+                    return {
+                        ...source,
+                        gigs: source.gigs.map(g => g.id === gigId ? updatedGig : g),
+                    };
+                }
+                return source;
+            })
+        );
+        
+        toast({
+            title: "Analytics Data Added",
+            description: `New performance data added for the gig.`,
+        });
+        setIsAddGigDataDialogOpen(false);
+    } catch (error) {
+        console.error(error);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not add performance data. Please try again.",
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   }
 
 
@@ -784,7 +827,7 @@ const IncomesPageComponent = () => {
                                             sourceId: source.id,
                                             gigId: gig.id,
                                         });
-                                        addGigDataForm.reset({date: new Date(), impressions: 0, clicks: 0, ctr: 0});
+                                        addGigDataForm.reset({date: new Date(), impressions: 0, clicks: 0, ctr: 0, orders: 0, revenue: 0});
                                         setIsAddGigDataDialogOpen(true);
                                         }}
                                     >
@@ -1193,7 +1236,7 @@ const IncomesPageComponent = () => {
                             </FormItem>
                         )}
                     />
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                             control={addGigDataForm.control}
                             name="impressions"
@@ -1233,12 +1276,41 @@ const IncomesPageComponent = () => {
                                 </FormItem>
                             )}
                         />
+                        <FormField
+                            control={addGigDataForm.control}
+                            name="orders"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Orders</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" min="0" placeholder="e.g., 10" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </div>
+                    <FormField
+                        control={addGigDataForm.control}
+                        name="revenue"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Revenue</FormLabel>
+                                <FormControl>
+                                    <Input type="number" min="0" step="0.01" placeholder="e.g., 1500.00" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                     <DialogFooter>
                         <DialogClose asChild>
                             <Button type="button" variant="secondary">Cancel</Button>
                         </DialogClose>
-                        <Button type="submit">Add Data</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Add Data
+                        </Button>
                     </DialogFooter>
                 </form>
             </Form>

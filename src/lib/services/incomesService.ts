@@ -8,7 +8,7 @@ import { ObjectId } from 'mongodb';
 import { randomBytes } from 'crypto';
 
 import clientPromise from '@/lib/mongodb';
-import type { IncomeSource, Gig } from '@/lib/data/incomes-data';
+import type { IncomeSource, Gig, SourceDataPoint } from '@/lib/data/incomes-data';
 import { initialIncomeSources, formSchema } from '@/lib/data/incomes-data';
 
 const addGigFormSchema = z.object({
@@ -22,6 +22,16 @@ const editGigFormSchema = z.object({
     date: z.date({ required_error: "A date for the gig is required." }),
 });
 type EditGigFormValues = z.infer<typeof editGigFormSchema>;
+
+const addGigDataFormSchema = z.object({
+    date: z.date({ required_error: "A date is required." }),
+    impressions: z.coerce.number().int().min(0),
+    clicks: z.coerce.number().int().min(0),
+    ctr: z.coerce.number().min(0),
+    orders: z.coerce.number().int().min(0),
+    revenue: z.coerce.number().min(0),
+});
+type AddGigDataFormValues = z.infer<typeof addGigDataFormSchema>;
 
 
 async function getIncomesCollection() {
@@ -189,4 +199,32 @@ export async function deleteIncomeSource(sourceId: string): Promise<boolean> {
     const result = await incomesCollection.deleteOne({ _id: new ObjectId(sourceId) });
 
     return result.deletedCount > 0;
+}
+
+/**
+ * Adds a new analytics data point to a specific gig.
+ * @param sourceId The ID of the income source.
+ * @param gigId The ID of the gig to update.
+ * @param analyticsData The new analytics data point.
+ * @returns The updated gig object.
+ */
+export async function addAnalyticsToGig(sourceId: string, gigId: string, analyticsData: AddGigDataFormValues): Promise<Gig | null> {
+    const incomesCollection = await getIncomesCollection();
+
+    const newAnalyticPoint = {
+        ...analyticsData,
+        date: format(analyticsData.date, "yyyy-MM-dd"),
+    };
+
+    const result = await incomesCollection.updateOne(
+        { _id: new ObjectId(sourceId), "gigs.id": gigId },
+        { $push: { "gigs.$.analytics": newAnalyticPoint } }
+    );
+
+    if (result.modifiedCount === 0) {
+        throw new Error('Gig not found or failed to add analytics data.');
+    }
+
+    const updatedSource = await incomesCollection.findOne({ _id: new ObjectId(sourceId) });
+    return updatedSource?.gigs.find(g => g.id === gigId) || null;
 }
