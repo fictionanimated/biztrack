@@ -16,6 +16,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/alert-dialog";
 
 import { DateFilter } from "@/components/dashboard/date-filter";
@@ -44,11 +46,7 @@ const MemoizedExpensesDashboard = () => {
   
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   
-  const [date, setDate] = useState<DateRange | undefined>(() => {
-    const today = new Date();
-    const from = new Date(today.getFullYear(), today.getMonth(), 1);
-    return { from, to: today };
-  });
+  const [date, setDate] = useState<DateRange | undefined>();
   
   const [chartView, setChartView] = useState('daily');
   const [chartType, setChartType] = useState('line');
@@ -85,6 +83,10 @@ const MemoizedExpensesDashboard = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleSetDate = (newDate: DateRange | undefined) => {
+    setDate(newDate);
+  };
   
   const handleOpenFormDialog = (expense: Expense | null = null) => {
     setEditingExpense(expense);
@@ -129,10 +131,11 @@ const MemoizedExpensesDashboard = () => {
     }
 
     const { from, to } = date;
+    const toDateEnd = to ? new Date(to) : new Date();
+    toDateEnd.setHours(23, 59, 59, 999);
+
     const filtered = expenses.filter(exp => {
-        const expDate = new Date(exp.date.replace(/-/g, '/'));
-        const toDateEnd = to ? new Date(to) : new Date();
-        toDateEnd.setHours(23, 59, 59, 999);
+        const expDate = parseISO(exp.date);
         return expDate >= from && expDate <= toDateEnd;
     });
     
@@ -141,7 +144,7 @@ const MemoizedExpensesDashboard = () => {
     const prevFromDate = subDays(prevToDate, duration);
     
     const previousFiltered = expenses.filter(exp => {
-        const expDate = new Date(exp.date.replace(/-/g, '/'));
+        const expDate = parseISO(exp.date);
         return expDate >= prevFromDate && expDate <= prevToDate;
     });
 
@@ -153,10 +156,24 @@ const MemoizedExpensesDashboard = () => {
     const prevTotalExpenses = previousPeriodExpenses.reduce((acc, exp) => acc + exp.amount, 0);
     const totalExpensesChange = prevTotalExpenses > 0 ? ((totalExpenses - prevTotalExpenses) / prevTotalExpenses) * 100 : (totalExpenses > 0 ? 100 : 0);
     
-    const daysInPeriod = date?.from && date?.to ? differenceInDays(date.to, date.from) + 1 : 1;
-    const avgDailyBurn = totalExpenses / (daysInPeriod || 1);
+    let daysInPeriod = 1;
+    let previousPeriodDescription = `vs. previous period`;
+
+    if (date?.from && date?.to) {
+        daysInPeriod = differenceInDays(date.to, date.from) + 1;
+        previousPeriodDescription = `vs. previous ${daysInPeriod} days`;
+    } else if (filteredExpenses.length > 0) {
+        // Handle "All Time"
+        const dates = filteredExpenses.map(e => parseISO(e.date).getTime());
+        const firstDate = new Date(Math.min(...dates));
+        const lastDate = new Date(Math.max(...dates));
+        daysInPeriod = differenceInDays(lastDate, firstDate) + 1;
+        previousPeriodDescription = `from ${format(firstDate, "MMM d, yyyy")}`;
+    }
+
+    const avgDailyBurn = totalExpenses / (daysInPeriod > 0 ? daysInPeriod : 1);
     const prevDaysInPeriod = date?.from && date?.to ? differenceInDays(subDays(date.from, 1), subDays(subDays(date.from, 1), daysInPeriod - 1)) + 1 : 1;
-    const prevAvgDailyBurn = prevTotalExpenses / (prevDaysInPeriod || 1);
+    const prevAvgDailyBurn = prevTotalExpenses / (prevDaysInPeriod > 0 ? prevDaysInPeriod : 1);
     const avgDailyBurnChange = prevAvgDailyBurn > 0 ? ((avgDailyBurn - prevAvgDailyBurn) / prevAvgDailyBurn) * 100 : (avgDailyBurn > 0 ? 100 : 0);
 
     const categoryTotals = filteredExpenses.reduce((acc, { category, amount }) => {
@@ -175,8 +192,8 @@ const MemoizedExpensesDashboard = () => {
         totalExpenses,
         totalExpensesChange: totalExpensesChange ? { value: totalExpensesChange.toFixed(1), type: totalExpensesChange >= 0 ? 'increase' : 'decrease' } : null,
         avgDailyBurn,
-        avgDailyBurnChange: avgDailyBurnChange ? { value: avgDailyBurnChange.toFixed(1), type: avgDailyBurnChange >= 0 ? 'increase' : 'decrease' } : null,
-        previousPeriodDescription: `vs. previous ${daysInPeriod} days`,
+        avgDailyBurnChange: avgDailyBurnChange && date?.from ? { value: avgDailyBurnChange.toFixed(1), type: avgDailyBurnChange >= 0 ? 'increase' : 'decrease' } : null,
+        previousPeriodDescription,
         topSpendingCategory: { name: topSpendingCategory[0], amount: topSpendingCategory[1] },
         largestSingleExpense: { type: largestSingleExpense.type, amount: largestSingleExpense.amount },
         momExpenseGrowth: totalExpensesChange ? { value: totalExpensesChange.toFixed(1), type: totalExpensesChange >= 0 ? 'increase' : 'decrease' } : null,
@@ -203,6 +220,8 @@ const MemoizedExpensesDashboard = () => {
     const aggregateData = (data: Expense[], view: string) => {
         const dataMap = new Map<string, number>();
 
+        if (data.length === 0) return [];
+
         data.forEach(exp => {
             const expDate = parseISO(exp.date);
             let key = '';
@@ -211,13 +230,13 @@ const MemoizedExpensesDashboard = () => {
                     key = format(startOfWeek(expDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
                     break;
                 case 'monthly':
-                    key = format(startOfMonth(expDate), 'yyyy-MM');
+                    key = format(startOfMonth(expDate), 'yyyy-MM-dd');
                     break;
                 case 'quarterly':
-                    key = `${getYear(expDate)}-Q${getQuarter(expDate)}`;
+                    key = format(startOfQuarter(expDate), 'yyyy-MM-dd');
                     break;
                 case 'yearly':
-                    key = getYear(expDate).toString();
+                    key = format(startOfYear(expDate), 'yyyy');
                     break;
                 default: // daily
                     key = exp.date;
@@ -255,7 +274,7 @@ const MemoizedExpensesDashboard = () => {
           Expenses
         </h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <DateFilter date={date} setDate={setDate} />
+          <DateFilter date={date} setDate={handleSetDate} />
           <Button variant="outline" onClick={() => setIsCategoryDialogOpen(true)}>Manage Categories</Button>
           <Button onClick={() => handleOpenFormDialog()}>Add New Expense</Button>
         </div>
@@ -286,22 +305,16 @@ const MemoizedExpensesDashboard = () => {
           </Suspense>
 
           <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
-                {distributionChartData.length > 0 ? (
-                    <ExpenseDistributionBarChart data={distributionChartData} />
-                ) : (
-                    <div className="flex h-full items-center justify-center rounded-lg border min-h-[300px]">
-                        <p className="text-muted-foreground">No expense category data for this period.</p>
-                    </div>
-                )}
-            </Suspense>
+            <ExpenseDistributionBarChart data={distributionChartData} />
+          </Suspense>
             
-            <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
-                <ExpensesTable
-                    expenses={filteredExpenses}
-                    onEdit={handleOpenFormDialog}
-                    onDelete={setDeletingExpense}
-                />
-            </Suspense>
+          <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+              <ExpensesTable
+                  expenses={filteredExpenses}
+                  onEdit={handleOpenFormDialog}
+                  onDelete={setDeletingExpense}
+              />
+          </Suspense>
       </div>
       
       <ExpenseFormDialog
