@@ -12,10 +12,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
   DialogDescription,
+  DialogHeader,
+  DialogTitle,
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
@@ -61,7 +61,7 @@ import { ExpensesKpiCards } from "./expenses-kpi-cards";
 import { ExpensesTable } from "./expenses-table";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-const ExpenseChart = lazy(() => import("@/components/expenses/expense-chart"));
+const ExpenseDistributionBarChart = lazy(() => import("@/components/expenses/expense-distribution-bar-chart"));
 const ExpenseTrendChart = lazy(() => import("@/components/expenses/expense-trend-chart"));
 
 const MemoizedExpensesDashboard = () => {
@@ -92,6 +92,10 @@ const MemoizedExpensesDashboard = () => {
   const [chartType, setChartType] = useState('line');
   const [showComparison, setShowComparison] = useState(false);
 
+  const handleSetDate = (newDate: DateRange | undefined) => {
+    setDate(newDate);
+  };
+  
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
@@ -292,13 +296,11 @@ const MemoizedExpensesDashboard = () => {
   };
 
   const { filteredExpenses, previousPeriodExpenses } = useMemo(() => {
-    const { from, to } = date || {};
-
-    // If no date range is selected (All Time), return all expenses
-    if (!from || !to) {
+    if (!date?.from || !date.to) {
         return { filteredExpenses: expenses, previousPeriodExpenses: [] };
     }
 
+    const { from, to } = date;
     const filtered = expenses.filter(exp => {
         const expDate = new Date(exp.date.replace(/-/g, '/'));
         const toDateEnd = new Date(to);
@@ -355,18 +357,16 @@ const MemoizedExpensesDashboard = () => {
     };
   }, [filteredExpenses, previousPeriodExpenses, date]);
 
-  const pieChartData = useMemo(() => {
-    const colors = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
+  const distributionChartData = useMemo(() => {
     const categoryTotals = filteredExpenses.reduce((acc, { category, amount }) => {
         acc[category] = (acc[category] || 0) + amount;
         return acc;
     }, {} as Record<string, number>);
 
     return Object.entries(categoryTotals)
-        .map(([name, amount], index) => ({
+        .map(([name, amount]) => ({
             name,
             amount,
-            fill: colors[index % colors.length]
         }))
         .sort((a, b) => b.amount - a.amount);
   }, [filteredExpenses]);
@@ -406,7 +406,7 @@ const MemoizedExpensesDashboard = () => {
           Expenses
         </h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <DateFilter date={date} setDate={setDate} />
+          <DateFilter date={date} setDate={handleSetDate} />
           <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline">Manage Categories</Button>
@@ -509,10 +509,10 @@ const MemoizedExpensesDashboard = () => {
                         />
                     </Suspense>
                 </div>
-                <div className="col-span-1">
+                 <div className="col-span-1">
                     <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
-                        {pieChartData.length > 0 ? (
-                            <ExpenseChart data={pieChartData} />
+                        {distributionChartData.length > 0 ? (
+                            <ExpenseDistributionBarChart data={distributionChartData} />
                         ) : (
                             <div className="flex h-full items-center justify-center rounded-lg border min-h-[300px]">
                                 <p className="text-muted-foreground">No expense category data for this period.</p>
@@ -625,9 +625,9 @@ const MemoizedExpensesDashboard = () => {
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                                 <div className="space-y-0.5">
                                     <FormLabel>Recurring Expense</FormLabel>
-                                    <DialogDescription>
+                                    <FormDescription>
                                         Mark this if it's a regular, predictable cost.
-                                    </DialogDescription>
+                                    </FormDescription>
                                 </div>
                                 <FormControl>
                                     <Switch
