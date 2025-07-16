@@ -79,7 +79,11 @@ const MemoizedExpensesDashboard = () => {
   const [newCategory, setNewCategory] = useState("");
   const { toast } = useToast();
   
-  const [date, setDate] = useState<DateRange | undefined>();
+  const [date, setDate] = useState<DateRange | undefined>(() => {
+    const today = new Date();
+    const from = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { from, to: today };
+  });
   
   const [editingCategory, setEditingCategory] = useState<{ oldName: string; newName: string } | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
@@ -117,15 +121,6 @@ const MemoizedExpensesDashboard = () => {
     }
     fetchData();
   }, [toast]);
-
-
-  useEffect(() => {
-    if(!date) {
-        const today = new Date();
-        const from = new Date(today.getFullYear(), today.getMonth(), 1);
-        setDate({ from, to: today });
-    }
-  }, [date]);
   
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
@@ -299,6 +294,7 @@ const MemoizedExpensesDashboard = () => {
   const { filteredExpenses, previousPeriodExpenses } = useMemo(() => {
     const { from, to } = date || {};
 
+    // If no date range is selected (All Time), return all expenses
     if (!from || !to) {
         return { filteredExpenses: expenses, previousPeriodExpenses: [] };
     }
@@ -503,24 +499,27 @@ const MemoizedExpensesDashboard = () => {
               />
           </Suspense>
 
-          <div className="grid grid-cols-1 gap-6">
-            <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
-                <ExpensesTable
-                    expenses={filteredExpenses}
-                    onEdit={handleOpenDialog}
-                    onDelete={setDeletingExpense}
-                />
-            </Suspense>
-            
-            <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
-                {pieChartData.length > 0 ? (
-                    <ExpenseChart data={pieChartData} />
-                ) : (
-                    <div className="flex h-full items-center justify-center rounded-lg border min-h-[300px]">
-                        <p className="text-muted-foreground">No expense category data for this period.</p>
-                    </div>
-                )}
-            </Suspense>
+            <div className="grid grid-cols-1 gap-6">
+                <div className="col-span-1">
+                    <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+                        <ExpensesTable
+                            expenses={filteredExpenses}
+                            onEdit={handleOpenDialog}
+                            onDelete={setDeletingExpense}
+                        />
+                    </Suspense>
+                </div>
+                <div className="col-span-1">
+                    <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+                        {pieChartData.length > 0 ? (
+                            <ExpenseChart data={pieChartData} />
+                        ) : (
+                            <div className="flex h-full items-center justify-center rounded-lg border min-h-[300px]">
+                                <p className="text-muted-foreground">No expense category data for this period.</p>
+                            </div>
+                        )}
+                    </Suspense>
+                </div>
           </div>
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
