@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Switch } from "@/components/ui/switch";
 
 interface ExpenseTrendData {
@@ -62,8 +62,7 @@ export default function ExpenseTrendChart({ data, previousData, showComparison, 
   
   const chartData = useMemo(() => {
     return data.map((current, index) => ({
-      date: current.date,
-      amount: current.amount,
+      ...current,
       previousAmount: previousData[index]?.amount ?? null,
     }));
   }, [data, previousData]);
@@ -72,16 +71,15 @@ export default function ExpenseTrendChart({ data, previousData, showComparison, 
     try {
         switch (chartView) {
             case 'weekly':
-                return `W/C ${format(new Date(value.replace(/-/g, '/')), "MMM d")}`;
+                return `W/C ${format(parseISO(value), "MMM d")}`;
             case 'monthly':
-                const [year, month] = value.split('-');
-                return format(new Date(Number(year), Number(month) - 1), "MMM yyyy");
+                return format(parseISO(value), "MMM yyyy");
             case 'quarterly':
                 return value;
             case 'yearly':
                 return value;
             default: // daily
-                return format(new Date(value.replace(/-/g, '/')), "MMM d");
+                return format(parseISO(value), "MMM d");
         }
     } catch (e) {
         return value;
@@ -161,7 +159,7 @@ export default function ExpenseTrendChart({ data, previousData, showComparison, 
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tickFormatter={(value) => `$${value > 1000 ? `${value / 1000}k` : value }`}
+                  tickFormatter={(value) => `$${value >= 1000 ? `${value / 1000}k` : value }`}
                 />
                 <Tooltip
                   cursor={false}
@@ -211,7 +209,7 @@ export default function ExpenseTrendChart({ data, previousData, showComparison, 
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tickFormatter={(value) => `$${value > 1000 ? `${value / 1000}k` : value }`}
+                  tickFormatter={(value) => `$${value >= 1000 ? `${value / 1000}k` : value }`}
                 />
                 <Tooltip
                   cursor={false}

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, memo, useEffect, lazy, Suspense, useMemo } from "react";
-import { format, subDays, differenceInDays } from "date-fns";
+import { format, subDays, differenceInDays, startOfWeek, startOfMonth, getQuarter, getYear, parseISO, startOfQuarter, startOfYear } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { Loader2, Database } from "lucide-react";
 
@@ -54,10 +54,6 @@ const MemoizedExpensesDashboard = () => {
   const [chartType, setChartType] = useState('line');
   const [showComparison, setShowComparison] = useState(false);
   const { toast } = useToast();
-
-  const handleSetDate = (newDate: DateRange | undefined) => {
-    setDate(newDate);
-  };
   
   const fetchData = async () => {
       setIsLoading(true);
@@ -128,19 +124,19 @@ const MemoizedExpensesDashboard = () => {
   };
 
   const { filteredExpenses, previousPeriodExpenses } = useMemo(() => {
-    if (!date?.from || !date.to) {
+    if (!date?.from) {
         return { filteredExpenses: expenses, previousPeriodExpenses: [] };
     }
 
     const { from, to } = date;
     const filtered = expenses.filter(exp => {
         const expDate = new Date(exp.date.replace(/-/g, '/'));
-        const toDateEnd = new Date(to);
+        const toDateEnd = to ? new Date(to) : new Date();
         toDateEnd.setHours(23, 59, 59, 999);
         return expDate >= from && expDate <= toDateEnd;
     });
     
-    const duration = differenceInDays(to, from);
+    const duration = differenceInDays(to || new Date(), from);
     const prevToDate = subDays(from, 1);
     const prevFromDate = subDays(prevToDate, duration);
     
@@ -155,13 +151,13 @@ const MemoizedExpensesDashboard = () => {
   const kpiData = useMemo(() => {
     const totalExpenses = filteredExpenses.reduce((acc, exp) => acc + exp.amount, 0);
     const prevTotalExpenses = previousPeriodExpenses.reduce((acc, exp) => acc + exp.amount, 0);
-    const totalExpensesChange = prevTotalExpenses > 0 ? ((totalExpenses - prevTotalExpenses) / prevTotalExpenses) * 100 : null;
+    const totalExpensesChange = prevTotalExpenses > 0 ? ((totalExpenses - prevTotalExpenses) / prevTotalExpenses) * 100 : (totalExpenses > 0 ? 100 : 0);
     
     const daysInPeriod = date?.from && date?.to ? differenceInDays(date.to, date.from) + 1 : 1;
     const avgDailyBurn = totalExpenses / (daysInPeriod || 1);
     const prevDaysInPeriod = date?.from && date?.to ? differenceInDays(subDays(date.from, 1), subDays(subDays(date.from, 1), daysInPeriod - 1)) + 1 : 1;
     const prevAvgDailyBurn = prevTotalExpenses / (prevDaysInPeriod || 1);
-    const avgDailyBurnChange = prevAvgDailyBurn > 0 ? ((avgDailyBurn - prevAvgDailyBurn) / prevAvgDailyBurn) * 100 : null;
+    const avgDailyBurnChange = prevAvgDailyBurn > 0 ? ((avgDailyBurn - prevAvgDailyBurn) / prevAvgDailyBurn) * 100 : (avgDailyBurn > 0 ? 100 : 0);
 
     const categoryTotals = filteredExpenses.reduce((acc, { category, amount }) => {
         acc[category] = (acc[category] || 0) + amount;
@@ -203,23 +199,44 @@ const MemoizedExpensesDashboard = () => {
         .sort((a, b) => b.amount - a.amount);
   }, [filteredExpenses]);
 
- const trendChartData = useMemo(() => {
-    const dataMap = new Map<string, number>();
-    filteredExpenses.forEach(exp => {
-        const dateKey = format(new Date(exp.date.replace(/-/g, '/')), 'yyyy-MM-dd');
-        dataMap.set(dateKey, (dataMap.get(dateKey) || 0) + exp.amount);
-    });
-    return Array.from(dataMap.entries()).map(([date, amount]) => ({ date, amount })).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
- }, [filteredExpenses]);
+ const { trendChartData, previousTrendChartData } = useMemo(() => {
+    const aggregateData = (data: Expense[], view: string) => {
+        const dataMap = new Map<string, number>();
 
- const previousTrendChartData = useMemo(() => {
-    const dataMap = new Map<string, number>();
-    previousPeriodExpenses.forEach(exp => {
-        const dateKey = format(new Date(exp.date.replace(/-/g, '/')), 'yyyy-MM-dd');
-        dataMap.set(dateKey, (dataMap.get(dateKey) || 0) + exp.amount);
-    });
-    return Array.from(dataMap.entries()).map(([date, amount]) => ({ date, amount })).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
- }, [previousPeriodExpenses]);
+        data.forEach(exp => {
+            const expDate = parseISO(exp.date);
+            let key = '';
+            switch(view) {
+                case 'weekly':
+                    key = format(startOfWeek(expDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                    break;
+                case 'monthly':
+                    key = format(startOfMonth(expDate), 'yyyy-MM');
+                    break;
+                case 'quarterly':
+                    key = `${getYear(expDate)}-Q${getQuarter(expDate)}`;
+                    break;
+                case 'yearly':
+                    key = getYear(expDate).toString();
+                    break;
+                default: // daily
+                    key = exp.date;
+                    break;
+            }
+            dataMap.set(key, (dataMap.get(key) || 0) + exp.amount);
+        });
+
+        return Array.from(dataMap.entries())
+            .map(([date, amount]) => ({ date, amount }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+    };
+
+    return {
+        trendChartData: aggregateData(filteredExpenses, chartView),
+        previousTrendChartData: aggregateData(previousPeriodExpenses, chartView),
+    };
+ }, [filteredExpenses, previousPeriodExpenses, chartView]);
+
 
   if (isLoading) {
     return (
@@ -238,7 +255,7 @@ const MemoizedExpensesDashboard = () => {
           Expenses
         </h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <DateFilter date={date} setDate={handleSetDate} />
+          <DateFilter date={date} setDate={setDate} />
           <Button variant="outline" onClick={() => setIsCategoryDialogOpen(true)}>Manage Categories</Button>
           <Button onClick={() => handleOpenFormDialog()}>Add New Expense</Button>
         </div>
@@ -268,7 +285,7 @@ const MemoizedExpensesDashboard = () => {
               />
           </Suspense>
 
-            <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+          <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
                 {distributionChartData.length > 0 ? (
                     <ExpenseDistributionBarChart data={distributionChartData} />
                 ) : (
