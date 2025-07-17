@@ -4,7 +4,7 @@
 import { useState, useMemo, useCallback, lazy, Suspense, memo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addMonths, subMonths, startOfMonth } from "date-fns";
+import { format, addMonths, subMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, Loader2, Database } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -52,6 +52,10 @@ const CalendarView = lazy(() => import("@/components/daily-summary/calendar-view
 const parseDateString = (dateString: string): Date => {
   if (!dateString) return new Date();
   // Handles both '2024-07-15T00:00:00.000Z' and '2024-07-15'
+  if (typeof dateString !== 'string') {
+    // If it's already a Date object, just return it.
+    return dateString;
+  }
   const datePart = dateString.split('T')[0];
   const [year, month, day] = datePart.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day));
@@ -117,7 +121,7 @@ const DailySummaryPageComponent = () => {
     const apiEndpoint = editingSummary ? `/api/daily-summaries/${editingSummary.id}` : '/api/daily-summaries';
     const method = editingSummary ? 'PUT' : 'POST';
 
-    const dateForPayload = editingSummary ? (editingSummary.date as unknown as Date) : selectedDate;
+    const dateForPayload = editingSummary ? editingSummary.date : selectedDate;
     if (!dateForPayload) {
         toast({ variant: 'destructive', title: "Error", description: "No date selected."});
         setIsSubmitting(false);

@@ -2,30 +2,42 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
-import { type DailySummary, type SummaryFormValues } from '@/lib/data/daily-summary-data';
+import { type DailySummary, type SummaryFormValues, initialSummaries } from '@/lib/data/daily-summary-data';
 
 async function getSummariesCollection() {
   const client = await clientPromise;
   const db = client.db("biztrack-pro");
-  // The collection name should match what's being used. Let's assume it's `dailySummaries`.
   return db.collection<Omit<DailySummary, 'id'>>('dailySummaries');
+}
+
+async function seedSummaries() {
+    const summariesCollection = await getSummariesCollection();
+    const count = await summariesCollection.countDocuments();
+    if (count === 0) {
+        console.log("Seeding 'dailySummaries' collection...");
+        const summariesToInsert = initialSummaries.map(s => ({
+            ...s,
+            _id: new ObjectId(),
+        }));
+        await summariesCollection.insertMany(summariesToInsert);
+    }
 }
 
 export async function getDailySummaries(): Promise<DailySummary[]> {
   const summariesCollection = await getSummariesCollection();
+  await seedSummaries();
   const summaries = await summariesCollection.find({}).sort({ date: -1 }).toArray();
   return summaries.map(summary => ({
      ...summary, 
      id: summary._id.toString(),
-     date: summary.date, // This is already a string in 'yyyy-MM-dd' format
+     date: summary.date,
     }));
 }
 
 export async function addDailySummary(summaryData: SummaryFormValues): Promise<DailySummary> {
   const summariesCollection = await getSummariesCollection();
-  const dateStr = format(summaryData.date, 'yyyy-MM-dd');
+  const dateStr = format(new Date(summaryData.date), 'yyyy-MM-dd');
 
-  // Check if a summary for this date already exists
   const existingSummary = await summariesCollection.findOne({ date: dateStr });
   if (existingSummary) {
     throw new Error(`A summary for ${dateStr} already exists.`);
@@ -54,7 +66,7 @@ export async function updateDailySummary(summaryId: string, summaryData: Summary
   
   const updateData = {
     content: summaryData.content,
-    date: format(summaryData.date, 'yyyy-MM-dd')
+    date: format(new Date(summaryData.date), 'yyyy-MM-dd')
   };
 
   const result = await summariesCollection.findOneAndUpdate(
