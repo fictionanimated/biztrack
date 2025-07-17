@@ -50,7 +50,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { OrderFormValues } from "@/app/orders/page";
 import { orderFormSchema, cancellationReasonsList } from "@/lib/data/orders-data";
@@ -82,13 +82,15 @@ export function DashboardClient({
 }: DashboardData) {
   const [stats, setStats] = useState<Stat[]>(initialStats);
   const [date, setDate] = useState<DateRange | undefined>();
-  const [targetMonth, setTargetMonth] = useState("June");
-  const [targetYear, setTargetYear] = useState(2024); // Static year for SSR
   const [daysLeft, setDaysLeft] = useState(0);
 
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>(initialRecentOrders);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  const [monthlyTargets, setMonthlyTargets] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
+
   const { toast } = useToast();
 
   const form = useForm<OrderFormValues>({
@@ -97,6 +99,34 @@ export function DashboardClient({
 
   const orderStatus = form.watch("status");
   const selectedSource = form.watch("source");
+  
+  const currentMonthKey = useMemo(() => {
+    const today = new Date();
+    return format(today, 'yyyy-MM');
+  }, []);
+  
+  const currentTarget = useMemo(() => {
+    return monthlyTargets[currentMonthKey] || 0;
+  }, [monthlyTargets, currentMonthKey]);
+
+  useEffect(() => {
+    async function fetchSettings() {
+      setIsLoading(true);
+      try {
+        const res = await fetch('/api/settings');
+        if (!res.ok) throw new Error('Failed to fetch settings');
+        const data = await res.json();
+        setMonthlyTargets(data.monthlyTargets || {});
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not load targets." });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchSettings();
+  }, [toast]);
+  
 
   const availableGigs = useMemo(() => {
     if (!selectedSource) return [];
@@ -113,7 +143,7 @@ export function DashboardClient({
 
       form.reset({
           id: orderToEdit.id,
-          username: orderToEdit.username,
+          username: orderToEdit.clientUsername,
           date: parseDateString(orderToEdit.date),
           amount: orderToEdit.amount,
           source: orderToEdit.source,
@@ -167,61 +197,70 @@ export function DashboardClient({
     const today = new Date();
     const from = new Date(today.getFullYear(), today.getMonth(), 1);
     setDate({ from: from, to: today });
-
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const currentMonthName = monthNames[today.getMonth()];
-    const currentYear = today.getFullYear();
     
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     const remainingDays = lastDayOfMonth.getDate() - today.getDate();
     setDaysLeft(remainingDays);
-
-    setTargetMonth(currentMonthName);
-    setTargetYear(currentYear);
     
-    setStats(prevStats => {
-        const newStats = [...prevStats];
-        const targetIndex = newStats.findIndex(
-            (s) => s.title === "Target for June"
-        );
-        if (targetIndex !== -1) {
-            newStats[targetIndex].title = `Target for ${currentMonthName}`;
-            newStats[targetIndex].description = `Revenue goal for ${currentMonthName} ${currentYear}`;
-        }
-        return newStats;
-    });
+    const targetStatIndex = stats.findIndex((s) => s.title.startsWith("Target for"));
+    if (targetStatIndex !== -1 && !isLoading) {
+      const monthKey = format(today, 'yyyy-MM');
+      const target = monthlyTargets[monthKey] || 0;
+      const monthName = format(today, 'MMMM');
+      
+      const newStats = [...stats];
+      newStats[targetStatIndex] = {
+        ...newStats[targetStatIndex],
+        title: `Target for ${monthName}`,
+        value: `$${target.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        description: `Revenue goal for ${monthName} ${today.getFullYear()}`
+      };
+      setStats(newStats);
+    }
+  }, [isLoading, monthlyTargets]);
+  
+  const handleSetTarget = async (newTarget: number, month: string, year: number) => {
+    const monthIndex = new Date(Date.parse(month +" 1, 2021")).getMonth();
+    const monthKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+    
+    const updatedTargets = { ...monthlyTargets, [monthKey]: newTarget };
 
-  }, []);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ monthlyTargets: updatedTargets }),
+      });
+      if (!response.ok) throw new Error('Failed to save target.');
+      
+      setMonthlyTargets(updatedTargets);
+      toast({ title: "Target Saved", description: `Target for ${month} ${year} set to $${newTarget.toLocaleString()}.` });
 
-  const handleSetTarget = (newTarget: number, month: string, year: number) => {
-    setTargetMonth(month);
-    setTargetYear(year);
-    setStats((prevStats) => {
-      const newStats = [...prevStats];
-      const targetIndex = newStats.findIndex(
-        (s) => s.title.startsWith("Target for")
-      );
-      if (targetIndex !== -1) {
-        newStats[targetIndex] = {
-          ...newStats[targetIndex],
-          title: `Target for ${month}`,
-          value: `$${newTarget.toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}`,
-          description: `Revenue goal for ${month} ${year}`
-        };
-      }
-      return newStats;
-    });
+    } catch (error) {
+      toast({ variant: 'destructive', title: "Error", description: "Could not save target. Please try again." });
+    }
   };
-
-  const currentTarget = parseFloat(
-    stats.find((s) => s.title.startsWith("Target for"))?.value.replace(/[^0-9.-]+/g, "") || "0"
-  );
   
   const adrStat = stats.find((s) => s.title === "Avg Daily Revenue (ADR)");
-  const rdrStat = stats.find((s) => s.title === "Req. Daily Revenue (RDR)");
+  const rdrStat = useMemo(() => {
+    const today = new Date();
+    const monthKey = format(today, 'yyyy-MM');
+    const target = monthlyTargets[monthKey] || 0;
+    const currentRevenue = revenueByDay.reduce((sum, day) => sum + day.revenue, 0);
+    const remainingRevenue = Math.max(0, target - currentRevenue);
+    const requiredDaily = daysLeft > 0 ? remainingRevenue / daysLeft : 0;
+    
+    const existingRdrStat = stats.find(s => s.title === "Req. Daily Revenue (RDR)");
+
+    return {
+      ...existingRdrStat,
+      icon: "Goal",
+      title: "Req. Daily Revenue (RDR)",
+      value: `$${requiredDaily.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      description: "To meet your monthly target"
+    };
+  }, [monthlyTargets, revenueByDay, daysLeft, stats, currentMonthKey]);
+
   const targetStat = stats.find((s) => s.title.startsWith("Target for"));
   const keyMetrics = [adrStat, rdrStat, targetStat].filter(Boolean) as Stat[];
 
@@ -242,9 +281,11 @@ export function DashboardClient({
 
   const totalRevenue = revenueByDay.reduce((sum, day) => sum + day.revenue, 0);
 
-  const performanceValue = parseFloat(stats.find(s => s.title === 'Performance vs Target')?.value as string) || 0;
-
-  const requiredDailyRevenue = rdrStat ? parseFloat(String(rdrStat.value).replace(/[^0-9.-]+/g, "")) : 0;
+  const performanceValue = useMemo(() => {
+    const target = monthlyTargets[currentMonthKey] || 0;
+    if (target === 0) return 0;
+    return (totalRevenue / target) * 100;
+  }, [totalRevenue, monthlyTargets, currentMonthKey]);
 
   return (
     <>
@@ -254,9 +295,8 @@ export function DashboardClient({
         setDate={setDate}
         currentTarget={currentTarget}
         onSetTarget={handleSetTarget}
-        targetMonth={targetMonth}
-        targetYear={targetYear}
         daysLeft={daysLeft}
+        isLoading={isLoading}
       />
 
       <section>
@@ -274,7 +314,7 @@ export function DashboardClient({
             <RevenueChart
               data={revenueByDay}
               previousData={previousRevenueByDay}
-              requiredDailyRevenue={requiredDailyRevenue}
+              requiredDailyRevenue={rdrStat.value ? parseFloat(rdrStat.value.replace(/[^0-9.-]+/g, "")) : 0}
             />
           </Suspense>
         </div>
