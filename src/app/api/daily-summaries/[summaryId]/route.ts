@@ -11,6 +11,7 @@ export async function PUT(request: Request, { params }: { params: { summaryId: s
         return NextResponse.json({ error: 'Invalid summary ID' }, { status: 400 });
     }
     const json = await request.json();
+    // Ensure date is a Date object before parsing
     const parsedData = summaryFormSchema.parse({
         ...json,
         date: new Date(json.date),

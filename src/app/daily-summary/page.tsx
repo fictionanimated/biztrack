@@ -49,13 +49,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const CalendarView = lazy(() => import("@/components/daily-summary/calendar-view"));
 
-const parseDateString = (dateString: string): Date => {
+const parseDateString = (dateString: string | Date): Date => {
   if (!dateString) return new Date();
-  // Handles both '2024-07-15T00:00:00.000Z' and '2024-07-15'
-  if (typeof dateString !== 'string') {
-    // If it's already a Date object, just return it.
+  // If it's already a Date object, just return it.
+  if (dateString instanceof Date) {
     return dateString;
   }
+  // Handles both '2024-07-15T00:00:00.000Z' and '2024-07-15'
   const datePart = dateString.split('T')[0];
   const [year, month, day] = datePart.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day));
@@ -111,7 +111,7 @@ const DailySummaryPageComponent = () => {
   
   const handleSummaryClick = (summary: DailySummary) => {
     setEditingSummary(summary);
-    setSelectedDate(summary.date as unknown as Date);
+    setSelectedDate(parseDateString(summary.date));
     form.reset({ content: summary.content });
     setDialogOpen(true);
   }
@@ -121,7 +121,7 @@ const DailySummaryPageComponent = () => {
     const apiEndpoint = editingSummary ? `/api/daily-summaries/${editingSummary.id}` : '/api/daily-summaries';
     const method = editingSummary ? 'PUT' : 'POST';
 
-    const dateForPayload = editingSummary ? editingSummary.date : selectedDate;
+    const dateForPayload = editingSummary ? parseDateString(editingSummary.date) : selectedDate;
     if (!dateForPayload) {
         toast({ variant: 'destructive', title: "Error", description: "No date selected."});
         setIsSubmitting(false);
@@ -130,7 +130,7 @@ const DailySummaryPageComponent = () => {
     
     const payload = {
         content: values.content,
-        date: dateForPayload,
+        date: dateForPayload.toISOString(), // Send as ISO string
     };
 
     try {
@@ -205,7 +205,7 @@ const DailySummaryPageComponent = () => {
   const dialogTitle = useMemo(() => {
     const dateForTitle = editingSummary?.date || selectedDate;
     if (dateForTitle) {
-      const dateObject = typeof dateForTitle === 'string' ? parseDateString(dateForTitle) : dateForTitle;
+      const dateObject = parseDateString(dateForTitle);
       return `${editingSummary ? 'Edit' : 'Add'} Summary for ${format(dateObject, 'PPP')}`;
     }
     return "Summary";
@@ -213,7 +213,11 @@ const DailySummaryPageComponent = () => {
 
 
   const sortedSummaries = useMemo(() => {
-    return [...summaries].sort((a, b) => b.date.getTime() - a.date.getTime());
+    const summariesWithDateObjects = summaries.map(s => ({
+      ...s,
+      dateObj: parseDateString(s.date)
+    }));
+    return summariesWithDateObjects.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
   }, [summaries]);
 
 
@@ -271,10 +275,10 @@ const DailySummaryPageComponent = () => {
                 {sortedSummaries.slice(0, visibleSummariesCount).map((summary) => (
                   <Card key={summary.id}>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                      <CardTitle className="text-base font-medium">{format(summary.date, 'PPP')}</CardTitle>
+                      <CardTitle className="text-base font-medium">{format(summary.dateObj, 'PPP')}</CardTitle>
                       <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleSummaryClick(summary)}>Edit</Button>
-                          <Button variant="destructive" size="sm" onClick={() => setDeletingSummary(summary)}>Delete</Button>
+                          <Button variant="outline" size="sm" onClick={() => handleSummaryClick(summary as DailySummary)}>Edit</Button>
+                          <Button variant="destructive" size="sm" onClick={() => setDeletingSummary(summary as DailySummary)}>Delete</Button>
                       </div>
                     </CardHeader>
                     <CardContent>

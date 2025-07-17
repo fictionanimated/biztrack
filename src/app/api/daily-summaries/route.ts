@@ -17,6 +17,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const json = await request.json();
+        // Ensure date is a Date object before parsing
         const parsedData = summaryFormSchema.parse({
             ...json,
             date: new Date(json.date),
@@ -26,6 +27,9 @@ export async function POST(request: Request) {
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: 'Invalid input data', details: error.errors }, { status: 400 });
+        }
+        if (error instanceof Error && error.message.includes('already exists')) {
+             return NextResponse.json({ error: error.message }, { status: 409 });
         }
         console.error('API POST Error creating summary:', error);
         return NextResponse.json({ error: 'Failed to create summary' }, { status: 500 });
