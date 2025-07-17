@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, memo } from "react";
+import { useState, memo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { format } from "date-fns";
-import { MoreHorizontal, CalendarIcon, Link as LinkIcon, BarChart } from "lucide-react";
+import { toZonedTime } from 'date-fns-tz';
+import { MoreHorizontal, CalendarIcon, Link as LinkIcon, BarChart, Loader2, Database } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -76,64 +76,17 @@ import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
-interface CompetitorMonthlyData {
-  month: number;
-  year: number;
-  orders: number;
-  reviews: number;
-}
-
-interface Competitor {
-  id: string;
-  name: string;
-  username?: string;
-  profileLink?: string;
-  pricingStart?: number;
-  pricingMid?: number;
-  pricingTop?: number;
-  reviewsCount?: number;
-  totalOrders?: number;
-  workingSince?: Date;
-  notes?: string;
-  monthlyData?: CompetitorMonthlyData[];
-}
-
-const competitorFormSchema = z.object({
-  name: z.string().min(2, { message: "Competitor name is required." }),
-  username: z.string().optional(),
-  profileLink: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-  pricingStart: z.coerce.number().min(0, "Price must be a positive number.").optional(),
-  pricingMid: z.coerce.number().min(0, "Price must be a positive number.").optional(),
-  pricingTop: z.coerce.number().min(0, "Price must be a positive number.").optional(),
-  reviewsCount: z.coerce.number().int("Number of reviews must be a whole number.").min(0).optional(),
-  totalOrders: z.coerce.number().int("Number of orders must be a whole number.").min(0).optional(),
-  workingSince: z.date().optional(),
-  notes: z.string().optional(),
-});
-
-type CompetitorFormValues = z.infer<typeof competitorFormSchema>;
-
-const competitorDataFormSchema = z.object({
-  month: z.string().min(1, { message: "Month is required." }),
-  year: z.string().min(1, { message: "Year is required." }),
-  orders: z.coerce.number().int().min(0, "Orders must be a non-negative number."),
-  reviews: z.coerce.number().int().min(0, "Reviews must be a non-negative number."),
-});
-
-type CompetitorDataFormValues = z.infer<typeof competitorDataFormSchema>;
-
-
-const initialCompetitors: Competitor[] = [
-    { id: "1", name: "Creative Solutions Inc.", username: "creativeinc", profileLink: "https://example.com", pricingStart: 500, pricingMid: 1500, pricingTop: 5000, reviewsCount: 250, totalOrders: 300, workingSince: new Date("2018-01-01"), monthlyData: [] },
-    { id: "2", name: "Digital Masters Co.", username: "digitalmasters", profileLink: "https://example.com", pricingStart: 300, pricingMid: 1000, pricingTop: 3000, reviewsCount: 180, totalOrders: 220, workingSince: new Date("2019-06-15"), monthlyData: [] },
-    { id: "3", name: "Innovate Web Agency", username: "innovateweb", profileLink: "https://example.com", pricingStart: 800, pricingMid: 2500, pricingTop: 8000, reviewsCount: 400, totalOrders: 500, workingSince: new Date("2017-03-20"), monthlyData: [] },
-    { id: "4", name: "Pixel Perfect Freelancer", username: "pixelperfect", profileLink: "https://example.com", pricingStart: 100, pricingMid: 500, pricingTop: 1500, reviewsCount: 95, totalOrders: 110, workingSince: new Date("2020-11-01"), monthlyData: [] },
-];
+import { type Competitor, type CompetitorFormValues, competitorFormSchema, competitorDataFormSchema, type CompetitorDataFormValues } from "@/lib/data/competitors-data";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 const CompetitorsPageComponent = () => {
-    const [competitors, setCompetitors] = useState<Competitor[]>(initialCompetitors);
+    const [competitors, setCompetitors] = useState<Competitor[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingCompetitor, setEditingCompetitor] = useState<Competitor | null>(null);
     const [deletingCompetitor, setDeletingCompetitor] = useState<Competitor | null>(null);
@@ -167,11 +120,35 @@ const CompetitorsPageComponent = () => {
         },
     });
 
+    const fetchCompetitors = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/competitors');
+        if (!res.ok) throw new Error('Failed to fetch competitors from the server.');
+        const data = await res.json();
+        setCompetitors(data.map((c: Competitor & {workingSince?: string}) => ({
+            ...c, 
+            workingSince: c.workingSince ? toZonedTime(c.workingSince, 'UTC') : undefined
+        })));
+      } catch (e) {
+        console.error(e);
+        setError('Could not connect to the database or fetch data. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    useEffect(() => {
+      fetchCompetitors();
+    }, []);
+
     const handleOpenDialog = (competitor: Competitor | null = null) => {
         if (competitor) {
             setEditingCompetitor(competitor);
             form.reset({
                 ...competitor,
+                workingSince: competitor.workingSince ? new Date(competitor.workingSince) : undefined,
                 pricingStart: competitor.pricingStart ?? undefined,
                 pricingMid: competitor.pricingMid ?? undefined,
                 pricingTop: competitor.pricingTop ?? undefined,
@@ -207,59 +184,90 @@ const CompetitorsPageComponent = () => {
         setAddDataDialogOpen(true);
     };
 
-    const onSubmit = (values: CompetitorFormValues) => {
-        const competitorData: Competitor = {
-            id: editingCompetitor ? editingCompetitor.id : `comp-${Date.now()}`,
-            monthlyData: editingCompetitor ? editingCompetitor.monthlyData : [],
-            ...values,
-        };
+    const onSubmit = async (values: CompetitorFormValues) => {
+        setIsSubmitting(true);
+        const method = editingCompetitor ? 'PUT' : 'POST';
+        const endpoint = editingCompetitor ? `/api/competitors/${editingCompetitor.id}` : '/api/competitors';
 
-        if (editingCompetitor) {
-            setCompetitors(competitors.map(c => c.id === editingCompetitor.id ? competitorData : c));
-            toast({ title: "Competitor Updated", description: `${values.name} has been updated.` });
-        } else {
-            setCompetitors([competitorData, ...competitors]);
-            toast({ title: "Competitor Added", description: `${values.name} has been added.` });
+        try {
+            const response = await fetch(endpoint, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(values),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Failed to ${editingCompetitor ? 'update' : 'add'} competitor`);
+            }
+            
+            const savedCompetitor = await response.json();
+            savedCompetitor.workingSince = savedCompetitor.workingSince ? toZonedTime(savedCompetitor.workingSince, 'UTC') : undefined;
+
+            if (editingCompetitor) {
+                setCompetitors(competitors.map(c => c.id === editingCompetitor.id ? savedCompetitor : c));
+                toast({ title: "Competitor Updated" });
+            } else {
+                setCompetitors([savedCompetitor, ...competitors]);
+                toast({ title: "Competitor Added" });
+            }
+
+            setDialogOpen(false);
+            setEditingCompetitor(null);
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Error", description: err.message });
+        } finally {
+            setIsSubmitting(false);
         }
-
-        setDialogOpen(false);
-        setEditingCompetitor(null);
     }
 
-    const onSubmitData = (values: CompetitorDataFormValues) => {
+    const onSubmitData = async (values: CompetitorDataFormValues) => {
         if (!updatingCompetitor) return;
+        setIsSubmitting(true);
         
-        const monthlyData: CompetitorMonthlyData = {
-            month: parseInt(values.month, 10),
-            year: parseInt(values.year, 10),
-            orders: values.orders,
-            reviews: values.reviews,
-        };
+        try {
+            const response = await fetch(`/api/competitors/${updatingCompetitor.id}/data`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(values),
+            });
 
-        setCompetitors(prev => 
-            prev.map(c => {
-                if (c.id === updatingCompetitor.id) {
-                    return {
-                        ...c,
-                        reviewsCount: (c.reviewsCount || 0) + values.reviews,
-                        totalOrders: (c.totalOrders || 0) + values.orders,
-                        monthlyData: [...(c.monthlyData || []), monthlyData],
-                    };
-                }
-                return c;
-            })
-        );
-        
-        toast({ title: "Data Added", description: `New monthly data has been added for ${updatingCompetitor.name}.` });
-        setAddDataDialogOpen(false);
-        setUpdatingCompetitor(null);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Failed to add data`);
+            }
+
+            const updatedCompetitor = await response.json();
+             updatedCompetitor.workingSince = updatedCompetitor.workingSince ? toZonedTime(updatedCompetitor.workingSince, 'UTC') : undefined;
+            
+            setCompetitors(prev => prev.map(c => c.id === updatedCompetitor.id ? updatedCompetitor : c));
+            toast({ title: "Data Added", description: `New monthly data has been added for ${updatingCompetitor.name}.` });
+            setAddDataDialogOpen(false);
+            setUpdatingCompetitor(null);
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Error", description: err.message });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!deletingCompetitor) return;
-        setCompetitors(competitors.filter(c => c.id !== deletingCompetitor.id));
-        toast({ title: "Competitor Deleted" });
-        setDeletingCompetitor(null);
+        setIsSubmitting(true);
+        try {
+            const response = await fetch(`/api/competitors/${deletingCompetitor.id}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete competitor.');
+            }
+            setCompetitors(competitors.filter(c => c.id !== deletingCompetitor.id));
+            toast({ title: "Competitor Deleted" });
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: "Error", description: err.message });
+        } finally {
+            setIsSubmitting(false);
+            setDeletingCompetitor(null);
+        }
     }
 
     const formatCurrency = (value?: number) => {
@@ -269,6 +277,30 @@ const CompetitorsPageComponent = () => {
 
     const months = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: format(new Date(0, i), 'MMMM') }));
     const years = Array.from({ length: 11 }, (_, i) => String(2025 - i));
+
+    if (isLoading) {
+      return (
+          <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+              <div className="flex items-center">
+                  <h1 className="font-headline text-lg font-semibold md:text-2xl">
+                      Competitor Analysis
+                  </h1>
+                  <div className="ml-auto">
+                      <Skeleton className="h-10 w-36" />
+                  </div>
+              </div>
+              <Card>
+                  <CardHeader>
+                      <Skeleton className="h-6 w-1/2" />
+                      <Skeleton className="h-4 w-3/4" />
+                  </CardHeader>
+                  <CardContent>
+                      <Skeleton className="h-48 w-full" />
+                  </CardContent>
+              </Card>
+          </main>
+      )
+    }
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -280,6 +312,17 @@ const CompetitorsPageComponent = () => {
           <Button onClick={() => handleOpenDialog()}>Add Competitor</Button>
         </div>
       </div>
+      
+       {error && (
+        <div className="p-4">
+            <Alert variant="destructive">
+                <Database className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+            </Alert>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Competitor Overview</CardTitle>
@@ -302,7 +345,7 @@ const CompetitorsPageComponent = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {competitors.map((competitor) => (
+              {competitors.length > 0 ? competitors.map((competitor) => (
                 <TableRow key={competitor.id}>
                   <TableCell>
                       <div className="flex items-center gap-2 font-medium">
@@ -352,7 +395,13 @@ const CompetitorsPageComponent = () => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              )) : (
+                  <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                          No competitors found. Add one to get started.
+                      </TableCell>
+                  </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -539,7 +588,10 @@ const CompetitorsPageComponent = () => {
                     <DialogClose asChild>
                         <Button type="button" variant="secondary">Cancel</Button>
                     </DialogClose>
-                    <Button type="submit">{editingCompetitor ? 'Save Changes' : 'Add Competitor'}</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                       {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                       {editingCompetitor ? 'Save Changes' : 'Add Competitor'}
+                    </Button>
               </DialogFooter>
             </form>
           </Form>
@@ -630,7 +682,10 @@ const CompetitorsPageComponent = () => {
                         <DialogClose asChild>
                             <Button type="button" variant="secondary">Cancel</Button>
                         </DialogClose>
-                        <Button type="submit">Add Data</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                           Add Data
+                        </Button>
                     </DialogFooter>
                 </form>
             </Form>
@@ -646,8 +701,11 @@ const CompetitorsPageComponent = () => {
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({ variant: "destructive" }))}>Delete</AlertDialogAction>
+                <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} disabled={isSubmitting} className={cn(buttonVariants({ variant: "destructive" }))}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Delete
+                </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
