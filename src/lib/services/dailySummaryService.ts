@@ -1,8 +1,13 @@
 import { z } from 'zod';
-import { format } from 'date-fns';
 import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
-import { type DailySummary, type SummaryFormValues, initialSummaries } from '@/lib/data/daily-summary-data';
+import { type DailySummary, initialSummaries } from '@/lib/data/daily-summary-data';
+
+// This is the shape of data coming from the validated API route.
+interface ApiSummaryData {
+    date: string; // YYYY-MM-DD format
+    content: string;
+}
 
 async function getSummariesCollection() {
   const client = await clientPromise;
@@ -19,7 +24,7 @@ async function seedSummaries() {
             ...s,
             _id: new ObjectId(),
         }));
-        await summariesCollection.insertMany(summariesToInsert);
+        await summariesCollection.insertMany(summariesToInsert as any[]);
     }
 }
 
@@ -30,22 +35,20 @@ export async function getDailySummaries(): Promise<DailySummary[]> {
   return summaries.map(summary => ({
      ...summary, 
      id: summary._id.toString(),
-     date: summary.date,
     }));
 }
 
-export async function addDailySummary(summaryData: SummaryFormValues): Promise<DailySummary> {
+export async function addDailySummary(summaryData: ApiSummaryData): Promise<DailySummary> {
   const summariesCollection = await getSummariesCollection();
-  const dateStr = format(new Date(summaryData.date), 'yyyy-MM-dd');
 
-  const existingSummary = await summariesCollection.findOne({ date: dateStr });
+  const existingSummary = await summariesCollection.findOne({ date: summaryData.date });
   if (existingSummary) {
-    throw new Error(`A summary for ${dateStr} already exists.`);
+    throw new Error(`A summary for ${summaryData.date} already exists.`);
   }
 
   const newSummary = {
     _id: new ObjectId(),
-    date: dateStr,
+    date: summaryData.date,
     content: summaryData.content,
   };
 
@@ -60,13 +63,13 @@ export async function addDailySummary(summaryData: SummaryFormValues): Promise<D
   };
 }
 
-export async function updateDailySummary(summaryId: string, summaryData: SummaryFormValues): Promise<DailySummary | null> {
+export async function updateDailySummary(summaryId: string, summaryData: ApiSummaryData): Promise<DailySummary | null> {
   const summariesCollection = await getSummariesCollection();
   const _id = new ObjectId(summaryId);
   
   const updateData = {
     content: summaryData.content,
-    date: format(new Date(summaryData.date), 'yyyy-MM-dd')
+    date: summaryData.date
   };
 
   const result = await summariesCollection.findOneAndUpdate(

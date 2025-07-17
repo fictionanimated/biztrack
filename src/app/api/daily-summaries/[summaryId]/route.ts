@@ -5,17 +5,17 @@ import { summaryFormSchema } from '@/lib/data/daily-summary-data';
 import { z } from 'zod';
 import { ObjectId } from 'mongodb';
 
+const apiSchema = summaryFormSchema.omit({ date: true }).extend({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format."),
+});
+
 export async function PUT(request: Request, { params }: { params: { summaryId: string } }) {
   try {
     if (!ObjectId.isValid(params.summaryId)) {
         return NextResponse.json({ error: 'Invalid summary ID' }, { status: 400 });
     }
     const json = await request.json();
-    // Ensure date is a Date object before parsing
-    const parsedData = summaryFormSchema.parse({
-        ...json,
-        date: new Date(json.date),
-    });
+    const parsedData = apiSchema.parse(json);
     const updatedSummary = await updateDailySummary(params.summaryId, parsedData);
 
     if (!updatedSummary) {

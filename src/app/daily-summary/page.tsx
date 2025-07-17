@@ -127,9 +127,10 @@ const DailySummaryPageComponent = () => {
         return;
     }
     
+    // Send date as 'yyyy-MM-dd' string to avoid timezone issues.
     const payload = {
         content: values.content,
-        date: dateForPayload.toISOString(), // Send as ISO string
+        date: format(dateForPayload, 'yyyy-MM-dd'), 
     };
 
     try {
