@@ -50,11 +50,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 const CalendarView = lazy(() => import("@/components/daily-summary/calendar-view"));
 
 const parseDateString = (dateString: string | Date): Date => {
-  if (!dateString) return new Date();
-  // If it's already a Date object, just return it.
   if (dateString instanceof Date) {
     return dateString;
   }
+  if (!dateString) return new Date();
   // Handles both '2024-07-15T00:00:00.000Z' and '2024-07-15'
   const datePart = dateString.split('T')[0];
   const [year, month, day] = datePart.split('-').map(Number);
