@@ -54,9 +54,7 @@ const parseDateString = (dateString: string | Date): Date => {
     return dateString;
   }
   if (!dateString) return new Date();
-  // Handles both '2024-07-15T00:00:00.000Z' and '2024-07-15'
-  const datePart = dateString.split('T')[0];
-  const [year, month, day] = datePart.split('-').map(Number);
+  const [year, month, day] = dateString.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day));
 };
 
@@ -127,7 +125,7 @@ const DailySummaryPageComponent = () => {
         return;
     }
     
-    // Send date as 'yyyy-MM-dd' string to avoid timezone issues.
+    // Always send date as 'yyyy-MM-dd' string to avoid timezone issues.
     const payload = {
         content: values.content,
         date: format(dateForPayload, 'yyyy-MM-dd'), 

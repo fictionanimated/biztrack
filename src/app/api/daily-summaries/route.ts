@@ -4,8 +4,9 @@ import { getDailySummaries, addDailySummary } from '@/lib/services/dailySummaryS
 import { summaryFormSchema } from '@/lib/data/daily-summary-data';
 import { z } from 'zod';
 
-const apiSchema = summaryFormSchema.omit({ date: true }).extend({
+const apiSchema = z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format."),
+    content: z.string().min(3, { message: "Summary must be at least 3 characters." }),
 });
 
 export async function GET() {

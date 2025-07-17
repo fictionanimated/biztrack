@@ -1,3 +1,4 @@
+
 import { z } from 'zod';
 import { ObjectId } from 'mongodb';
 import clientPromise from '@/lib/mongodb';
@@ -35,6 +36,7 @@ export async function getDailySummaries(): Promise<DailySummary[]> {
   return summaries.map(summary => ({
      ...summary, 
      id: summary._id.toString(),
+     date: summary.date,
     }));
 }
 
@@ -52,7 +54,7 @@ export async function addDailySummary(summaryData: ApiSummaryData): Promise<Dail
     content: summaryData.content,
   };
 
-  const result = await summariesCollection.insertOne(newSummary);
+  const result = await summariesCollection.insertOne(newSummary as any);
   if (!result.insertedId) {
     throw new Error('Failed to insert new summary.');
   }
