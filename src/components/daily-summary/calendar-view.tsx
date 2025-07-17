@@ -32,8 +32,9 @@ const isSameDate = (date1: Date, date2: Date) => {
 
 export default function CalendarView({ currentDate, summaries, onDateClick, onSummaryClick }: CalendarViewProps) {
     const daysInMonth = useMemo(() => {
-        const start = startOfWeek(startOfMonth(currentDate));
-        const end = endOfWeek(endOfMonth(currentDate));
+        const zonedCurrentDate = toZonedTime(currentDate, 'UTC');
+        const start = startOfWeek(startOfMonth(zonedCurrentDate));
+        const end = endOfWeek(endOfMonth(zonedCurrentDate));
         return eachDayOfInterval({ start, end });
     }, [currentDate]);
 
@@ -54,7 +55,7 @@ export default function CalendarView({ currentDate, summaries, onDateClick, onSu
         setIsClient(true);
     }, []);
 
-    const today = useMemo(() => new Date(), []);
+    const today = useMemo(() => toZonedTime(new Date(), 'UTC'), []);
 
     return (
         <div className="flex-1 grid grid-cols-7 grid-rows-[auto_repeat(6,minmax(0,1fr))] border-l summary-calendar">
@@ -65,11 +66,10 @@ export default function CalendarView({ currentDate, summaries, onDateClick, onSu
             ))}
             
             {daysInMonth.map((day) => {
-                const zonedDay = toZonedTime(day, 'UTC');
-                const dayKey = format(zonedDay, 'yyyy-MM-dd', { timeZone: 'UTC' });
+                const dayKey = format(day, 'yyyy-MM-dd', { timeZone: 'UTC' });
                 const daySummaries = summariesByDate.get(dayKey) || [];
-                const isCurrentMonth = isSameMonth(day, currentDate);
-                const isToday = isClient && isSameDate(zonedDay, today);
+                const isCurrentMonth = isSameMonth(day, toZonedTime(currentDate, 'UTC'));
+                const isToday = isClient && isSameDate(day, today);
 
                 return (
                     <div 
@@ -111,3 +111,5 @@ export default function CalendarView({ currentDate, summaries, onDateClick, onSu
         </div>
     );
 }
+
+    

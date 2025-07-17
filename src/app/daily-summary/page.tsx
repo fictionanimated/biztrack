@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect, lazy, Suspense, memo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, subMonths, parseISO } from "date-fns";
+import { toZonedTime } from 'date-fns-tz';
 import { ChevronLeft, ChevronRight, Loader2, Database } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -75,7 +76,7 @@ const DailySummaryPageComponent = () => {
           const res = await fetch('/api/daily-summaries');
           if (!res.ok) throw new Error('Failed to fetch summaries from the server.');
           const data = await res.json();
-          setSummaries(data.map((s: DailySummary) => ({...s, date: parseISO(s.date as unknown as string)})));
+          setSummaries(data.map((s: DailySummary & {date: string}) => ({...s, date: toZonedTime(s.date, 'UTC')})));
       } catch (e) {
           console.error(e);
           setError('Could not connect to the database or fetch data. Please try again.');
@@ -134,7 +135,7 @@ const DailySummaryPageComponent = () => {
         }
         
         const savedSummary = await response.json();
-        savedSummary.date = parseISO(savedSummary.date);
+        savedSummary.date = toZonedTime(savedSummary.date, 'UTC');
 
         if (editingSummary) {
             setSummaries(summaries.map(s => s.id === savedSummary.id ? savedSummary : s));
@@ -190,7 +191,7 @@ const DailySummaryPageComponent = () => {
   const dialogTitle = useMemo(() => {
     const dateForTitle = editingSummary?.date || selectedDate;
     if (dateForTitle) {
-      return `${editingSummary ? 'Edit' : 'Add'} Summary for ${format(dateForTitle, 'PPP')}`;
+      return `${editingSummary ? 'Edit' : 'Add'} Summary for ${format(toZonedTime(dateForTitle, 'UTC'), 'PPP')}`;
     }
     return "Summary";
   }, [editingSummary, selectedDate]);
@@ -345,3 +346,5 @@ const MemoizedDailySummaryPage = memo(DailySummaryPageComponent);
 export default function DailySummaryPage() {
   return <MemoizedDailySummaryPage />;
 }
+
+    
