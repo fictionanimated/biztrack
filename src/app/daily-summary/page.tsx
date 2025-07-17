@@ -50,7 +50,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 const CalendarView = lazy(() => import("@/components/daily-summary/calendar-view"));
 
 const parseDateString = (dateString: string): Date => {
-  const [year, month, day] = dateString.split('-').map(Number);
+  if (!dateString) return new Date();
+  // Handles both '2024-07-15T00:00:00.000Z' and '2024-07-15'
+  const datePart = dateString.split('T')[0];
+  const [year, month, day] = datePart.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1, day));
 };
 
@@ -115,8 +118,8 @@ const DailySummaryPageComponent = () => {
     const method = editingSummary ? 'PUT' : 'POST';
 
     const payload = {
-        ...values,
-        date: selectedDate,
+        content: values.content,
+        date: editingSummary ? editingSummary.date : selectedDate,
     };
 
     try {
@@ -189,10 +192,13 @@ const DailySummaryPageComponent = () => {
   }
 
   const dialogTitle = useMemo(() => {
-    if (editingSummary) return `Edit Summary for ${format(editingSummary.date, 'PPP')}`;
-    if (selectedDate) return `Add Summary for ${format(selectedDate, 'PPP')}`;
+    const dateForTitle = editingSummary?.date || selectedDate;
+    if (dateForTitle) {
+      return `${editingSummary ? 'Edit' : 'Add'} Summary for ${format(dateForTitle, 'PPP')}`;
+    }
     return "Summary";
   }, [editingSummary, selectedDate]);
+
 
   const sortedSummaries = useMemo(() => {
     return [...summaries].sort((a, b) => b.date.getTime() - a.date.getTime());

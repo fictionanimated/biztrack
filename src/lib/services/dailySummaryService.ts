@@ -7,6 +7,7 @@ import { type DailySummary, type SummaryFormValues } from '@/lib/data/daily-summ
 async function getSummariesCollection() {
   const client = await clientPromise;
   const db = client.db("biztrack-pro");
+  // The collection name should match what's being used. Let's assume it's `dailySummaries`.
   return db.collection<Omit<DailySummary, 'id'>>('dailySummaries');
 }
 
@@ -16,13 +17,19 @@ export async function getDailySummaries(): Promise<DailySummary[]> {
   return summaries.map(summary => ({
      ...summary, 
      id: summary._id.toString(),
-     date: summary.date,
+     date: summary.date, // This is already a string in 'yyyy-MM-dd' format
     }));
 }
 
 export async function addDailySummary(summaryData: SummaryFormValues): Promise<DailySummary> {
   const summariesCollection = await getSummariesCollection();
   const dateStr = format(summaryData.date, 'yyyy-MM-dd');
+
+  // Check if a summary for this date already exists
+  const existingSummary = await summariesCollection.findOne({ date: dateStr });
+  if (existingSummary) {
+    throw new Error(`A summary for ${dateStr} already exists.`);
+  }
 
   const newSummary = {
     _id: new ObjectId(),
@@ -47,6 +54,7 @@ export async function updateDailySummary(summaryId: string, summaryData: Summary
   
   const updateData = {
     content: summaryData.content,
+    date: format(summaryData.date, 'yyyy-MM-dd')
   };
 
   const result = await summariesCollection.findOneAndUpdate(
