@@ -190,7 +190,8 @@ export async function importSingleOrder(sourceName: string, orderData: Record<st
     const gigName = orderData['gig name'];
     const dateStr = orderData['date'];
     const amount = parseFloat(orderData['amount']);
-    
+    const status = (orderData['status'] || 'In Progress') as Order['status'];
+
     // Attempt to parse multiple date formats
     let orderDate;
     try {
@@ -248,7 +249,7 @@ export async function importSingleOrder(sourceName: string, orderData: Record<st
         amount: amount,
         source: sourceName,
         gig: gigName,
-        status: "In Progress",
+        status: status,
     });
 
     return { order: newOrder };
@@ -286,9 +287,11 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
     const sourceId = source._id.toString();
 
     // Get existing data to avoid repeated DB calls inside the loop
-    const existingOrders = await ordersCollection.find({}, { projection: { id: 1, _id: 0 } }).toArray();
-    const existingOrderIds = new Set(existingOrders.map(o => o.id));
-    const existingClients = new Set((await getClients()).map(c => c.username));
+    const existingOrdersCursor = await ordersCollection.find({}, { projection: { id: 1, _id: 0 } });
+    const existingOrderIds = new Set((await existingOrdersCursor.toArray()).map(o => o.id));
+    
+    const existingClientsCursor = await clientCollection.find({}, { projection: { username: 1, _id: 0 } });
+    const existingClients = new Set((await existingClientsCursor.toArray()).map(c => c.username));
     let sourceGigs = new Map(source.gigs.map(g => [g.name.toLowerCase(), g]));
 
     const newClientsToCreate: any[] = [];
@@ -361,6 +364,8 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
              sourceGigs.set(gigNameLower, { id: '', name: gigName, date: format(orderDate, 'yyyy-MM-dd') });
         }
         
+        const status = (orderData['status'] || 'In Progress') as Order['status'];
+
         const newOrder = {
             id: orderId,
             clientUsername: clientUsername,
@@ -368,8 +373,7 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
             amount: amount,
             source: sourceName,
             gig: gigName,
-            status: "In Progress",
-            type: orderData['type'] || "Order",
+            status: status,
         };
         newOrdersToCreate.push(newOrder);
         existingOrderIds.add(orderId);
