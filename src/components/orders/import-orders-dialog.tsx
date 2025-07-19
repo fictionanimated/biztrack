@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { IncomeSource } from "@/lib/data/incomes-data";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const importFormSchema = z.object({
     source: z.string({ required_error: "Please select an income source." }).min(1),
@@ -37,14 +38,25 @@ interface ImportOrdersDialogProps {
 
 export function ImportOrdersDialog({ open, onOpenChange, incomeSources, onImportSuccess }: ImportOrdersDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [importResult, setImportResult] = useState<{ importedCount: number; skippedCount: number } | null>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof importFormSchema>>({
     resolver: zodResolver(importFormSchema),
   });
+  
+  const handleClose = () => {
+      onOpenChange(false);
+      // Reset state after a short delay to allow dialog to close
+      setTimeout(() => {
+          setImportResult(null);
+          form.reset();
+      }, 300);
+  };
 
   const onSubmit = async (values: z.infer<typeof importFormSchema>) => {
     setIsSubmitting(true);
+    setImportResult(null);
     const reader = new FileReader();
 
     reader.onload = async (e) => {
@@ -61,14 +73,9 @@ export function ImportOrdersDialog({ open, onOpenChange, incomeSources, onImport
             if (!response.ok) {
                 throw new Error(result.error || 'Failed to import orders.');
             }
-
-            toast({
-                title: "Import Complete",
-                description: `${result.importedCount} orders imported successfully. ${result.skippedCount} orders were skipped.`,
-            });
+            
+            setImportResult(result);
             onImportSuccess(); // Refresh the main orders list
-            onOpenChange(false);
-            form.reset();
 
         } catch (error: any) {
              toast({ variant: "destructive", title: "Import Failed", description: error.message });
@@ -84,7 +91,7 @@ export function ImportOrdersDialog({ open, onOpenChange, incomeSources, onImport
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-xl">
           <DialogHeader>
               <DialogTitle>Import Orders from CSV</DialogTitle>
@@ -92,74 +99,90 @@ export function ImportOrdersDialog({ open, onOpenChange, incomeSources, onImport
                   Upload a CSV file to bulk import orders.
               </DialogDescription>
           </DialogHeader>
-          <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                  <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
-                      <h4 className="mb-2 text-sm font-semibold text-yellow-900 dark:text-yellow-200">CSV Import Guidelines</h4>
-                      <ul className="list-disc space-y-1 pl-5 text-xs text-yellow-800 dark:text-yellow-300">
-                          <li>Required headers (case-insensitive): <strong>date</strong>, <strong>order id</strong>, <strong>gig name</strong>, <strong>client username</strong>, <strong>amount</strong>.</li>
-                          <li>Optional header: <strong>type</strong> (defaults to "Order").</li>
-                          <li>Fields with commas must be in double quotes (e.g., "My Gig, with details").</li>
-                          <li>Date format: MM/DD/YYYY, YYYY-MM-DD, etc.</li>
-                          <li>Max <strong>2000 orders</strong> per file. Orders with existing IDs will be skipped.</li>
-                          <li>New clients and gigs (for selected income source) are <strong>auto-created</strong>.</li>
-                      </ul>
-                  </div>
-                  <FormField
-                      control={form.control}
-                      name="source"
-                      render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Income Source*</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl>
-                                      <SelectTrigger id="import-source">
-                                          <SelectValue placeholder="Select an income source" />
-                                      </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                      {incomeSources.map(source => (
-                                          <SelectItem key={source.id} value={source.name}>{source.name}</SelectItem>
-                                      ))}
-                                  </SelectContent>
-                              </Select>
-                              <FormDescription>
-                                  New gigs from your CSV will be added to this source.
-                              </FormDescription>
-                              <FormMessage />
-                          </FormItem>
-                      )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="file"
-                    render={({ field: { value, onChange, ...fieldProps } }) => (
-                       <FormItem>
-                            <FormLabel htmlFor="csv-file">CSV File*</FormLabel>
-                            <FormControl>
-                              <Input 
-                                id="csv-file" 
-                                type="file" 
-                                accept=".csv"
-                                {...fieldProps}
-                                onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <DialogFooter>
-                      <DialogClose asChild>
-                          <Button type="button" variant="secondary">Cancel</Button>
-                      </DialogClose>
-                      <Button type="submit" disabled={isSubmitting}>
-                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Import
-                      </Button>
+          
+          {importResult ? (
+              <div className="py-4">
+                  <Alert variant={importResult.importedCount > 0 ? "default" : "destructive"}>
+                      <AlertTitle>Import Complete!</AlertTitle>
+                      <AlertDescription>
+                          <p>Successfully imported: {importResult.importedCount} orders.</p>
+                          <p>Skipped (duplicates or errors): {importResult.skippedCount} orders.</p>
+                      </AlertDescription>
+                  </Alert>
+                  <DialogFooter className="mt-4">
+                      <Button onClick={handleClose}>Close</Button>
                   </DialogFooter>
-              </form>
-          </Form>
+              </div>
+          ) : (
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+                    <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950">
+                        <h4 className="mb-2 text-sm font-semibold text-yellow-900 dark:text-yellow-200">CSV Import Guidelines</h4>
+                        <ul className="list-disc space-y-1 pl-5 text-xs text-yellow-800 dark:text-yellow-300">
+                            <li>Required headers (case-insensitive): <strong>date</strong>, <strong>order id</strong>, <strong>gig name</strong>, <strong>client username</strong>, <strong>amount</strong>.</li>
+                            <li>Optional header: <strong>type</strong> (defaults to "Order").</li>
+                            <li>Fields with commas must be in double quotes (e.g., "My Gig, with details").</li>
+                            <li>Date format: MM/DD/YYYY, YYYY-MM-DD, etc.</li>
+                            <li>Max <strong>2000 orders</strong> per file. Orders with existing IDs will be skipped.</li>
+                            <li>New clients and gigs (for selected income source) are <strong>auto-created</strong>.</li>
+                        </ul>
+                    </div>
+                    <FormField
+                        control={form.control}
+                        name="source"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Income Source*</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger id="import-source">
+                                            <SelectValue placeholder="Select an income source" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {incomeSources.map(source => (
+                                            <SelectItem key={source.id} value={source.name}>{source.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>
+                                    New gigs from your CSV will be added to this source.
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="file"
+                      render={({ field: { value, onChange, ...fieldProps } }) => (
+                         <FormItem>
+                              <FormLabel htmlFor="csv-file">CSV File*</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  id="csv-file" 
+                                  type="file" 
+                                  accept=".csv"
+                                  {...fieldProps}
+                                  onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary">Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Import
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+          )}
       </DialogContent>
     </Dialog>
   );

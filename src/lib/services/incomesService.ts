@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Service for managing income source data in MongoDB.
  */
@@ -43,25 +42,6 @@ async function getIncomesCollection() {
   return db.collection<IncomeSource>('incomes');
 }
 
-/**
- * Seeds the database with initial data if the collection is empty.
- */
-async function seedDatabase() {
-    const incomesCollection = await getIncomesCollection();
-    const count = await incomesCollection.countDocuments();
-    if (count === 0) {
-        console.log("Seeding 'incomes' collection...");
-        const sourcesToInsert = initialIncomeSources.map(source => ({
-            ...source,
-            _id: new ObjectId(),
-            id: new ObjectId().toString(),
-        }));
-        // We need to fix the ID before inserting.
-        const finalSources = sourcesToInsert.map(s => ({...s, id: s._id.toString()}));
-        await incomesCollection.insertMany(finalSources);
-    }
-}
-
 
 /**
  * Retrieves all income sources from the database.
@@ -70,7 +50,12 @@ async function seedDatabase() {
 export async function getIncomeSources(): Promise<IncomeSource[]> {
   try {
     const incomesCollection = await getIncomesCollection();
-    await seedDatabase(); // Seed if empty
+    // Clear existing data as requested
+    if (process.env.NODE_ENV === 'development' && !process.env.DATA_CLEARED_INCOMES) {
+        console.log("Clearing 'incomes' collection...");
+        await incomesCollection.deleteMany({});
+        process.env.DATA_CLEARED_INCOMES = 'true';
+    }
     const sources = await incomesCollection.find({}).sort({ _id: -1 }).toArray();
     
     return sources.map(source => ({

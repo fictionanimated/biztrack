@@ -1,4 +1,3 @@
-
 /**
  * @fileoverview Service for managing order data.
  * This service abstracts the data access layer for orders.
@@ -9,31 +8,13 @@ import { type Order, orderFormSchema, type OrderFormValues } from '@/lib/data/or
 import { ObjectId } from 'mongodb';
 import { format, parse } from 'date-fns';
 import { getClientByUsername, addClient, getClients } from './clientsService';
-import { addGigToSource } from './incomesService';
+import { addGigToSource, getIncomeSources } from './incomesService';
 import Papa from 'papaparse';
 
 async function getOrdersCollection() {
   const client = await clientPromise;
   const db = client.db("biztrack-pro");
   return db.collection<Omit<Order, '_id'>>('orders');
-}
-
-async function getIncomesCollection() {
-    const client = await clientPromise;
-    const db = client.db("biztrack-pro");
-    return db.collection('incomes');
-}
-
-
-/**
- * Seeds the database with initial data if the collection is empty.
- */
-async function seedDatabase() {
-    const ordersCollection = await getOrdersCollection();
-    const count = await ordersCollection.countDocuments();
-    if (count === 0) {
-        console.log("Seeding 'orders' collection... No initial orders to seed.");
-    }
 }
 
 /**
@@ -43,7 +24,11 @@ async function seedDatabase() {
 export async function getOrders(): Promise<Order[]> {
   try {
     const ordersCollection = await getOrdersCollection();
-    await seedDatabase();
+    if (process.env.NODE_ENV === 'development' && !process.env.DATA_CLEARED_ORDERS) {
+        console.log("Clearing 'orders' collection...");
+        await ordersCollection.deleteMany({});
+        process.env.DATA_CLEARED_ORDERS = 'true';
+    }
     const orders = await ordersCollection.find({}).sort({ date: -1 }).toArray();
     
     return orders.map(order => ({
@@ -197,7 +182,7 @@ export async function deleteOrder(orderId: string): Promise<boolean> {
  * @returns The created order object.
  */
 export async function importSingleOrder(sourceName: string, orderData: Record<string, string>): Promise<{ order: Order }> {
-    const incomesCollection = await getIncomesCollection();
+    const incomesCollection = (await clientPromise).db("biztrack-pro").collection('incomes');
 
     const orderId = orderData['order id'];
     const clientUsername = orderData['client username'];
@@ -277,7 +262,8 @@ export async function importSingleOrder(sourceName: string, orderData: Record<st
  */
 export async function importBulkOrders(sourceName: string, csvContent: string): Promise<{ importedCount: number; skippedCount: number }> {
     const ordersCollection = await getOrdersCollection();
-    const incomesCollection = await getIncomesCollection();
+    const incomesCollection = (await clientPromise).db("biztrack-pro").collection('incomes');
+    const clientCollection = (await clientPromise).db("biztrack-pro").collection('clients');
 
     // Parse CSV
     const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true });
@@ -300,7 +286,7 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
     // Get existing data to avoid repeated DB calls inside the loop
     const existingOrderIds = new Set((await ordersCollection.find({}, { projection: { id: 1 } }).toArray()).map(o => o.id));
     const existingClients = new Set((await getClients()).map(c => c.username));
-    let sourceGigs = [...source.gigs];
+    let sourceGigs = new Map(source.gigs.map(g => [g.name.toLowerCase(), g]));
 
     const newClientsToCreate: any[] = [];
     const newGigsToCreate: any[] = [];
@@ -354,14 +340,11 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
         }
 
         // Add gig to creation list if new
-        const gigExists = sourceGigs.some(g => g.name.toLowerCase() === gigName.toLowerCase());
-        if (!gigExists && !newGigsToCreate.some(g => g.name.toLowerCase() === gigName.toLowerCase())) {
+        const gigNameLower = gigName.toLowerCase();
+        if (!sourceGigs.has(gigNameLower) && !newGigsToCreate.some(g => g.name.toLowerCase() === gigNameLower)) {
              const newGig = { name: gigName, date: orderDate };
              newGigsToCreate.push(newGig);
-             sourceGigs.push({ id: '', // temp
-                name: gigName,
-                date: format(orderDate, 'yyyy-MM-dd')
-            });
+             sourceGigs.set(gigNameLower, { id: '', name: gigName, date: format(orderDate, 'yyyy-MM-dd') });
         }
         
         const newOrder = {
@@ -381,13 +364,11 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
 
     // --- Perform batched database operations ---
     if (newClientsToCreate.length > 0) {
-        const clientCollection = (await clientPromise).db("biztrack-pro").collection('clients');
         await clientCollection.insertMany(newClientsToCreate);
     }
 
     if (newGigsToCreate.length > 0) {
         for(const gig of newGigsToCreate) {
-            // This has to be one by one to use the service logic
             await addGigToSource(sourceId, gig);
         }
     }
