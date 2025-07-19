@@ -7,14 +7,21 @@ import { z } from 'zod';
 import clientPromise from '@/lib/mongodb';
 import { type Order, orderFormSchema, type OrderFormValues } from '@/lib/data/orders-data';
 import { ObjectId } from 'mongodb';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { getClientByUsername, addClient } from './clientsService';
+import { addGigToSource } from './incomesService';
 
 async function getOrdersCollection() {
   const client = await clientPromise;
   const db = client.db("biztrack-pro");
   return db.collection<Omit<Order, '_id'>>('orders');
 }
+
+async function getIncomesCollection() {
+    const client = await clientPromise;
+    return client.db("biztrack-pro").collection('incomes');
+}
+
 
 /**
  * Seeds the database with initial data if the collection is empty.
@@ -178,4 +185,71 @@ export async function deleteOrder(orderId: string): Promise<boolean> {
     const ordersCollection = await getOrdersCollection();
     const result = await ordersCollection.deleteOne({ id: orderId });
     return result.deletedCount === 1;
+}
+
+
+/**
+ * Imports a single order from a CSV data object.
+ * @param sourceName - The name of the income source for the order.
+ * @param orderData - The parsed data from the CSV row.
+ * @returns The created order object.
+ */
+export async function importSingleOrder(sourceName: string, orderData: Record<string, string>): Promise<{ order: Order }> {
+    const ordersCollection = await getOrdersCollection();
+    const incomesCollection = await getIncomesCollection();
+
+    const orderId = orderData['order id'];
+    const clientUsername = orderData['client username'];
+    const gigName = orderData['gig name'];
+    const dateStr = orderData['date'];
+    const amount = parseFloat(orderData['amount']);
+
+    // 1. Check if order ID exists
+    const orderExists = await checkOrderExists(orderId);
+    if (orderExists) {
+        throw new Error(`Order with ID "${orderId}" already exists.`);
+    }
+
+    // 2. Check if income source exists
+    const source = await incomesCollection.findOne({ name: sourceName });
+    if (!source) {
+        throw new Error(`Income source "${sourceName}" not found.`);
+    }
+
+    // 3. Check if gig exists in the source, if not, create it
+    const gigExists = source.gigs.some(g => g.name.toLowerCase() === gigName.toLowerCase());
+    if (!gigExists) {
+        await addGigToSource(source.id, { name: gigName, date: new Date() });
+    }
+
+    // 4. Check if client exists, if not, create one
+    const clientExists = await getClientByUsername(clientUsername);
+    if (!clientExists) {
+        const orderDate = parse(dateStr, 'M/d/yyyy', new Date());
+        await addClient({
+            username: clientUsername,
+            source: sourceName,
+            name: clientUsername,
+            email: '',
+            avatarUrl: '',
+            socialLinks: [],
+            notes: `Client auto-created from single order import for order ${orderId}.`,
+            tags: 'auto-created,single-import',
+            isVip: false,
+        });
+    }
+
+    // 5. Add the order
+    const orderDate = parse(dateStr, 'M/d/yyyy', new Date());
+    const newOrder = await addOrder({
+        id: orderId,
+        date: orderDate,
+        username: clientUsername,
+        amount: amount,
+        source: sourceName,
+        gig: gigName,
+        status: "Completed", // Default status for imported orders
+    });
+
+    return { order: newOrder };
 }

@@ -176,7 +176,7 @@ export async function getClientByUsername(username: string): Promise<Client | nu
  * @param clientData - The data for the new client, validated against the form schema.
  * @returns The newly created client object.
  */
-export async function addClient(clientData: ClientFormValues): Promise<Client> {
+export async function addClient(clientData: ClientFormValues & { clientSince?: Date }): Promise<Client> {
     const clientsCollection = await getClientsCollection();
     
     const existingClient = await clientsCollection.findOne({ username: clientData.username });
@@ -197,7 +197,7 @@ export async function addClient(clientData: ClientFormValues): Promise<Client> {
         notes: clientData.notes || '',
         tags: clientData.tags ? clientData.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         isVip: clientData.isVip || false,
-        clientSince: format(new Date(), 'yyyy-MM-dd'),
+        clientSince: format(clientData.clientSince || new Date(), 'yyyy-MM-dd'),
     };
 
     const result = await clientsCollection.insertOne(newClientDocument as any);
