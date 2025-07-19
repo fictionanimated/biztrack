@@ -7,6 +7,9 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from "@/components/ui/button";
 import { BarChart2, LineChartIcon } from "lucide-react";
+import { format, startOfWeek, startOfMonth, getQuarter, getYear, parseISO } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 interface Order {
     date: string;
@@ -26,30 +29,95 @@ const chartConfig = {
     },
 } satisfies ChartConfig;
 
+type ChartView = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
 export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChartProps) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
+    const [chartView, setChartView] = useState<ChartView>('monthly');
 
     const chartData = useMemo(() => {
-        return data
-            .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime())
-            .map(order => ({
+        if (!data || data.length === 0) return [];
+
+        const sortedData = data.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+        
+        if (chartView === 'daily') {
+             return sortedData.map(order => ({
                 ...order,
-                dateLabel: order.dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                dateLabel: format(order.dateObj, "MMM d"),
             }));
-    }, [data]);
+        }
+
+        const aggregatedData: Record<string, { amount: number, count: number, dateObj: Date }> = {};
+        
+        sortedData.forEach(order => {
+            let key = '';
+            const date = order.dateObj;
+
+            switch(chartView) {
+                case 'weekly':
+                    key = format(startOfWeek(date, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+                    break;
+                case 'monthly':
+                    key = format(startOfMonth(date), 'yyyy-MM');
+                    break;
+                case 'quarterly':
+                     const quarter = getQuarter(date);
+                     key = `${getYear(date)}-Q${quarter}`;
+                    break;
+                case 'yearly':
+                    key = getYear(date).toString();
+                    break;
+            }
+
+            if (!aggregatedData[key]) {
+                aggregatedData[key] = { amount: 0, count: 0, dateObj: date };
+            }
+            aggregatedData[key].amount += order.amount;
+            aggregatedData[key].count++;
+        });
+
+        return Object.entries(aggregatedData).map(([key, value]) => {
+            let dateLabel = key;
+             switch(chartView) {
+                case 'weekly':
+                    dateLabel = `W/C ${format(parseISO(key), "MMM d")}`;
+                    break;
+                case 'monthly':
+                    dateLabel = format(parseISO(`${key}-01`), "MMM yyyy");
+                    break;
+            }
+            return {
+                dateLabel,
+                amount: value.amount,
+                count: value.count,
+                dateObj: value.dateObj
+            };
+        });
+
+    }, [data, chartView]);
 
     const ChartTooltipContentCustom = (
         <ChartTooltipContent 
-            formatter={(value) => [`$${(value as number).toFixed(2)}`, "Amount"]}
+            formatter={(value, name, props) => {
+                const payload = props.payload as any;
+                if (payload.count) {
+                   return [`$${(value as number).toFixed(2)} from ${payload.count} orders`, "Amount"];
+                }
+                return [`$${(value as number).toFixed(2)}`, "Amount"]
+            }}
             labelFormatter={(label, payload) => {
                 const order = payload?.[0]?.payload;
                 if (!order) return label;
-                return (
-                    <div>
-                        <div>{order.dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                        <div className="text-xs text-muted-foreground">ID: {order.id}</div>
-                    </div>
-                )
+                
+                if (chartView === 'daily') {
+                    return (
+                        <div>
+                            <div>{format(order.dateObj, 'PPP')}</div>
+                            <div className="text-xs text-muted-foreground">ID: {order.id}</div>
+                        </div>
+                    )
+                }
+                return label;
             }}
             indicator="dot" 
         />
@@ -63,7 +131,19 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
                     <CardTitle>Order History Graph</CardTitle>
                     <CardDescription>A visual representation of the client's orders over time.</CardDescription>
                 </div>
-                 <div className="flex items-center gap-1">
+                 <div className="flex items-center gap-2">
+                    <Select value={chartView} onValueChange={(value) => setChartView(value as ChartView)}>
+                        <SelectTrigger className="w-[120px]">
+                            <SelectValue placeholder="Select view" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="monthly">Monthly</SelectItem>
+                            <SelectItem value="quarterly">Quarterly</SelectItem>
+                            <SelectItem value="yearly">Yearly</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Button
                         variant={chartType === 'bar' ? 'secondary' : 'ghost'}
                         size="sm"
@@ -88,17 +168,17 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
                 {chartData.length > 0 ? (
                     <ChartContainer config={chartConfig} className="h-[300px] w-full">
                        {chartType === 'bar' ? (
-                            <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: 50, left: 20 }}>
+                            <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: chartView === 'daily' ? 50 : 5, left: 20 }}>
                                 <CartesianGrid vertical={false} />
                                 <XAxis
                                     dataKey="dateLabel"
                                     tickLine={false}
                                     tickMargin={10}
                                     axisLine={false}
-                                    angle={-45}
-                                    textAnchor="end"
-                                    interval={0}
-                                    height={60}
+                                    angle={chartView === 'daily' ? -45 : 0}
+                                    textAnchor={chartView === 'daily' ? "end" : 'middle'}
+                                    interval={chartView === 'daily' ? "preserveStartEnd" : 0}
+                                    height={chartView === 'daily' ? 60 : 30}
                                 />
                                 <YAxis
                                     tickLine={false}
@@ -113,17 +193,17 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
                                 <Bar dataKey="amount" fill="var(--color-amount)" radius={4} />
                             </BarChart>
                        ) : (
-                            <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 50, left: 20 }}>
+                            <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: chartView === 'daily' ? 50 : 5, left: 20 }}>
                                 <CartesianGrid vertical={false} />
                                 <XAxis
                                     dataKey="dateLabel"
                                     tickLine={false}
                                     tickMargin={10}
                                     axisLine={false}
-                                    angle={-45}
-                                    textAnchor="end"
-                                    interval={0}
-                                    height={60}
+                                    angle={chartView === 'daily' ? -45 : 0}
+                                    textAnchor={chartView === 'daily' ? "end" : 'middle'}
+                                    interval={chartView === 'daily' ? "preserveStartEnd" : 0}
+                                    height={chartView === 'daily' ? 60 : 30}
                                 />
                                 <YAxis
                                     tickLine={false}
