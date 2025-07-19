@@ -8,7 +8,7 @@ import clientPromise from '@/lib/mongodb';
 import { type Order, orderFormSchema, type OrderFormValues } from '@/lib/data/orders-data';
 import { ObjectId } from 'mongodb';
 import { format, parse } from 'date-fns';
-import { getClientByUsername, addClient } from './clientsService';
+import { getClientByUsername, addClient, getClients } from './clientsService';
 import { addGigToSource } from './incomesService';
 import Papa from 'papaparse';
 
@@ -197,7 +197,6 @@ export async function deleteOrder(orderId: string): Promise<boolean> {
  * @returns The created order object.
  */
 export async function importSingleOrder(sourceName: string, orderData: Record<string, string>): Promise<{ order: Order }> {
-    const ordersCollection = await getOrdersCollection();
     const incomesCollection = await getIncomesCollection();
 
     const orderId = orderData['order id'];
