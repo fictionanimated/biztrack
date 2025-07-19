@@ -26,7 +26,7 @@ import { Facebook, Twitter, Linkedin, Github, Globe, DollarSign, ShoppingCart, B
 import type { Stat } from "@/lib/placeholder-data";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { getClientStatus, type Client } from "@/lib/data/clients-data";
 import { type Order } from "@/lib/data/orders-data";
 import { EditClientDialog } from "@/components/clients/edit-client-dialog";
@@ -56,7 +56,11 @@ const parseDateString = (dateString: string): Date => {
     return new Date(0); // Return a default date for invalid strings
   }
   // Handles both "YYYY-MM-DD" and full ISO strings like "2024-07-29T10:00:00.000Z"
-  return new Date(dateString.replace(/-/g, '/'));
+  // The 'T00:00:00' ensures it's parsed as local time, not UTC, preventing off-by-one day errors.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return parseISO(`${dateString}T00:00:00`);
+  }
+  return parseISO(dateString);
 };
 
 export default function ClientDetailsPage() {
@@ -362,5 +366,7 @@ export default function ClientDetailsPage() {
     </main>
   );
 }
+
+    
 
     
