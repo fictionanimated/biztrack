@@ -26,7 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 const importFormSchema = z.object({
     source: z.string({ required_error: "Please select an income source." }).min(1),
     file: z.instanceof(File, { message: "Please upload a CSV file." })
-           .refine(file => file.type === "text/csv", "File must be a CSV."),
+           .refine(file => file.type === "text/csv" || file.name.endsWith(".csv"), "File must be a CSV."),
 });
 
 interface SingleImportDialogProps {
@@ -43,11 +43,38 @@ export function SingleImportDialog({ open, onOpenChange, incomeSources }: Single
     resolver: zodResolver(importFormSchema),
   });
   
+  const parseCsvLine = (line: string): string[] => {
+    const result: string[] = [];
+    let currentField = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"' && (i === 0 || line[i-1] !== '\\')) {
+            if (inQuotes && i + 1 < line.length && line[i+1] === '"') {
+                // This is an escaped quote
+                currentField += '"';
+                i++; // Skip the second quote
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            result.push(currentField);
+            currentField = '';
+        } else {
+            currentField += char;
+        }
+    }
+    result.push(currentField);
+    return result;
+  };
+
   const handleFileParse = (file: File, source: string) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
         const text = e.target?.result as string;
-        const lines = text.split('\n').filter(line => line.trim() !== '');
+        const lines = text.split('\n').map(l => l.trim()).filter(line => line.trim() !== '');
         
         if (lines.length !== 2) {
             toast({ variant: "destructive", title: "Invalid CSV", description: "The CSV file must contain exactly one header row and one data row." });
@@ -56,7 +83,13 @@ export function SingleImportDialog({ open, onOpenChange, incomeSources }: Single
         }
 
         const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
-        const values = lines[1].split(',').map(v => v.trim().replace(/"/g, ''));
+        const values = parseCsvLine(lines[1]);
+
+        if (headers.length !== values.length) {
+            toast({ variant: "destructive", title: "Parsing Error", description: "CSV columns and values do not match. Check for unclosed quotes." });
+            setIsSubmitting(false);
+            return;
+        }
         
         const requiredHeaders = ['date', 'order id', 'gig name', 'client username', 'amount'];
         const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
@@ -68,7 +101,12 @@ export function SingleImportDialog({ open, onOpenChange, incomeSources }: Single
         }
 
         const orderData = headers.reduce((obj, header, index) => {
-            obj[header] = values[index];
+            // Trim quotes from the start and end of the value if they exist
+            let value = values[index];
+            if (value.startsWith('"') && value.endsWith('"')) {
+                value = value.substring(1, value.length - 1);
+            }
+            obj[header] = value.replace(/""/g, '"'); // Un-escape double quotes
             return obj;
         }, {} as Record<string, string>);
 
@@ -119,6 +157,7 @@ export function SingleImportDialog({ open, onOpenChange, incomeSources }: Single
                       <ul className="list-disc space-y-1 pl-5 text-xs text-yellow-800 dark:text-yellow-300">
                             <li>Essential CSV headers (case-insensitive): <strong>date</strong>, <strong>order id</strong>, <strong>gig name</strong>, <strong>client username</strong>, <strong>amount</strong>.</li>
                           <li>The file must contain exactly one header row and one data row.</li>
+                          <li>Fields with commas must be enclosed in double quotes (e.g., "My Gig, with comma").</li>
                           <li>Date format: MM/DD/YYYY, YYYY-MM-DD, etc. (standard parsable formats).</li>
                           <li>New clients and gigs (for selected income source) are <strong>auto-created</strong> if they don't exist.</li>
                       </ul>
@@ -151,7 +190,7 @@ export function SingleImportDialog({ open, onOpenChange, incomeSources }: Single
                   <FormField
                     control={form.control}
                     name="file"
-                    render={({ field }) => (
+                    render={({ field: { value, onChange, ...fieldProps } }) => (
                        <FormItem>
                             <FormLabel htmlFor="csv-file-single">CSV File*</FormLabel>
                             <FormControl>
@@ -159,7 +198,8 @@ export function SingleImportDialog({ open, onOpenChange, incomeSources }: Single
                                 id="csv-file-single" 
                                 type="file" 
                                 accept=".csv"
-                                onChange={(e) => field.onChange(e.target.files ? e.target.files[0] : null)}
+                                {...fieldProps}
+                                onChange={(e) => onChange(e.target.files ? e.target.files[0] : null)}
                               />
                             </FormControl>
                             <FormMessage />
