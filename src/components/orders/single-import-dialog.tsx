@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { IncomeSource } from "@/lib/data/incomes-data";
 import { useToast } from "@/hooks/use-toast";
+import type { Order } from "@/lib/data/orders-data";
 
 const importFormSchema = z.object({
     source: z.string({ required_error: "Please select an income source." }).min(1),
@@ -33,9 +34,10 @@ interface SingleImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   incomeSources: IncomeSource[];
+  onOrderImported: (newOrder: Order) => void;
 }
 
-export function SingleImportDialog({ open, onOpenChange, incomeSources }: SingleImportDialogProps) {
+export function SingleImportDialog({ open, onOpenChange, incomeSources, onOrderImported }: SingleImportDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -82,7 +84,7 @@ export function SingleImportDialog({ open, onOpenChange, incomeSources }: Single
             return;
         }
 
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+        const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase().replace(/"/g, ''));
         const values = parseCsvLine(lines[1]);
 
         if (headers.length !== values.length) {
@@ -124,9 +126,9 @@ export function SingleImportDialog({ open, onOpenChange, incomeSources }: Single
             }
             
             toast({ title: "Import Successful", description: `Order ${result.order.id} has been imported.` });
+            onOrderImported(result.order);
             onOpenChange(false);
             form.reset();
-            // TODO: Add a callback to refresh the orders list on the main page.
         } catch (error: any) {
             toast({ variant: "destructive", title: "Import Failed", description: error.message });
         } finally {

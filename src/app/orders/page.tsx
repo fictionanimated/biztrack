@@ -177,6 +177,10 @@ const OrdersPageComponent = () => {
     const handleOrderAdded = (newOrder: Order) => {
         setOrders(prev => [newOrder, ...prev]);
     };
+    
+    const handleOrderImported = (newOrder: Order) => {
+        setOrders(prev => [newOrder, ...prev]);
+    };
 
     const handleOrderUpdated = (updatedOrder: Order) => {
         setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
@@ -426,6 +430,7 @@ const OrdersPageComponent = () => {
         open={singleImportDialogOpen}
         onOpenChange={setSingleImportDialogOpen}
         incomeSources={incomeSources}
+        onOrderImported={handleOrderImported}
       />
       
       <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
