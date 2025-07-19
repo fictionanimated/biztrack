@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Service for managing order data.
  * This service abstracts the data access layer for orders.
@@ -24,10 +25,10 @@ async function getOrdersCollection() {
 export async function getOrders(): Promise<Order[]> {
   try {
     const ordersCollection = await getOrdersCollection();
-    if (process.env.NODE_ENV === 'development' && !process.env.DATA_CLEARED_ORDERS) {
+    if (process.env.NODE_ENV === 'development' && process.env.SHOULD_CLEAR_ORDERS === 'true') {
         console.log("Clearing 'orders' collection...");
         await ordersCollection.deleteMany({});
-        process.env.DATA_CLEARED_ORDERS = 'true';
+        delete process.env.SHOULD_CLEAR_ORDERS;
     }
     const orders = await ordersCollection.find({}).sort({ date: -1 }).toArray();
     
@@ -260,7 +261,7 @@ export async function importSingleOrder(sourceName: string, orderData: Record<st
  * @param csvContent - The string content of the CSV file.
  * @returns An object with counts of imported and skipped orders.
  */
-export async function importBulkOrders(sourceName: string, csvContent: string): Promise<{ importedCount: number; skippedCount: number }> {
+export async function importBulkOrders(sourceName: string, csvContent: string): Promise<{ importedCount: number; updatedCount: number; skippedCount: number }> {
     const ordersCollection = await getOrdersCollection();
     const incomesCollection = (await clientPromise).db("biztrack-pro").collection('incomes');
     const clientCollection = (await clientPromise).db("biztrack-pro").collection('clients');
@@ -274,6 +275,7 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
 
     const rows = parsed.data as Record<string, string>[];
     let importedCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
 
     // Check if income source exists
@@ -291,6 +293,7 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
     const newClientsToCreate: any[] = [];
     const newGigsToCreate: any[] = [];
     const newOrdersToCreate: any[] = [];
+    const ordersToUpdate: { id: string; amount: number }[] = [];
 
     for (const row of rows) {
         // Standardize headers
@@ -299,15 +302,25 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
         const orderId = orderData['order id'];
         const clientUsername = orderData['client username'];
         const gigName = orderData['gig name'];
+        const amountStr = orderData['amount'];
         
-        if (!orderId || !clientUsername || !gigName || !orderData['date'] || !orderData['amount']) {
+        if (!orderId || !clientUsername || !gigName || !orderData['date'] || !amountStr) {
             console.warn("Skipping row due to missing required fields:", row);
             skippedCount++;
             continue;
         }
 
-        if (existingOrderIds.has(orderId)) {
+        const amount = parseFloat(amountStr);
+        if (isNaN(amount)) {
+            console.warn(`Skipping order ${orderId} due to invalid amount: ${amountStr}`);
             skippedCount++;
+            continue;
+        }
+
+        if (existingOrderIds.has(orderId)) {
+            // It's a duplicate, schedule for update
+            ordersToUpdate.push({ id: orderId, amount: amount });
+            updatedCount++;
             continue;
         }
 
@@ -351,7 +364,7 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
             id: orderId,
             clientUsername: clientUsername,
             date: format(orderDate, "yyyy-MM-dd"),
-            amount: parseFloat(orderData['amount']),
+            amount: amount,
             source: sourceName,
             gig: gigName,
             status: "In Progress",
@@ -376,6 +389,16 @@ export async function importBulkOrders(sourceName: string, csvContent: string): 
     if (newOrdersToCreate.length > 0) {
         await ordersCollection.insertMany(newOrdersToCreate as any);
     }
+
+    if (ordersToUpdate.length > 0) {
+        const bulkUpdateOps = ordersToUpdate.map(op => ({
+            updateOne: {
+                filter: { id: op.id },
+                update: { $inc: { amount: op.amount } }
+            }
+        }));
+        await ordersCollection.bulkWrite(bulkUpdateOps);
+    }
     
-    return { importedCount, skippedCount };
+    return { importedCount, updatedCount, skippedCount };
 }

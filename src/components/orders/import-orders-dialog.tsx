@@ -38,7 +38,7 @@ interface ImportOrdersDialogProps {
 
 export function ImportOrdersDialog({ open, onOpenChange, incomeSources, onImportSuccess }: ImportOrdersDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [importResult, setImportResult] = useState<{ importedCount: number; skippedCount: number } | null>(null);
+  const [importResult, setImportResult] = useState<{ importedCount: number; updatedCount: number; skippedCount: number } | null>(null);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof importFormSchema>>({
@@ -102,11 +102,12 @@ export function ImportOrdersDialog({ open, onOpenChange, incomeSources, onImport
           
           {importResult ? (
               <div className="py-4">
-                  <Alert variant={importResult.importedCount > 0 ? "default" : "destructive"}>
+                  <Alert variant={importResult.importedCount > 0 || importResult.updatedCount > 0 ? "default" : "destructive"}>
                       <AlertTitle>Import Complete!</AlertTitle>
                       <AlertDescription>
-                          <p>Successfully imported: {importResult.importedCount} orders.</p>
-                          <p>Skipped (duplicates or errors): {importResult.skippedCount} orders.</p>
+                          <p>Successfully created: {importResult.importedCount} orders.</p>
+                          <p>Successfully updated: {importResult.updatedCount} orders (amounts summed).</p>
+                          <p>Skipped (due to errors): {importResult.skippedCount} orders.</p>
                       </AlertDescription>
                   </Alert>
                   <DialogFooter className="mt-4">
@@ -123,7 +124,7 @@ export function ImportOrdersDialog({ open, onOpenChange, incomeSources, onImport
                             <li>Optional header: <strong>type</strong> (defaults to "Order").</li>
                             <li>Fields with commas must be in double quotes (e.g., "My Gig, with details").</li>
                             <li>Date format: MM/DD/YYYY, YYYY-MM-DD, etc.</li>
-                            <li>Max <strong>2000 orders</strong> per file. Orders with existing IDs will be skipped.</li>
+                            <li>Max <strong>2000 orders</strong> per file. Orders with existing IDs will have their amounts summed.</li>
                             <li>New clients and gigs (for selected income source) are <strong>auto-created</strong>.</li>
                         </ul>
                     </div>
