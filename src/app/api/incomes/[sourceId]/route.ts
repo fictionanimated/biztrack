@@ -1,7 +1,12 @@
 
 import { NextResponse } from 'next/server';
-import { getIncomeSources, deleteIncomeSource } from '@/lib/services/incomesService';
+import { getIncomeSources, deleteIncomeSource, updateIncomeSource } from '@/lib/services/incomesService';
 import { ObjectId } from 'mongodb';
+import { z } from 'zod';
+
+const updateSchema = z.object({
+  name: z.string().min(2, "Source name must be at least 2 characters."),
+});
 
 export async function GET(request: Request, { params }: { params: { sourceId: string } }) {
   try {
@@ -21,6 +26,27 @@ export async function GET(request: Request, { params }: { params: { sourceId: st
     return NextResponse.json({ error: 'Failed to fetch income source' }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request, { params }: { params: { sourceId: string } }) {
+  try {
+    const json = await request.json();
+    const parsedData = updateSchema.parse(json);
+
+    const updatedSource = await updateIncomeSource(params.sourceId, parsedData.name);
+    
+    return NextResponse.json(updatedSource, { status: 200 });
+  } catch(error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid input data', details: error.errors }, { status: 400 });
+    }
+    const errorMessage = (error instanceof Error) ? error.message : 'An unexpected error occurred';
+    const statusCode = errorMessage.includes("already exists") ? 409 : 500;
+    
+    console.error('API PUT Error updating income source:', error);
+    return NextResponse.json({ error: errorMessage }, { status: statusCode });
+  }
+}
+
 
 export async function DELETE(request: Request, { params }: { params: { sourceId: string } }) {
   try {

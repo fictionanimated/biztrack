@@ -105,6 +105,66 @@ export async function addIncomeSource(sourceData: z.infer<typeof formSchema>): P
 }
 
 /**
+ * Updates an income source name and cascades the change to all related orders.
+ * @param sourceId The ID of the income source to update.
+ * @param newName The new name for the income source.
+ * @returns The updated income source object.
+ */
+export async function updateIncomeSource(sourceId: string, newName: string): Promise<IncomeSource | null> {
+    const incomesCollection = await getIncomesCollection();
+    const ordersCollection = await getOrdersCollection();
+    const client = await clientPromise;
+    const session = client.startSession();
+
+    try {
+        let updatedSource: IncomeSource | null = null;
+        
+        await session.withTransaction(async () => {
+            const source = await incomesCollection.findOne({ _id: new ObjectId(sourceId) }, { session });
+            if (!source) {
+                throw new Error("Income source not found.");
+            }
+            const oldName = source.name;
+
+            // Check if new name already exists (case-insensitive) to prevent duplicates
+            if (oldName.toLowerCase() !== newName.toLowerCase()) {
+                const existingSource = await incomesCollection.findOne({ name: { $regex: `^${newName}$`, $options: 'i' } }, { session });
+                if (existingSource) {
+                    throw new Error(`An income source with the name "${newName}" already exists.`);
+                }
+            }
+
+            // Only proceed if the name has changed
+            if (oldName !== newName) {
+                // 1. Update all orders with the old source name
+                await ordersCollection.updateMany(
+                    { source: oldName },
+                    { $set: { source: newName } },
+                    { session }
+                );
+
+                // 2. Update the income source document itself
+                await incomesCollection.updateOne(
+                    { _id: new ObjectId(sourceId) },
+                    { $set: { name: newName } },
+                    { session }
+                );
+            }
+            
+            const result = await incomesCollection.findOne({ _id: new ObjectId(sourceId) }, { session });
+            if (result) {
+              updatedSource = { ...result, id: result._id.toString() };
+            }
+        });
+        
+        return updatedSource;
+    } finally {
+        await session.endSession();
+    }
+}
+
+
+/**
  * Adds a new gig to a specific income source.
  * @param sourceId The ID of the income source to update.
  * @param gigData The data for the new gig.

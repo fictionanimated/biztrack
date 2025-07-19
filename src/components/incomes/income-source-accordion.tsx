@@ -42,6 +42,7 @@ interface IncomeSourceAccordionProps {
   onAddGig: (sourceId: string) => void;
   onAddSourceData: (source: IncomeSource) => void;
   onAddGigData: (source: IncomeSource, gig: Gig) => void;
+  onEditSource: (source: IncomeSource) => void;
   onEditGig: (sourceId: string, gig: Gig) => void;
   onDeleteGig: (sourceId: string, gig: Gig) => void;
   onDeleteSource: (source: IncomeSource) => void;
@@ -52,6 +53,7 @@ export function IncomeSourceAccordion({
   onAddGig,
   onAddSourceData,
   onAddGigData,
+  onEditSource,
   onEditGig,
   onDeleteGig,
   onDeleteSource,
@@ -108,6 +110,9 @@ export function IncomeSourceAccordion({
                         <NProgressLink href={`/incomes/${source.id}`}>
                             Analytics
                         </NProgressLink>
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => onEditSource(source)}>
+                        Edit
                     </Button>
                     <Button variant="destructive" size="sm" onClick={() => onDeleteSource(source)}>
                         Delete Source

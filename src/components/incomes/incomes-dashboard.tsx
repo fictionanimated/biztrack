@@ -35,6 +35,7 @@ import { AddSourceDataDialog } from "./dialogs/add-source-data-dialog";
 import { AddGigDataDialog } from "./dialogs/add-gig-data-dialog";
 import { MergeGigsDialog } from "./dialogs/merge-gigs-dialog";
 import { DeleteGigDialog } from "./dialogs/delete-gig-dialog";
+import { EditSourceDialog } from "./dialogs/edit-source-dialog";
 
 export function IncomesDashboard() {
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
@@ -43,6 +44,8 @@ export function IncomesDashboard() {
   const { toast } = useToast();
   
   const [isAddSourceDialogOpen, setIsAddSourceDialogOpen] = useState(false);
+  const [isEditSourceDialogOpen, setIsEditSourceDialogOpen] = useState(false);
+  const [editingSource, setEditingSource] = useState<IncomeSource | null>(null);
 
   const [addGigDialogOpen, setAddGigDialogOpen] = useState(false);
   const [addingToSourceId, setAddingToSourceId] = useState<string | null>(null);
@@ -88,6 +91,10 @@ export function IncomesDashboard() {
 
   const handleSourceAdded = (newSource: IncomeSource) => {
     setIncomeSources(prev => [newSource, ...prev]);
+  };
+
+  const handleSourceUpdated = (updatedSource: IncomeSource) => {
+    setIncomeSources(prev => prev.map(s => s.id === updatedSource.id ? updatedSource : s));
   };
 
   const handleGigAdded = (newGig: Gig, sourceId: string) => {
@@ -209,6 +216,7 @@ export function IncomesDashboard() {
             onAddGig={(sourceId) => { setAddingToSourceId(sourceId); setAddGigDialogOpen(true); }}
             onAddSourceData={(source) => { setUpdatingSource(source); setIsAddDataDialogOpen(true); }}
             onAddGigData={(source, gig) => { setUpdatingGigInfo({ source, gig }); setIsAddGigDataDialogOpen(true); }}
+            onEditSource={(source) => { setEditingSource(source); setIsEditSourceDialogOpen(true); }}
             onEditGig={(sourceId, gig) => { setEditingGigInfo({ sourceId, gig }); setEditGigDialogOpen(true); }}
             onDeleteGig={(sourceId, gig) => setGigToDelete({ sourceId, gig })}
             onDeleteSource={setSourceToDelete}
@@ -220,6 +228,13 @@ export function IncomesDashboard() {
         open={isAddSourceDialogOpen} 
         onOpenChange={setIsAddSourceDialogOpen} 
         onSourceAdded={handleSourceAdded}
+      />
+
+      <EditSourceDialog
+        open={isEditSourceDialogOpen}
+        onOpenChange={setIsEditSourceDialogOpen}
+        editingSource={editingSource}
+        onSourceUpdated={handleSourceUpdated}
       />
       
       <AddGigDialog
