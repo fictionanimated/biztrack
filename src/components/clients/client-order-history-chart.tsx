@@ -7,7 +7,22 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from "@/components/ui/button";
 import { BarChart2, LineChartIcon } from "lucide-react";
-import { format, startOfWeek, startOfMonth, getQuarter, getYear, parseISO } from "date-fns";
+import { 
+    format, 
+    startOfWeek, 
+    startOfMonth, 
+    startOfQuarter,
+    startOfYear,
+    getQuarter, 
+    getYear, 
+    parseISO,
+    eachDayOfInterval,
+    eachWeekOfInterval,
+    eachMonthOfInterval,
+    eachQuarterOfInterval,
+    eachYearOfInterval,
+    isWithinInterval,
+} from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
@@ -39,6 +54,9 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
         if (!data || data.length === 0) return [];
 
         const sortedData = data.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
+        const firstOrderDate = sortedData[0].dateObj;
+        const lastOrderDate = sortedData[sortedData.length - 1].dateObj;
+        const interval = { start: firstOrderDate, end: lastOrderDate };
         
         if (chartView === 'daily') {
              return sortedData.map(order => ({
@@ -76,21 +94,46 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
             aggregatedData[key].count++;
         });
 
-        return Object.entries(aggregatedData).map(([key, value]) => {
-            let dateLabel = key;
-             switch(chartView) {
+        // Generate all intervals and fill in gaps
+        let allIntervals: Date[];
+        switch (chartView) {
+            case 'weekly': allIntervals = eachWeekOfInterval(interval, { weekStartsOn: 1 }); break;
+            case 'monthly': allIntervals = eachMonthOfInterval(interval); break;
+            case 'quarterly': allIntervals = eachQuarterOfInterval(interval); break;
+            case 'yearly': allIntervals = eachYearOfInterval(interval); break;
+            default: allIntervals = [];
+        }
+
+        return allIntervals.map(intervalDate => {
+            let key = '';
+            let dateLabel = '';
+            
+            switch (chartView) {
                 case 'weekly':
-                    dateLabel = `W/C ${format(parseISO(key), "MMM d")}`;
+                    key = format(intervalDate, 'yyyy-MM-dd');
+                    dateLabel = `W/C ${format(intervalDate, "MMM d")}`;
                     break;
                 case 'monthly':
-                    dateLabel = format(parseISO(`${key}-01`), "MMM yyyy");
+                    key = format(intervalDate, 'yyyy-MM');
+                    dateLabel = format(intervalDate, "MMM yyyy");
+                    break;
+                case 'quarterly':
+                    const quarter = getQuarter(intervalDate);
+                    key = `${getYear(intervalDate)}-Q${quarter}`;
+                    dateLabel = key;
+                    break;
+                case 'yearly':
+                    key = getYear(intervalDate).toString();
+                    dateLabel = key;
                     break;
             }
+
+            const dataPoint = aggregatedData[key];
             return {
                 dateLabel,
-                amount: value.amount,
-                count: value.count,
-                dateObj: value.dateObj
+                amount: dataPoint ? dataPoint.amount : 0,
+                count: dataPoint ? dataPoint.count : 0,
+                dateObj: intervalDate
             };
         });
 
