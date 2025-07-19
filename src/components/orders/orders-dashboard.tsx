@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, memo, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback, memo } from "react";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { Upload, FileUp, Loader2, Search } from "lucide-react";
@@ -45,6 +45,9 @@ const parseDateString = (dateString: string): Date => {
   return new Date(year, month - 1, day);
 };
 
+const INITIAL_LOAD_COUNT = 50;
+const LOAD_MORE_COUNT = 50;
+
 export function OrdersDashboard() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
@@ -67,6 +70,13 @@ export function OrdersDashboard() {
     const sortParam = searchParams.get('sort');
     const searchQuery = searchParams.get('q') || "";
     const [localSearch, setLocalSearch] = useState(searchQuery);
+
+    const [visibleCounts, setVisibleCounts] = useState({
+        all: INITIAL_LOAD_COUNT,
+        "in-progress": INITIAL_LOAD_COUNT,
+        completed: INITIAL_LOAD_COUNT,
+        cancelled: INITIAL_LOAD_COUNT,
+    });
     
     const [date, setDate] = useState<DateRange | undefined>(() => {
         const fromParam = searchParams.get('from');
@@ -302,8 +312,34 @@ export function OrdersDashboard() {
         if (isLoading) {
             return <Skeleton className="h-[400px] w-full" />
         }
+
+        const renderTabContent = (
+            orderList: (Order & { dateObj: Date; })[],
+            tabKey: keyof typeof visibleCounts
+        ) => {
+            const visibleOrderList = orderList.slice(0, visibleCounts[tabKey]);
+            return (
+                <div className="space-y-4">
+                    <OrdersTable
+                        orders={visibleOrderList}
+                        onEdit={handleOpenDialog}
+                        onDelete={setOrderToDelete}
+                    />
+                    {orderList.length > visibleCounts[tabKey] && (
+                        <div className="text-center">
+                            <Button
+                                onClick={() => setVisibleCounts(prev => ({ ...prev, [tabKey]: prev[tabKey] + LOAD_MORE_COUNT }))}
+                            >
+                                Load More ({orderList.length - visibleCounts[tabKey]} remaining)
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
         return (
-            <Tabs defaultValue="in-progress">
+            <Tabs defaultValue="in-progress" onValueChange={() => setVisibleCounts(prev => ({...prev}))}>
                 <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="in-progress">In Progress ({inProgressOrders.length})</TabsTrigger>
                     <TabsTrigger value="completed">Completed ({completedOrders.length})</TabsTrigger>
@@ -311,32 +347,16 @@ export function OrdersDashboard() {
                     <TabsTrigger value="all">All ({sortedOrders.length})</TabsTrigger>
                 </TabsList>
                 <TabsContent value="in-progress" className="mt-4">
-                    <OrdersTable
-                        orders={inProgressOrders}
-                        onEdit={handleOpenDialog}
-                        onDelete={setOrderToDelete}
-                    />
+                    {renderTabContent(inProgressOrders, "in-progress")}
                 </TabsContent>
                 <TabsContent value="completed" className="mt-4">
-                    <OrdersTable
-                        orders={completedOrders}
-                        onEdit={handleOpenDialog}
-                        onDelete={setOrderToDelete}
-                    />
+                    {renderTabContent(completedOrders, "completed")}
                 </TabsContent>
                 <TabsContent value="cancelled" className="mt-4">
-                     <OrdersTable
-                        orders={cancelledOrders}
-                        onEdit={handleOpenDialog}
-                        onDelete={setOrderToDelete}
-                    />
+                     {renderTabContent(cancelledOrders, "cancelled")}
                 </TabsContent>
                 <TabsContent value="all" className="mt-4">
-                     <OrdersTable
-                        orders={sortedOrders}
-                        onEdit={handleOpenDialog}
-                        onDelete={setOrderToDelete}
-                    />
+                     {renderTabContent(sortedOrders, "all")}
                 </TabsContent>
             </Tabs>
         )
