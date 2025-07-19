@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-import { getOrders, addOrder } from '@/lib/services/ordersService';
+import { getOrdersList, addOrder } from '@/lib/services/ordersService';
 import { orderFormSchema } from '@/lib/data/orders-data';
 import { z } from 'zod';
 
@@ -12,7 +12,7 @@ import { z } from 'zod';
 
 export async function GET() {
   try {
-    const orders = await getOrders();
+    const orders = await getOrdersList();
     return NextResponse.json(orders);
   } catch (error) {
     console.error('API GET Error fetching orders:', error);

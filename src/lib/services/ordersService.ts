@@ -25,10 +25,10 @@ async function getOrdersCollection() {
 export async function getOrders(): Promise<Order[]> {
   try {
     const ordersCollection = await getOrdersCollection();
-    if (process.env.NODE_ENV === 'development' && !process.env.DATA_CLEARED_ORDERS_V3) {
+    if (process.env.NODE_ENV === 'development' && !process.env.DATA_CLEARED_ORDERS_V4) {
         console.log("Clearing 'orders' collection...");
         await ordersCollection.deleteMany({});
-        process.env.DATA_CLEARED_ORDERS_V3 = 'true';
+        process.env.DATA_CLEARED_ORDERS_V4 = 'true';
     }
     const orders = await ordersCollection.find({}).sort({ date: -1 }).toArray();
     
@@ -39,6 +39,43 @@ export async function getOrders(): Promise<Order[]> {
     }));
   } catch (error) {
     console.error('Error fetching orders from DB:', error);
+    return [];
+  }
+}
+
+
+/**
+ * Retrieves a lightweight list of all orders for table display.
+ * @returns A promise that resolves to an array of all orders with minimal fields.
+ */
+export async function getOrdersList(): Promise<Partial<Order>[]> {
+  try {
+    const ordersCollection = await getOrdersCollection();
+    if (process.env.NODE_ENV === 'development' && !process.env.DATA_CLEARED_ORDERS_V4) {
+        console.log("Clearing 'orders' collection...");
+        await ordersCollection.deleteMany({});
+        process.env.DATA_CLEARED_ORDERS_V4 = 'true';
+    }
+    const orders = await ordersCollection.find({}, {
+      projection: {
+        _id: 1,
+        id: 1,
+        date: 1,
+        clientUsername: 1,
+        amount: 1,
+        source: 1,
+        gig: 1,
+        status: 1,
+        rating: 1
+      }
+    }).sort({ date: -1 }).toArray();
+    
+    return orders.map(order => ({
+      ...order,
+      id: order.id || order._id.toString(), // Fallback for any missing id fields
+    }));
+  } catch (error) {
+    console.error('Error fetching orders list from DB:', error);
     return [];
   }
 }
@@ -190,7 +227,14 @@ export async function importSingleOrder(sourceName: string, orderData: Record<st
     const gigName = orderData['gig name'];
     const dateStr = orderData['date'];
     const amount = parseFloat(orderData['amount']);
-    const status = (orderData['status'] || 'In Progress') as Order['status'];
+    
+    const type = orderData['type'];
+    let status: Order['status'] = 'In Progress';
+    if (type?.toLowerCase() === 'order') {
+        status = 'Completed';
+    } else if (type?.toLowerCase() === 'cancellation') {
+        status = 'Cancelled';
+    }
 
     // Attempt to parse multiple date formats
     let orderDate;
