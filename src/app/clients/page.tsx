@@ -66,6 +66,8 @@ const ClientsPageComponent = () => {
     // Read state from URL
     const searchQuery = useMemo(() => searchParams.get('q') || "", [searchParams]);
     const filterSource = useMemo(() => searchParams.get('source') || "all", [searchParams]);
+    const filterYear = useMemo(() => searchParams.get('year') || "all", [searchParams]);
+    const filterMonth = useMemo(() => searchParams.get('month') || "all", [searchParams]);
     const sortParam = useMemo(() => searchParams.get('sort'), [searchParams]);
 
     const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -200,6 +202,16 @@ const ClientsPageComponent = () => {
         }
     };
 
+    const handleYearChange = (value: string) => {
+        router.push(`${pathname}?${createQueryString({ year: value === 'all' ? null : value })}`);
+        if (aiFilters) clearAiFilters();
+    };
+    
+    const handleMonthChange = (value: string) => {
+        router.push(`${pathname}?${createQueryString({ month: value === 'all' ? null : value })}`);
+        if (aiFilters) clearAiFilters();
+    };
+
     const handleClientAdded = (newClient: Client) => {
         setClients(prevClients => [newClient, ...prevClients]);
     };
@@ -316,6 +328,15 @@ const ClientsPageComponent = () => {
             if (filterSource !== 'all') {
                 clientsToFilter = clientsToFilter.filter(client => client.source.toLowerCase().replace(/\s+/g, '-') === filterSource);
             }
+             if (filterYear !== 'all' || filterMonth !== 'all') {
+                clientsToFilter = clientsToFilter.filter(client => {
+                    if (client.lastOrder === 'N/A') return false;
+                    const lastOrderDate = new Date(client.lastOrder.replace(/-/g, '/'));
+                    const yearMatch = filterYear === 'all' || lastOrderDate.getFullYear() === parseInt(filterYear);
+                    const monthMatch = filterMonth === 'all' || (lastOrderDate.getMonth() + 1) === parseInt(filterMonth);
+                    return yearMatch && monthMatch;
+                });
+            }
             if (searchQuery) {
                 const lowercasedQuery = searchQuery.toLowerCase();
                 clientsToFilter = clientsToFilter.filter(client => 
@@ -326,7 +347,7 @@ const ClientsPageComponent = () => {
         }
 
         return clientsToFilter;
-    }, [clients, filterSource, searchQuery, aiFilters]);
+    }, [clients, filterSource, filterYear, filterMonth, searchQuery, aiFilters]);
 
 
     const sortedClients = useMemo(() => {
@@ -390,6 +411,21 @@ const ClientsPageComponent = () => {
             />
         )
     }
+    
+    const yearOptions = useMemo(() => {
+        const years = [];
+        for (let i = 2030; i >= 2021; i--) {
+            years.push(i.toString());
+        }
+        return years;
+    }, []);
+
+    const monthOptions = useMemo(() => {
+        return Array.from({ length: 12 }, (_, i) => ({
+            value: (i + 1).toString(),
+            label: new Date(0, i).toLocaleString('default', { month: 'long' })
+        }));
+    }, []);
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -397,7 +433,7 @@ const ClientsPageComponent = () => {
         <h1 className="font-headline text-lg font-semibold md:text-2xl">
           Clients
         </h1>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
             <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -443,6 +479,24 @@ const ClientsPageComponent = () => {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            <Select value={filterYear} onValueChange={handleYearChange}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {yearOptions.map(year => <SelectItem key={year} value={year}>{year}</SelectItem>)}
+              </SelectContent>
+            </Select>
+             <Select value={filterMonth} onValueChange={handleMonthChange}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months</SelectItem>
+                {monthOptions.map(month => <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
           <Select value={filterSource} onValueChange={handleFilterChange}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Filter by source" />
