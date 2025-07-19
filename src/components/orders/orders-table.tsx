@@ -68,7 +68,7 @@ const OrdersTableComponent = ({ orders, onEdit, onDelete }: OrdersTableProps) =>
                                     {order.clientUsername}
                                 </NProgressLink>
                             </TableCell>
-                            <TableCell className="text-right">${order.amount.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">${typeof order.amount === 'number' ? order.amount.toFixed(2) : '0.00'}</TableCell>
                             <TableCell>
                                 <TooltipProvider>
                                     <Tooltip>
