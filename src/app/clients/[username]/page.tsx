@@ -1,9 +1,9 @@
 
 "use client";
 
-import { lazy, Suspense, useState, useMemo, useEffect } from "react";
+import { lazy, Suspense, useState, useMemo, useEffect, useCallback } from "react";
 import NProgressLink from "@/components/layout/nprogress-link";
-import { notFound, useParams } from "next/navigation";
+import { notFound, useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,6 +32,7 @@ import { type Order } from "@/lib/data/orders-data";
 import { EditClientDialog } from "@/components/clients/edit-client-dialog";
 import { cn } from "@/lib/utils";
 import type { IncomeSource } from "@/lib/data/incomes-data";
+import { MonthYearPicker } from "@/components/clients/month-year-picker";
 
 const ClientOrderHistoryChart = lazy(() => import("@/components/clients/client-order-history-chart"));
 
@@ -66,12 +67,53 @@ const parseDateString = (dateString: string): Date => {
 export default function ClientDetailsPage() {
   const params = useParams();
   const username = params.username as string;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   
   const [client, setClient] = useState<Client | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  const [fromDate, setFromDate] = useState<{ month: number; year: number } | null>(() => {
+    const fromM = searchParams.get('fromMonth');
+    const fromY = searchParams.get('fromYear');
+    if (fromM && fromY) return { month: parseInt(fromM), year: parseInt(fromY) };
+    return null;
+  });
+  const [toDate, setToDate] = useState<{ month: number; year: number } | null>(() => {
+      const toM = searchParams.get('toMonth');
+      const toY = searchParams.get('toYear');
+      if (toM && toY) return { month: parseInt(toM), year: parseInt(toY) };
+      return null;
+  });
+
+  const createQueryString = useCallback(
+    (paramsToUpdate: Record<string, string | null>) => {
+        const params = new URLSearchParams(searchParams.toString());
+        for (const [name, value] of Object.entries(paramsToUpdate)) {
+            if (value) {
+                params.set(name, value);
+            } else {
+                params.delete(name);
+            }
+        }
+        return params.toString();
+    },
+    [searchParams]
+  );
+  
+  const updateUrlWithDate = (from: typeof fromDate, to: typeof toDate) => {
+    router.push(`${pathname}?${createQueryString({
+        fromMonth: from ? String(from.month) : null,
+        fromYear: from ? String(from.year) : null,
+        toMonth: to ? String(to.month) : null,
+        toYear: to ? String(to.year) : null,
+    })}`, { scroll: false });
+  };
+
 
   useEffect(() => {
     async function fetchData() {
@@ -123,10 +165,27 @@ export default function ClientDetailsPage() {
   
   const clientOrders = useMemo(() => {
     if (!client) return [];
-    return orders
+    let clientOrders = orders
         .filter(o => o.clientUsername === client?.username)
         .map(o => ({ ...o, dateObj: parseDateString(o.date) }));
-  }, [orders, client]);
+    
+    if (fromDate || toDate) {
+      clientOrders = clientOrders.filter(order => {
+        const orderDate = order.dateObj;
+        if (fromDate) {
+          const filterFromDate = new Date(fromDate.year, fromDate.month - 1, 1);
+          if (orderDate < filterFromDate) return false;
+        }
+        if (toDate) {
+            const filterToDate = new Date(toDate.year, toDate.month, 0); // Last day of month
+            if (orderDate > filterToDate) return false;
+        }
+        return true;
+      });
+    }
+
+    return clientOrders;
+  }, [orders, client, fromDate, toDate]);
   
   const clientStatus = useMemo(() => {
     if (!client) return { text: "Inactive", color: "bg-red-500" };
@@ -135,6 +194,10 @@ export default function ClientDetailsPage() {
 
   const clientStats = useMemo((): Stat[] => {
     if (!client) return [];
+    
+    const filteredTotalEarning = clientOrders.reduce((sum, order) => sum + order.amount, 0);
+    const filteredTotalOrders = clientOrders.length;
+    
     return [
       {
         icon: "HeartPulse",
@@ -150,20 +213,20 @@ export default function ClientDetailsPage() {
       {
         icon: "DollarSign",
         title: "Total Revenue",
-        value: `$${client.totalEarning.toLocaleString()}`,
-        description: `from ${client.totalOrders} orders`,
+        value: `$${filteredTotalEarning.toLocaleString()}`,
+        description: `from ${filteredTotalOrders} orders`,
       },
       {
         icon: "ShoppingCart",
         title: "Total Orders",
-        value: `${client.totalOrders}`,
-        description: "All-time orders",
+        value: `${filteredTotalOrders}`,
+        description: "in selected period",
       },
       {
           icon: "BarChart",
           title: "Avg. Order Value",
-          value: `$${client.totalOrders > 0 ? (client.totalEarning / client.totalOrders).toFixed(2) : '0.00'}`,
-          description: "Average across all orders",
+          value: `$${filteredTotalOrders > 0 ? (filteredTotalEarning / filteredTotalOrders).toFixed(2) : '0.00'}`,
+          description: "in selected period",
       },
       {
         icon: "Calendar",
@@ -172,7 +235,7 @@ export default function ClientDetailsPage() {
         description: client.lastOrder !== 'N/A' ? `Last order on ${format(parseDateString(client.lastOrder), "PPP")}` : "No orders yet",
       },
     ];
-  }, [client, clientStatus]);
+  }, [client, clientStatus, clientOrders]);
 
   if (isLoading) {
     return (
@@ -221,7 +284,7 @@ export default function ClientDetailsPage() {
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex items-start gap-4">
             <Avatar className="h-20 w-20 border">
             <AvatarImage src={client.avatarUrl || `https://placehold.co/100x100.png?text=${(client.name || client.username).charAt(0)}`} alt="Avatar" data-ai-hint="avatar person" />
@@ -247,7 +310,9 @@ export default function ClientDetailsPage() {
                 </div>
             </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+            <MonthYearPicker date={fromDate} setDate={(d) => { setFromDate(d); updateUrlWithDate(d, toDate); }} label="From" />
+            <MonthYearPicker date={toDate} setDate={(d) => { setToDate(d); updateUrlWithDate(fromDate, d); }} label="To" />
             <EditClientDialog
               open={isEditDialogOpen}
               onOpenChange={setIsEditDialogOpen}
@@ -322,7 +387,7 @@ export default function ClientDetailsPage() {
         <Card className="md:col-span-3">
             <CardHeader>
                 <CardTitle>Order History</CardTitle>
-                <CardDescription>A list of all orders from this client.</CardDescription>
+                <CardDescription>A list of all orders from this client in the selected period.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -348,7 +413,7 @@ export default function ClientDetailsPage() {
                             </TableRow>
                         )) : (
                             <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center">No orders found for this client.</TableCell>
+                                <TableCell colSpan={4} className="h-24 text-center">No orders found for this client in the selected period.</TableCell>
                             </TableRow>
                         )}
                     </TableBody>
@@ -370,3 +435,4 @@ export default function ClientDetailsPage() {
     
 
     
+
