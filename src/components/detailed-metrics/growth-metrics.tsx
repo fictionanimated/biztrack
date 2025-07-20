@@ -31,7 +31,7 @@ export function GrowthMetrics({ data }: GrowthMetricsProps) {
   };
   
   const growthMetrics = [
-    { name: "Monthly Revenue Growth (%)", value: `${data.revenueGrowth.value.toFixed(1)}%`, formula: "((This Period’s Revenue - Last Period’s Revenue) / Last Period’s Revenue) × 100", change: `${data.revenueGrowth.change.toFixed(1)}%`, changeType: data.revenueGrowth.change >= 0 ? 'increase' : 'decrease' as const },
+    { name: "Revenue Growth (%)", value: `${data.revenueGrowth.value.toFixed(1)}%`, formula: "((This Period’s Revenue - Last Period’s Revenue) / Last Period’s Revenue) × 100", change: `${data.revenueGrowth.change.toFixed(1)}%`, changeType: data.revenueGrowth.change >= 0 ? 'increase' : 'decrease' as const },
     { name: "Net Profit Growth (%)", value: `${data.profitGrowth.value.toFixed(1)}%`, formula: "((This Period's Net Profit - Last Period's) / Last Period's) × 100", change: `${data.profitGrowth.change.toFixed(1)}%`, changeType: data.profitGrowth.change >= 0 ? 'increase' : 'decrease' as const },
     { name: "Client Growth Rate (%)", value: `${data.clientGrowth.value.toFixed(1)}%`, formula: "((New Clients - Lost Clients) / Clients at Start) × 100", change: `${data.clientGrowth.change.toFixed(1)}%`, changeType: data.clientGrowth.change >= 0 ? 'increase' : 'decrease' as const },
     { name: "Average Order Value (AOV) Growth (%)", value: `${data.aovGrowth.value.toFixed(1)}%`, formula: "Growth rate of AOV over a period", change: `${data.aovGrowth.change.toFixed(1)}%`, changeType: data.aovGrowth.change >= 0 ? 'increase' : 'decrease' as const },
