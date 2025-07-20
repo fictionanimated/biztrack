@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, startOfYear } from "date-fns";
-import { Line, LineChart, Tooltip, XAxis, YAxis, CartesianGrid, Bar, BarChart } from "recharts";
+import { Line, LineChart, Tooltip, XAxis, YAxis, CartesianGrid, Bar, BarChart, Area, AreaChart } from "recharts";
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
 interface ChartDataPoint {
@@ -12,10 +12,12 @@ interface ChartDataPoint {
     clicks?: number;
     orders?: number;
     messages?: number;
+    revenue?: number;
     prevImpressions?: number;
     prevClicks?: number;
     prevOrders?: number;
     prevMessages?: number;
+    prevRevenue?: number;
 }
 
 interface SourcePerformanceChartProps {
@@ -53,10 +55,12 @@ export function SourcePerformanceChart({ data, config, activeMetrics, showCompar
                 clicks: (existing.clicks || 0) + (item.clicks || 0),
                 orders: (existing.orders || 0) + (item.orders || 0),
                 messages: (existing.messages || 0) + (item.messages || 0),
+                revenue: (existing.revenue || 0) + (item.revenue || 0),
                 prevImpressions: (existing.prevImpressions || 0) + (item.prevImpressions || 0),
                 prevClicks: (existing.prevClicks || 0) + (item.prevClicks || 0),
                 prevOrders: (existing.prevOrders || 0) + (item.prevOrders || 0),
                 prevMessages: (existing.prevMessages || 0) + (item.prevMessages || 0),
+                prevRevenue: (existing.prevRevenue || 0) + (item.prevRevenue || 0),
             });
         });
         
@@ -86,6 +90,21 @@ export function SourcePerformanceChart({ data, config, activeMetrics, showCompar
         );
     }
     
+    const yAxisIds = {
+        revenue: 'left',
+        impressions: 'right',
+        clicks: 'right',
+        orders: 'right',
+        messages: 'right',
+    };
+
+    const valueFormatter = (value: number, name: string) => {
+        if (name.toLowerCase().includes('revenue')) {
+            return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        return value.toLocaleString();
+    };
+    
     return (
         <ChartContainer config={config} className="h-[300px] w-full">
            {chartType === 'line' ? (
@@ -98,19 +117,28 @@ export function SourcePerformanceChart({ data, config, activeMetrics, showCompar
                         tickMargin={8}
                         tickFormatter={tickFormatter}
                     />
-                    <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-                    <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                    {activeMetrics.impressions && <Line dataKey="impressions" type="natural" stroke="var(--color-impressions)" strokeWidth={2} dot={false} />}
-                    {showComparison && activeMetrics.impressions && <Line dataKey="prevImpressions" type="natural" stroke="var(--color-impressions)" strokeWidth={2} dot={false} strokeDasharray="3 3"/>}
-                    
-                    {activeMetrics.clicks && <Line dataKey="clicks" type="natural" stroke="var(--color-clicks)" strokeWidth={2} dot={false} />}
-                    {showComparison && activeMetrics.clicks && <Line dataKey="prevClicks" type="natural" stroke="var(--color-clicks)" strokeWidth={2} dot={false} strokeDasharray="3 3"/>}
-                    
-                    {activeMetrics.orders && <Line dataKey="orders" type="natural" stroke="var(--color-orders)" strokeWidth={2} dot={false} />}
-                    {showComparison && activeMetrics.orders && <Line dataKey="prevOrders" type="natural" stroke="var(--color-orders)" strokeWidth={2} dot={false} strokeDasharray="3 3"/>}
-                    
-                    {activeMetrics.messages && <Line dataKey="messages" type="natural" stroke="var(--color-messages)" strokeWidth={2} dot={false} />}
-                    {showComparison && activeMetrics.messages && <Line dataKey="prevMessages" type="natural" stroke="var(--color-messages)" strokeWidth={2} dot={false} strokeDasharray="3 3"/>}
+                    <YAxis yAxisId="left" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `$${value/1000}k`} />
+                    <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tickMargin={8} />
+
+                    <Tooltip 
+                        cursor={false} 
+                        content={<ChartTooltipContent 
+                            indicator="dot" 
+                            formatter={(value, name) => [valueFormatter(value, name as string), config[name as string]?.label]}
+                        />} 
+                    />
+                    {Object.keys(activeMetrics).filter(k => activeMetrics[k]).map(key => {
+                        const yAxisId = yAxisIds[key as keyof typeof yAxisIds];
+                        return (
+                          <Line key={key} yAxisId={yAxisId} dataKey={key} type="natural" stroke={`var(--color-${key})`} strokeWidth={2} dot={false} />
+                        );
+                    })}
+                     {showComparison && Object.keys(activeMetrics).filter(k => activeMetrics[k]).map(key => {
+                        const yAxisId = yAxisIds[key as keyof typeof yAxisIds];
+                        return (
+                           <Line key={`prev${key}`} yAxisId={yAxisId} dataKey={`prev${key.charAt(0).toUpperCase() + key.slice(1)}`} type="natural" stroke={`var(--color-${key})`} strokeWidth={2} dot={false} strokeDasharray="3 3"/>
+                        )
+                    })}
                 </LineChart>
             ) : (
                  <BarChart accessibilityLayer data={aggregatedData} margin={{ top: 20, right: 20, left: 10, bottom: 0 }}>
@@ -122,19 +150,22 @@ export function SourcePerformanceChart({ data, config, activeMetrics, showCompar
                         tickMargin={8}
                         tickFormatter={tickFormatter}
                     />
-                    <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-                    <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                    {activeMetrics.impressions && <Bar dataKey="impressions" fill="var(--color-impressions)" radius={4} />}
-                    {showComparison && activeMetrics.impressions && <Bar dataKey="prevImpressions" fill="var(--color-impressions)" radius={4} fillOpacity={0.4} />}
+                    <YAxis yAxisId="left" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `$${value/1000}k`} />
+                    <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tickMargin={8} />
+                    <Tooltip cursor={false} content={<ChartTooltipContent indicator="dot" formatter={(value, name) => [valueFormatter(value, name as string), config[name as string]?.label]} />} />
                     
-                    {activeMetrics.clicks && <Bar dataKey="clicks" fill="var(--color-clicks)" radius={4} />}
-                    {showComparison && activeMetrics.clicks && <Bar dataKey="prevClicks" fill="var(--color-clicks)" radius={4} fillOpacity={0.4} />}
-                    
-                    {activeMetrics.orders && <Bar dataKey="orders" fill="var(--color-orders)" radius={4} />}
-                    {showComparison && activeMetrics.orders && <Bar dataKey="prevOrders" fill="var(--color-orders)" radius={4} fillOpacity={0.4} />}
-                    
-                    {activeMetrics.messages && <Bar dataKey="messages" fill="var(--color-messages)" radius={4} />}
-                    {showComparison && activeMetrics.messages && <Bar dataKey="prevMessages" fill="var(--color-messages)" radius={4} fillOpacity={0.4} />}
+                    {Object.keys(activeMetrics).filter(k => activeMetrics[k]).map(key => {
+                        const yAxisId = yAxisIds[key as keyof typeof yAxisIds];
+                        return (
+                            <Bar key={key} yAxisId={yAxisId} dataKey={key} fill={`var(--color-${key})`} radius={4} />
+                        )
+                    })}
+                    {showComparison && Object.keys(activeMetrics).filter(k => activeMetrics[k]).map(key => {
+                        const yAxisId = yAxisIds[key as keyof typeof yAxisIds];
+                        return (
+                            <Bar key={`prev${key}`} yAxisId={yAxisId} dataKey={`prev${key.charAt(0).toUpperCase() + key.slice(1)}`} fill={`var(--color-${key})`} radius={4} fillOpacity={0.4}/>
+                        )
+                    })}
                 </BarChart>
             )}
         </ChartContainer>

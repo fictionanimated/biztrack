@@ -260,7 +260,7 @@ export async function getSourceAnalytics(sourceId: string, fromDate?: string, to
                 sourceName: sourceDoc.name,
                 gigs: sourceDoc.gigs.map(g => ({ id: g.id, name: g.name, date: g.date, messages: g.messages })),
                 timeSeries: [],
-                totals: { impressions: 0, clicks: 0, orders: 0, revenue: 0, messages: 0, ctr: 0, conversionRate: 0 },
+                totals: { impressions: 0, clicks: 0, orders: 0, revenue: 0, messages: 0 },
                 previousTotals: { impressions: 0, clicks: 0, orders: 0, revenue: 0, messages: 0 }
             };
         }

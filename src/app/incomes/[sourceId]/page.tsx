@@ -24,10 +24,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const SourcePerformanceChart = lazy(() => import('@/components/incomes/source-performance-chart').then(m => ({ default: m.SourcePerformanceChart })));
 
 const chartConfig = {
+  revenue: { label: "Revenue", color: "hsl(var(--chart-5))"},
   impressions: { label: "Impressions", color: "hsl(var(--chart-1))" },
   clicks: { label: "Clicks", color: "hsl(var(--chart-2))" },
   messages: { label: "Messages", color: "hsl(var(--chart-3))" },
   orders: { label: "Orders", color: "hsl(var(--chart-4))" },
+  prevRevenue: { label: "Prev. Revenue", color: "hsl(var(--chart-5))"},
   prevImpressions: { label: "Prev. Impressions", color: "hsl(var(--chart-1))" },
   prevClicks: { label: "Prev. Clicks", color: "hsl(var(--chart-2))" },
   prevMessages: { label: "Prev. Messages", color: "hsl(var(--chart-3))" },
@@ -52,6 +54,7 @@ export default function SourceAnalyticsPage() {
   const [chartView, setChartView] = useState('daily');
 
   const [activeMetrics, setActiveMetrics] = useState({
+    revenue: true,
     impressions: true,
     clicks: true,
     orders: true,
@@ -176,34 +179,54 @@ export default function SourceAnalyticsPage() {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <CardTitle>Source Performance</CardTitle>
-                        <CardDescription>Impressions, clicks, orders, and messages from this source.</CardDescription>
+                        <CardDescription>Impressions, clicks, orders, messages, and revenue from this source.</CardDescription>
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                        <div className="flex items-center space-x-2">
-                            <Label htmlFor="chart-type-toggle" className="text-sm font-normal">Line</Label>
-                            <Switch
-                                id="chart-type-toggle"
-                                checked={chartType === 'bar'}
-                                onCheckedChange={(checked) => setChartType(checked ? 'bar' : 'line')}
-                                aria-label="Toggle between line and bar chart"
-                            />
-                            <Label htmlFor="chart-type-toggle" className="text-sm font-normal">Bar</Label>
+                    <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                            {(Object.keys(chartConfig) as Array<keyof typeof chartConfig>).filter(k => !k.startsWith('prev')).map((metric) => (
+                                <div key={metric} className="flex items-center gap-2">
+                                    <Checkbox
+                                        id={`metric-${metric}`}
+                                        checked={activeMetrics[metric as keyof typeof activeMetrics]}
+                                        onCheckedChange={() => handleMetricToggle(metric as keyof typeof activeMetrics)}
+                                        style={{
+                                            '--chart-color': chartConfig[metric as keyof typeof chartConfig].color,
+                                        } as React.CSSProperties}
+                                        className="data-[state=checked]:bg-[var(--chart-color)] data-[state=checked]:border-[var(--chart-color)] border-muted-foreground"
+                                    />
+                                    <Label htmlFor={`metric-${metric}`} className="capitalize">
+                                        {chartConfig[metric as keyof typeof chartConfig].label}
+                                    </Label>
+                                </div>
+                            ))}
                         </div>
-                        <Select value={chartView} onValueChange={setChartView}>
-                            <SelectTrigger className="w-[120px]">
-                                <SelectValue placeholder="Select view" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="daily">Daily</SelectItem>
-                                <SelectItem value="weekly">Weekly</SelectItem>
-                                <SelectItem value="monthly">Monthly</SelectItem>
-                                <SelectItem value="quarterly">Quarterly</SelectItem>
-                                <SelectItem value="yearly">Yearly</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <div className="flex items-center gap-2">
-                            <Checkbox id="show-comparison" checked={showComparison} onCheckedChange={(c) => setShowComparison(!!c)} />
-                            <Label htmlFor="show-comparison">Compare</Label>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                            <div className="flex items-center space-x-2">
+                                <Label htmlFor="chart-type-toggle" className="text-sm font-normal">Line</Label>
+                                <Switch
+                                    id="chart-type-toggle"
+                                    checked={chartType === 'bar'}
+                                    onCheckedChange={(checked) => setChartType(checked ? 'bar' : 'line')}
+                                    aria-label="Toggle between line and bar chart"
+                                />
+                                <Label htmlFor="chart-type-toggle" className="text-sm font-normal">Bar</Label>
+                            </div>
+                            <Select value={chartView} onValueChange={setChartView}>
+                                <SelectTrigger className="w-[120px]">
+                                    <SelectValue placeholder="Select view" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="daily">Daily</SelectItem>
+                                    <SelectItem value="weekly">Weekly</SelectItem>
+                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                                    <SelectItem value="yearly">Yearly</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <div className="flex items-center gap-2">
+                                <Checkbox id="show-comparison" checked={showComparison} onCheckedChange={(c) => setShowComparison(!!c)} />
+                                <Label htmlFor="show-comparison">Compare</Label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -228,24 +251,6 @@ export default function SourceAnalyticsPage() {
           <div>
               <CardTitle>Gigs in this Source</CardTitle>
               <CardDescription>A list of all gigs associated with {analyticsData.sourceName}.</CardDescription>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-              {(Object.keys(chartConfig) as Array<keyof typeof chartConfig>).filter(k => !k.startsWith('prev')).map((metric) => (
-                  <div key={metric} className="flex items-center gap-2">
-                      <Checkbox
-                          id={`metric-${metric}`}
-                          checked={activeMetrics[metric as keyof typeof activeMetrics]}
-                          onCheckedChange={() => handleMetricToggle(metric as keyof typeof activeMetrics)}
-                          style={{
-                              '--chart-color': chartConfig[metric as keyof typeof chartConfig].color,
-                          } as React.CSSProperties}
-                          className="data-[state=checked]:bg-[var(--chart-color)] data-[state=checked]:border-[var(--chart-color)] border-muted-foreground"
-                      />
-                      <Label htmlFor={`metric-${metric}`} className="capitalize">
-                          {chartConfig[metric as keyof typeof chartConfig].label}
-                      </Label>
-                  </div>
-              ))}
           </div>
         </CardHeader>
         <CardContent>
