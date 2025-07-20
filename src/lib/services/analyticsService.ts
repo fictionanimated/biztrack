@@ -7,6 +7,7 @@ import { ObjectId } from 'mongodb';
 import { format, subDays, eachDayOfInterval, differenceInDays, parseISO, sub, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 import clientPromise from '@/lib/mongodb';
 import type { IncomeSource } from '@/lib/data/incomes-data';
+import type { Client } from '@/lib/data/clients-data';
 
 // Helper function to get database collections
 async function getIncomesCollection() {
@@ -26,7 +27,7 @@ async function getExpensesCollection() {
 
 async function getClientsCollection() {
     const client = await clientPromise;
-    return client.db("biztrack-pro").collection('clients');
+    return client.db("biztrack-pro").collection<Omit<Client, 'id'>>('clients');
 }
 
 // Interfaces for Analytics Data
@@ -334,6 +335,7 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
     const ordersCol = await getOrdersCollection();
     const expensesCol = await getExpensesCollection();
     const clientsCol = await getClientsCollection();
+    const incomesCol = await getIncomesCollection();
 
     const calcPeriodMetrics = async (start: Date, end: Date) => {
         const startStr = format(start, 'yyyy-MM-dd');
@@ -341,14 +343,22 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
 
         const revenuePromise = ordersCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
         const expensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr } } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const newClientsPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
         const ordersInPeriodPromise = ordersCol.find({ date: { $gte: startStr, $lte: endStr }, status: 'Completed' }).toArray();
-        const vipClientsPromise = clientsCol.countDocuments({ isVip: true, clientSince: {$lte: endStr} });
         const sourcesPromise = ordersCol.aggregate([{$match: {date: {$gte: startStr, $lte: endStr}}}, {$group: {_id: "$source", revenue: {$sum: "$amount"}}}, {$sort: {revenue: -1}}, {$limit: 1}]).toArray();
-        const allClientsAtStartPromise = clientsCol.countDocuments({ clientSince: { $lt: startStr } });
-        const inactiveClientsPromise = (await getClients()).filter(c => c.lastOrder !== 'N/A' && parseISO(c.lastOrder) < start).length;
+        
+        // Client metrics
+        const clientsAtStart = await clientsCol.countDocuments({ clientSince: { $lt: startStr } });
+        const newClients = await clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
+        const vipClients = await clientsCol.countDocuments({ isVip: true, clientSince: {$lte: endStr} });
 
-        const [revenueRes, expensesRes, newClients, ordersInPeriod, vipClients, topSourceRes, clientsAtStart, inactiveClients] = await Promise.all([revenuePromise, expensesPromise, newClientsPromise, ordersInPeriodPromise, vipClientsPromise, sourcesPromise, allClientsAtStartPromise, inactiveClientsPromise]);
+        // Correct way to get inactive clients
+        const allClientsWithOrders = await ordersCol.aggregate([
+            { $group: { _id: "$clientUsername", lastOrder: { $max: "$date" } } }
+        ]).toArray();
+        
+        const inactiveClients = allClientsWithOrders.filter(c => c.lastOrder < startStr).length;
+
+        const [revenueRes, expensesRes, ordersInPeriod, topSourceRes] = await Promise.all([revenuePromise, expensesPromise, ordersInPeriodPromise, sourcesPromise]);
 
         const revenue = revenueRes[0]?.total || 0;
         const expenses = expensesRes[0]?.total || 0;
