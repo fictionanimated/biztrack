@@ -2,14 +2,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bar, BarChart, Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip } from 'recharts';
+import { Bar, BarChart, Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Text } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from "@/components/ui/button";
 import { BarChart2, LineChartIcon } from "lucide-react";
 import { 
     format, 
-    startOfWeek, 
+    startOfWeek,
+    endOfWeek,
     startOfMonth, 
     startOfQuarter,
     startOfYear,
@@ -45,6 +46,22 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 type ChartView = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
+const CustomXAxisTick = ({ x, y, payload }: any) => {
+    if (payload && payload.value) {
+        // Split value into parts if it contains a newline character
+        const parts = String(payload.value).split('\n');
+        return (
+            <Text x={x} y={y} dy={16} textAnchor="middle" fill="#666" fontSize={12}>
+                {parts.map((part, index) => (
+                    <tspan x={x} dy={index > 0 ? "1.2em" : 0} key={index}>{part}</tspan>
+                ))}
+            </Text>
+        );
+    }
+    return null;
+};
+
 
 export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChartProps) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
@@ -109,10 +126,22 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
             let dateLabel = '';
             
             switch (chartView) {
-                case 'weekly':
+                case 'weekly': {
                     key = format(intervalDate, 'yyyy-MM-dd');
-                    dateLabel = `W/C ${format(intervalDate, "MMM d")}`;
+                    const weekEnd = endOfWeek(intervalDate, { weekStartsOn: 1 });
+                    const startMonth = format(intervalDate, 'MMM');
+                    const endMonth = format(weekEnd, 'MMM');
+                    const startDay = format(intervalDate, 'd');
+                    const endDay = format(weekEnd, 'd');
+                    const year = format(intervalDate, 'yyyy');
+
+                    if (startMonth === endMonth) {
+                        dateLabel = `${startMonth} ${startDay}-${endDay},\n${year}`;
+                    } else {
+                        dateLabel = `${startMonth} ${startDay} - ${endMonth} ${endDay},\n${year}`;
+                    }
                     break;
+                }
                 case 'monthly':
                     key = format(intervalDate, 'yyyy-MM');
                     dateLabel = format(intervalDate, "MMM yyyy");
@@ -160,7 +189,7 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
                         </div>
                     )
                 }
-                return label;
+                return String(label).replace('\n', ' ');
             }}
             indicator="dot" 
         />
@@ -209,19 +238,17 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
             </CardHeader>
             <CardContent className="pl-2">
                 {chartData.length > 0 ? (
-                    <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                    <ChartContainer config={chartConfig} className="h-[350px] w-full">
                        {chartType === 'bar' ? (
-                            <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: chartView === 'daily' ? 50 : 5, left: 20 }}>
+                            <BarChart data={chartData} margin={{ top: 5, right: 20, bottom: chartView === 'weekly' ? 40 : (chartView === 'daily' ? 50 : 5), left: 20 }}>
                                 <CartesianGrid vertical={false} />
                                 <XAxis
                                     dataKey="dateLabel"
                                     tickLine={false}
-                                    tickMargin={10}
                                     axisLine={false}
-                                    angle={chartView === 'daily' ? -45 : 0}
-                                    textAnchor={chartView === 'daily' ? "end" : 'middle'}
-                                    interval={chartView === 'daily' ? "preserveStartEnd" : 0}
-                                    height={chartView === 'daily' ? 60 : 30}
+                                    interval="preserveStartEnd"
+                                    height={chartView === 'weekly' ? 50 : (chartView === 'daily' ? 60 : 30)}
+                                    tick={<CustomXAxisTick />}
                                 />
                                 <YAxis
                                     tickLine={false}
@@ -236,17 +263,15 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
                                 <Bar dataKey="amount" fill="var(--color-amount)" radius={4} />
                             </BarChart>
                        ) : (
-                            <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: chartView === 'daily' ? 50 : 5, left: 20 }}>
+                            <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: chartView === 'weekly' ? 40 : (chartView === 'daily' ? 50 : 5), left: 20 }}>
                                 <CartesianGrid vertical={false} />
                                 <XAxis
                                     dataKey="dateLabel"
                                     tickLine={false}
-                                    tickMargin={10}
                                     axisLine={false}
-                                    angle={chartView === 'daily' ? -45 : 0}
-                                    textAnchor={chartView === 'daily' ? "end" : 'middle'}
-                                    interval={chartView === 'daily' ? "preserveStartEnd" : 0}
-                                    height={chartView === 'daily' ? 60 : 30}
+                                    interval="preserveStartEnd"
+                                    height={chartView === 'weekly' ? 50 : (chartView === 'daily' ? 60 : 30)}
+                                    tick={<CustomXAxisTick />}
                                 />
                                 <YAxis
                                     tickLine={false}
@@ -271,3 +296,4 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
         </Card>
     );
 }
+
