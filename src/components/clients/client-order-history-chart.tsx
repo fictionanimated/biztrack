@@ -296,4 +296,3 @@ export default function ClientOrderHistoryChart({ data }: ClientOrderHistoryChar
         </Card>
     );
 }
-
