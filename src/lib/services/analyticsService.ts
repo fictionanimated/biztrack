@@ -545,38 +545,49 @@ export async function getClientMetrics(from: string, to: string): Promise<Client
         const startStr = format(start, 'yyyy-MM-dd');
         const endStr = format(end, 'yyyy-MM-dd');
 
-        const totalClientsPromise = ordersCol.distinct('clientUsername', { date: { $gte: startStr, $lte: endStr } });
-        const newClientsPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
-        const ordersInPeriodPromise = ordersCol.find({ date: { $gte: startStr, $lte: endStr } }).toArray();
-        const clientsAtStartPromise = clientsCol.countDocuments({ clientSince: { $lt: startStr } });
-        const csatPromise = ordersCol.aggregate([
+        const totalClientsUsernames = await ordersCol.distinct('clientUsername', { date: { $gte: startStr, $lte: endStr } });
+        const newClientsCount = await clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
+        
+        const clientsWithFirstOrderInPeriod = new Set((await clientsCol.find({ clientSince: { $gte: startStr, $lte: endStr } }).toArray()).map(c => c.username));
+        const ordersInPeriod = await ordersCol.find({ date: { $gte: startStr, $lte: endStr } }).toArray();
+        const repeatOrdersCount = ordersInPeriod.filter(o => !clientsWithFirstOrderInPeriod.has(o.clientUsername)).length;
+        
+        const clientsAtStart = await clientsCol.countDocuments({ clientSince: { $lt: startStr } });
+        const activeInLastSixMonths = new Set((await ordersCol.distinct('clientUsername', { date: { $gte: format(sub(start, { months: 6 }), 'yyyy-MM-dd'), $lt: startStr } })));
+        const retainedClients = await ordersCol.distinct('clientUsername', { date: { $gte: startStr, $lte: endStr }, clientUsername: { $in: Array.from(activeInLastSixMonths) }});
+        const retentionRate = activeInLastSixMonths.size > 0 ? (retainedClients.length / activeInLastSixMonths.size) * 100 : 0;
+        
+        const csatRes = await ordersCol.aggregate([
             { $match: { date: { $gte: startStr, $lte: endStr }, rating: { $ne: null } } },
             { $group: { _id: null, totalRatings: { $sum: 1 }, positiveRatings: { $sum: { $cond: [{ $gte: ['$rating', 4] }, 1, 0] } }, avgRating: { $avg: '$rating' } } }
         ]).toArray();
-        const avgLifespanPromise = clientsCol.aggregate([
-            { $lookup: { from: 'orders', localField: 'username', foreignField: 'clientUsername', as: 'orders' } },
-            { $match: { 'orders.1': { $exists: true } } }, // Must be a repeat client
-            { $addFields: { firstOrder: { $min: '$orders.date' }, lastOrder: { $max: '$orders.date' } } },
-            { $match: { lastOrder: { $lt: format(sub(new Date(), { months: 6 }), 'yyyy-MM-dd') } } }, // Churned clients
-            { $addFields: { lifespanDays: { $divide: [{$subtract: [{$dateFromString: {dateString: "$lastOrder"}}, {$dateFromString: {dateString: "$firstOrder"}}]}, 1000 * 60 * 60 * 24] } } },
-            { $group: { _id: null, avgLifespan: { $avg: '$lifespanDays' } } }
-        ]).toArray();
-
-        const [totalClientsUsernames, newClients, ordersInPeriod, clientsAtStart, csatRes, avgLifespanRes] = await Promise.all([
-            totalClientsPromise, newClientsPromise, ordersInPeriodPromise, clientsAtStartPromise, csatPromise, avgLifespanPromise
-        ]);
-
-        const repeatOrders = ordersInPeriod.filter(o => !allClients.some(c => c.username === o.clientUsername && c.clientSince >= startStr)).length;
-        const totalClients = totalClientsUsernames.length;
-        const allClients = await clientsCol.find({}, { projection: { clientSince: 1, username: 1 } }).toArray();
-        const clientsActiveLast6Months = await ordersCol.distinct('clientUsername', { date: { $gte: format(sub(start, { months: 6 }), 'yyyy-MM-dd'), $lt: startStr } });
-        const retentionRate = clientsAtStart > 0 ? (clientsActiveLast6Months.length / clientsAtStart) * 100 : 0;
         const csat = csatRes[0] ? (csatRes[0].positiveRatings / csatRes[0].totalRatings) * 100 : 0;
         const avgRating = csatRes[0]?.avgRating || 0;
         const cancelledOrders = ordersInPeriod.filter(o => o.status === 'Cancelled').length;
-        const avgLifespan = (avgLifespanRes[0]?.avgLifespan || 0) / 30.44; // in months
-        
-        return { totalClients, newClients, repeatOrders, retentionRate, csat, avgRating, cancelledOrders, avgLifespan };
+
+        // Correct Lifespan Calculation
+        const lifespanRes = await clientsCol.aggregate([
+            { $lookup: { from: 'orders', localField: 'username', foreignField: 'clientUsername', as: 'orders' } },
+            { $match: { 'orders.1': { $exists: true } } },
+            { $project: {
+                firstOrderDate: { $min: '$orders.date' },
+                lastOrderDate: { $max: '$orders.date' },
+            }},
+            { $match: { lastOrderDate: { $lt: startStr } } }, // Churned before the period starts
+            { $project: {
+                lifespan: { $divide: [
+                    { $subtract: [ 
+                        { $dateFromString: { dateString: '$lastOrderDate' } }, 
+                        { $dateFromString: { dateString: '$firstOrderDate' } } 
+                    ]},
+                    1000 * 60 * 60 * 24 * 30.44 // Convert ms to months
+                ]}
+            }},
+            { $group: { _id: null, avgLifespan: { $avg: '$lifespan' } } }
+        ]).toArray();
+        const avgLifespan = lifespanRes[0]?.avgLifespan || 0;
+
+        return { totalClients: totalClientsUsernames.length, newClients: newClientsCount, repeatOrders: repeatOrdersCount, retentionRate, csat, avgRating, cancelledOrders, avgLifespan };
     };
 
     const [currentMetrics, prevMetrics] = await Promise.all([
