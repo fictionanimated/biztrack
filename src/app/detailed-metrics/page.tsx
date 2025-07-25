@@ -13,19 +13,9 @@ import { SalesMetrics } from "@/components/detailed-metrics/sales-metrics";
 import { MarketingMetrics } from "@/components/detailed-metrics/marketing-metrics";
 import { ProjectMetrics } from "@/components/detailed-metrics/project-metrics";
 import { GrowthMetrics } from "@/components/detailed-metrics/growth-metrics";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { initialIncomeSources } from "@/lib/data/incomes-data";
-import { type GrowthMetricData, type FinancialMetricData } from "@/lib/services/analyticsService";
+import { type GrowthMetricData, type FinancialMetricData, type ClientMetricData } from "@/lib/services/analyticsService";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const incomeSourceNames = initialIncomeSources.map((s) => s.name);
 
 const DetailedMetricsPageComponent = () => {
   const router = useRouter();
@@ -48,9 +38,9 @@ const DetailedMetricsPageComponent = () => {
     return { from, to: today };
   });
 
-  const [source, setSource] = useState("all");
   const [growthMetrics, setGrowthMetrics] = useState<GrowthMetricData | null>(null);
   const [financialMetrics, setFinancialMetrics] = useState<FinancialMetricData | null>(null);
+  const [clientMetrics, setClientMetrics] = useState<ClientMetricData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const createQueryString = useCallback(
@@ -85,19 +75,23 @@ const DetailedMetricsPageComponent = () => {
       const to = format(date.to, 'yyyy-MM-dd');
       
       try {
-        const [growthRes, financialRes] = await Promise.all([
+        const [growthRes, financialRes, clientRes] = await Promise.all([
             fetch(`/api/analytics/growth?from=${from}&to=${to}`),
-            fetch(`/api/analytics/financials?from=${from}&to=${to}`)
+            fetch(`/api/analytics/financials?from=${from}&to=${to}`),
+            fetch(`/api/analytics/client-metrics?from=${from}&to=${to}`)
         ]);
 
         if (!growthRes.ok) throw new Error('Failed to fetch growth metrics.');
         if (!financialRes.ok) throw new Error('Failed to fetch financial metrics.');
+        if (!clientRes.ok) throw new Error('Failed to fetch client metrics.');
         
         const growthData = await growthRes.json();
         const financialData = await financialRes.json();
+        const clientData = await clientRes.json();
 
         setGrowthMetrics(growthData);
         setFinancialMetrics(financialData);
+        setClientMetrics(clientData);
 
       } catch (e: any) {
         console.error(e);
@@ -121,19 +115,6 @@ const DetailedMetricsPageComponent = () => {
           Detailed Metrics
         </h1>
         <div className="ml-auto flex items-center gap-2">
-           <Select value={source} onValueChange={setSource}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by source" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sources</SelectItem>
-              {incomeSourceNames.map((sourceName) => (
-                <SelectItem key={sourceName} value={sourceName}>
-                  {sourceName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <DateFilter date={date} setDate={handleSetDate} />
         </div>
       </div>
@@ -141,7 +122,7 @@ const DetailedMetricsPageComponent = () => {
       <div className="space-y-8">
         {isLoading ? <Skeleton className="h-[250px] w-full" /> : growthMetrics && <GrowthMetrics data={growthMetrics} />}
         {isLoading ? <Skeleton className="h-[250px] w-full" /> : financialMetrics && <FinancialMetrics data={financialMetrics} />}
-        <ClientMetrics />
+        {isLoading ? <Skeleton className="h-[250px] w-full" /> : clientMetrics && <ClientMetrics data={clientMetrics} />}
         <SalesMetrics />
         <MarketingMetrics />
         <ProjectMetrics />

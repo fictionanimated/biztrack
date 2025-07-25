@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, lazy, Suspense } from "react";
@@ -6,21 +7,15 @@ import { Users, ArrowUp, ArrowDown, BarChart, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { ClientMetricData } from "@/lib/services/analyticsService";
 
 const ClientMetricsChart = lazy(() => import("@/components/detailed-metrics/client-metrics-chart"));
 
-const clientMetrics = [
-    { name: "Total Clients", value: "125", formula: "Total unique clients in period", change: "+15", changeType: "increase" as const },
-    { name: "New Clients", value: "30", formula: "Clients with their first order in period", change: "+5", changeType: "increase" as const },
-    { name: "Repeat Orders", value: "95", formula: "Orders from existing clients", change: "+12%", changeType: "increase" as const },
-    { name: "Client Retention Rate (%)", value: "85%", formula: "((End Clients - New) / Start Clients) × 100", change: "+2.0%", changeType: "increase" as const },
-    { name: "Repeat Purchase Rate (%)", value: "34%", formula: "(Repeat Clients / Total Clients) × 100", change: "-1.5%", changeType: "decrease" as const },
-    { name: "Client Satisfaction (CSAT)", value: "92%", formula: "(Positive Ratings / Total Ratings) × 100", change: "+3.0%", changeType: "increase" as const },
-    { name: "Average Rating", value: "4.8 / 5.0", formula: "Sum of ratings / Number of rated orders", change: "+0.1", changeType: "increase" as const },
-    { name: "Cancelled Orders", value: "12", formula: "Total orders marked as cancelled", change: "+2", changeType: "increase" as const, invertColor: true },
-];
+interface ClientMetricsProps {
+    data: ClientMetricData;
+}
 
-export function ClientMetrics() {
+export function ClientMetrics({ data }: ClientMetricsProps) {
   const [showChart, setShowChart] = useState(false);
   const [activeMetrics, setActiveMetrics] = useState({
     totalClients: true,
@@ -32,6 +27,17 @@ export function ClientMetrics() {
   const handleMetricToggle = (metric: keyof typeof activeMetrics) => {
     setActiveMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
   };
+
+  const clientMetrics = [
+    { name: "Total Clients", value: data.totalClients.value.toLocaleString(), formula: "Total unique clients in period", change: `${data.totalClients.change.toFixed(1)}%`, changeType: data.totalClients.change >= 0 ? "increase" : "decrease" as const },
+    { name: "New Clients", value: data.newClients.value.toLocaleString(), formula: "Clients with their first order in period", change: `${data.newClients.change.toFixed(1)}%`, changeType: data.newClients.change >= 0 ? "increase" : "decrease" as const },
+    { name: "Repeat Orders", value: data.repeatOrders.value.toLocaleString(), formula: "Orders from existing clients", change: `${data.repeatOrders.change.toFixed(1)}%`, changeType: data.repeatOrders.change >= 0 ? "increase" : "decrease" as const },
+    { name: "Client Retention Rate (%)", value: `${data.retentionRate.value.toFixed(1)}%`, formula: "((End Clients - New) / Start Clients) × 100", change: `${data.retentionRate.change.toFixed(1)}%`, changeType: data.retentionRate.change >= 0 ? "increase" : "decrease" as const },
+    { name: "Avg. Lifespan of Repeat Customer", value: `${data.avgLifespan.value.toFixed(1)} months`, formula: "Avg. time between first & last order of churned repeat clients", change: `${data.avgLifespan.change.toFixed(1)}%`, changeType: data.avgLifespan.change >= 0 ? "increase" : "decrease" as const },
+    { name: "Client Satisfaction (CSAT)", value: `${data.csat.value.toFixed(1)}%`, formula: "(Positive Ratings / Total Ratings) × 100", change: `${data.csat.change.toFixed(1)}%`, changeType: data.csat.change >= 0 ? "increase" : "decrease" as const },
+    { name: "Average Rating", value: `${data.avgRating.value.toFixed(2)} / 5.0`, formula: "Sum of ratings / Number of rated orders", change: data.avgRating.change.toFixed(2), changeType: data.avgRating.change >= 0 ? "increase" : "decrease" as const },
+    { name: "Cancelled Orders", value: data.cancelledOrders.value.toLocaleString(), formula: "Total orders marked as cancelled", change: `${data.cancelledOrders.change.toFixed(1)}%`, changeType: data.cancelledOrders.change >= 0 ? "increase" : "decrease" as const, invertColor: true },
+  ];
 
   return (
     <Card>
@@ -48,7 +54,7 @@ export function ClientMetrics() {
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {clientMetrics.map((metric) => {
-            const isPositive = (metric as any).invertColor ? metric.changeType === "decrease" : metric.changeType === "increase";
+            const isPositive = metric.invertColor ? metric.changeType === "decrease" : metric.changeType === "increase";
             return (
                 <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
                 <div>
