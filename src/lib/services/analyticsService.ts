@@ -1,6 +1,5 @@
 
 
-
 /**
  * @fileoverview Service for fetching and processing analytics data.
  */
@@ -372,8 +371,8 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
     const toDate = parseISO(to);
     
     const durationInDays = differenceInDays(toDate, fromDate);
+    if (durationInDays < 0) throw new Error("Invalid date range");
 
-    // Define three consecutive periods
     const P2_to = toDate;
     const P2_from = fromDate;
 
@@ -397,7 +396,7 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
         const sourcesPromise = ordersCol.aggregate([{$match: {date: {$gte: startStr, $lte: endStr}, status: 'Completed'}}, {$group: {_id: "$source", revenue: {$sum: "$amount"}}}, {$sort: {revenue: -1}}, {$limit: 1}]).toArray();
         
         const newClientsPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
-        const allClientsPromise = clientsCol.find({}).project({ clientSince: 1, _id: 0, username: 1 }).toArray();
+        const allClientsPromise = clientsCol.find({}, { projection: { username: 1, clientSince: 1, _id: 0 } }).toArray();
         const vipClientsPromise = clientsCol.countDocuments({ isVip: true, clientSince: {$lte: endStr} });
         
         const [revenueRes, expensesRes, ordersInPeriod, topSourceRes, newClients, allClients, vipClients] = await Promise.all([
@@ -411,7 +410,7 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
         const topSource = topSourceRes[0] ? {source: topSourceRes[0]._id, revenue: topSourceRes[0].revenue} : {source: 'N/A', revenue: 0};
         const clientsAtStart = allClients.filter(c => c.clientSince < startStr).length;
 
-        return { revenue, expenses, netProfit, newClients, aov, vipClients, topSource, clientsAtStart };
+        return { revenue, expenses, netProfit, newClients, aov, vipClients, topSource, clientsAtStart, totalClients: allClients.length };
     };
 
     const [P2_metrics, P1_metrics, P0_metrics] = await Promise.all([
@@ -438,6 +437,7 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
     const calculateGrowthChange = (currentGrowth: number, prevGrowth: number) => currentGrowth - prevGrowth;
 
     const timeSeries: GrowthMetricTimeSeries[] = eachMonthOfInterval({ start: fromDate, end: toDate }).map(monthStart => {
+        // In a real app, this would be another aggregation by month, but for now we use random data
         return {
             month: format(monthStart, 'MMM'),
             revenueGrowth: Math.random() * 5,
@@ -626,25 +626,59 @@ export async function getClientMetrics(from: string, to: string): Promise<Client
 export async function getYearlyStats(year: number): Promise<Partial<SingleYearData>> {
     const ordersCol = await getOrdersCollection();
     const competitorsCol = await getCompetitorsCollection();
+    const expensesCol = await getExpensesCollection();
 
     const yearStart = format(startOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd');
     const yearEnd = format(endOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd');
 
-    // 1. Get My Orders, grouped by month
-    const myMonthlyOrdersArr = await ordersCol.aggregate([
+    // Initialize default structures
+    const myMonthlyOrders = Array(12).fill(0);
+    const monthlyFinancials = Array(12).fill(0).map((_, i) => ({
+        month: format(new Date(year, i, 1), 'MMM'),
+        revenue: 0,
+        expenses: 0,
+        profit: 0
+    }));
+
+    // 1. Get My Orders and Revenue, grouped by month
+    const myMonthlyDataArr = await ordersCol.aggregate([
         { $match: { date: { $gte: yearStart, $lte: yearEnd }, status: 'Completed' } },
-        { $project: { month: { $substr: ['$date', 5, 2] }, amount: '$amount' } },
+        { $project: { month: { $substrBytes: ['$date', 5, 2] }, amount: '$amount' } },
         { $group: { _id: '$month', orders: { $sum: 1 }, revenue: { $sum: '$amount' } } },
         { $sort: { '_id': 1 } }
     ]).toArray();
 
-    const myMonthlyOrders = Array(12).fill(0);
-    myMonthlyOrdersArr.forEach(item => {
-        myMonthlyOrders[parseInt(item._id, 10) - 1] = item.orders;
+    myMonthlyDataArr.forEach(item => {
+        const monthIndex = parseInt(item._id, 10) - 1;
+        if (monthIndex >= 0 && monthIndex < 12) {
+            myMonthlyOrders[monthIndex] = item.orders;
+            monthlyFinancials[monthIndex].revenue = item.revenue;
+        }
     });
+
+    // 2. Get Expenses, grouped by month
+    const monthlyExpensesArr = await expensesCol.aggregate([
+        { $match: { date: { $gte: yearStart, $lte: yearEnd } } },
+        { $project: { month: { $substrBytes: ['$date', 5, 2] }, amount: '$amount' } },
+        { $group: { _id: '$month', totalExpenses: { $sum: '$amount' } } },
+        { $sort: { '_id': 1 } }
+    ]).toArray();
+
+    monthlyExpensesArr.forEach(item => {
+        const monthIndex = parseInt(item._id, 10) - 1;
+        if (monthIndex >= 0 && monthIndex < 12) {
+            monthlyFinancials[monthIndex].expenses = item.totalExpenses;
+        }
+    });
+
+    // 3. Calculate Profit
+    monthlyFinancials.forEach(mf => {
+        mf.profit = mf.revenue - mf.expenses;
+    });
+
     const myTotalYearlyOrders = myMonthlyOrders.reduce((sum, count) => sum + count, 0);
 
-    // 2. Get Competitor Data
+    // 4. Get Competitor Data
     const competitors = await competitorsCol.find({}).toArray();
     const competitorYearlyData = competitors.map(comp => {
         const monthlyOrders = Array(12).fill(0);
@@ -667,5 +701,6 @@ export async function getYearlyStats(year: number): Promise<Partial<SingleYearDa
         myTotalYearlyOrders,
         monthlyOrders: myMonthlyOrders,
         competitors: competitorYearlyData,
+        monthlyFinancials: monthlyFinancials,
     };
 }
