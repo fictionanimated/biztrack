@@ -88,26 +88,41 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
     const aggregatedData = useMemo(() => {
         if (!data || data.length === 0) return [];
         const dataMap = new Map<string, any>();
+        
+        // Assuming data is monthly for now, as per backend.
+        // We will need to know the start/end date from props if we get daily data.
+        const currentYear = new Date().getFullYear();
 
-        data.forEach(item => {
-            const itemDate = parseISO(item.month);
+        data.forEach((item, index) => {
+            // Create a parsable date. item.month is "MMM" format.
+            const itemDate = new Date(`${item.month} 1, ${currentYear}`);
+
+            if (isNaN(itemDate.getTime())) return; // Skip invalid dates
+
             let key = '';
             switch(chartView) {
                 case 'weekly': key = format(startOfWeek(itemDate, { weekStartsOn: 1 }), 'yyyy-MM-dd'); break;
                 case 'monthly': key = format(startOfMonth(itemDate), 'yyyy-MM-dd'); break;
                 case 'quarterly': key = `${getYear(itemDate)}-Q${getQuarter(itemDate)}`; break;
                 case 'yearly': key = format(startOfYear(itemDate), 'yyyy'); break;
-                default: key = item.month; break;
+                default: key = format(itemDate, 'yyyy-MM-dd'); break; // default to daily-like format
             }
 
             const existing = dataMap.get(key) || { month: key };
             Object.keys(chartConfig).forEach(metricKey => {
-                existing[metricKey] = (existing[metricKey] || 0) + (item[metricKey as keyof GrowthMetricTimeSeries] || 0);
+                const itemValue = item[metricKey as keyof GrowthMetricTimeSeries] || 0;
+                existing[metricKey] = (existing[metricKey] || 0) + (typeof itemValue === 'number' ? itemValue : 0);
             });
             dataMap.set(key, existing);
         });
-
-        return Array.from(dataMap.values()).sort((a,b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+        
+        return Array.from(dataMap.values()).sort((a,b) => {
+            // Handle quarter/year sorting
+            if (chartView === 'quarterly' || chartView === 'yearly') {
+                return a.month.localeCompare(b.month);
+            }
+            return new Date(a.month).getTime() - new Date(b.month).getTime()
+        });
     }, [data, chartView]);
 
     const tickFormatter = (value: string) => {
