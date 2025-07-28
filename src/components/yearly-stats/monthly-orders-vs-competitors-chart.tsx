@@ -46,7 +46,9 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selecte
         let tempMetricKeys: string[] = [];
         const legendData: Record<string, { label: string; total: number; avg: number; year?: number }> = {};
         
-        const allCompetitors = selectedYears.flatMap(year => allYearlyData[year].competitors.map(c => c.name));
+        const allCompetitors = selectedYears.flatMap(year => 
+            allYearlyData[year] ? allYearlyData[year].competitors.map(c => c.name) : []
+        );
         const uniqueCompetitors = [...new Set(allCompetitors)];
         const allMetrics = ['My Orders', ...uniqueCompetitors];
 
