@@ -26,7 +26,7 @@ const YearlySummaryTable = lazy(() => import("@/components/yearly-stats/yearly-s
 
 const YearlyStatsPageComponent = () => {
     const currentYear = new Date().getFullYear();
-    const availableYears = useMemo(() => Array.from({ length: 10 }, (_, i) => currentYear + 1 - i), [currentYear]);
+    const availableYears = useMemo(() => Array.from({ length: 20 }, (_, i) => 2040 - i), []);
     const [selectedYears, setSelectedYears] = useState<number[]>([currentYear]);
     
     const [fetchedData, setFetchedData] = useState<YearlyStatsData>({});
