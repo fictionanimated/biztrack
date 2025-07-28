@@ -46,7 +46,7 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
     
     const { chartData, chartConfig, legendStats, isYoy, isLoading } = useMemo(() => {
         const yearsWithData = selectedYears.filter(year => allYearlyData[year]);
-        if (yearsWithData.length === 0) {
+        if (yearsWithData.length === 0 || Object.keys(allYearlyData).length === 0) {
             return { chartData: [], chartConfig: {}, legendStats: {}, isYoy: false, isLoading: true };
         }
 

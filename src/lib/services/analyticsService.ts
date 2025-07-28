@@ -5,7 +5,8 @@
 import { ObjectId } from 'mongodb';
 import { format, subDays, eachDayOfInterval, differenceInDays, parseISO, sub, startOfMonth, endOfMonth, eachMonthOfInterval, startOfYear, endOfYear } from 'date-fns';
 import clientPromise from '@/lib/mongodb';
-import type { IncomeSource, Competitor } from '@/lib/data/incomes-data';
+import { type Competitor } from '@/lib/data/incomes-data';
+import type { IncomeSource } from '@/lib/data/incomes-data';
 import type { Client } from '@/lib/data/clients-data';
 import type { Order } from '@/lib/data/orders-data';
 import type { SingleYearData } from '@/lib/data/yearly-stats-data';
@@ -33,7 +34,7 @@ async function getClientsCollection() {
 
 async function getCompetitorsCollection() {
     const client = await clientPromise;
-    return client.db("biztrack-pro").collection<Competitor>('competitors');
+    return db.collection<Competitor>('competitors');
 }
 
 // Interfaces for Analytics Data
@@ -622,9 +623,11 @@ export async function getClientMetrics(from: string, to: string): Promise<Client
 }
 
 export async function getYearlyStats(year: number): Promise<SingleYearData> {
-    const ordersCol = await getOrdersCollection();
-    const competitorsCol = await getCompetitorsCollection();
-    const expensesCol = await getExpensesCollection();
+    const client = await clientPromise;
+    const db = client.db("biztrack-pro");
+    const ordersCol = db.collection('orders');
+    const competitorsCol = db.collection('competitors');
+    const expensesCol = db.collection('expenses');
 
     const yearStart = format(startOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd');
     const yearEnd = format(endOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd');
@@ -651,15 +654,13 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
         { $sort: { '_id': 1 } }
     ]).toArray();
     
-    if (myMonthlyDataArr.length > 0) {
-        myMonthlyDataArr.forEach(item => {
-            const monthIndex = parseInt(item._id, 10) - 1;
-            if (monthIndex >= 0 && monthIndex < 12) {
-                data.monthlyOrders[monthIndex] = item.orders;
-                data.monthlyFinancials[monthIndex].revenue = item.revenue;
-            }
-        });
-    }
+    myMonthlyDataArr.forEach(item => {
+        const monthIndex = parseInt(item._id, 10) - 1;
+        if (monthIndex >= 0 && monthIndex < 12) {
+            data.monthlyOrders[monthIndex] = item.orders;
+            data.monthlyFinancials[monthIndex].revenue = item.revenue;
+        }
+    });
 
     const monthlyExpensesArr = await expensesCol.aggregate([
         { $match: { date: { $gte: yearStart, $lte: yearEnd } } },
@@ -668,14 +669,12 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
         { $sort: { '_id': 1 } }
     ]).toArray();
     
-    if (monthlyExpensesArr.length > 0) {
-        monthlyExpensesArr.forEach(item => {
-            const monthIndex = parseInt(item._id, 10) - 1;
-            if (monthIndex >= 0 && monthIndex < 12) {
-                data.monthlyFinancials[monthIndex].expenses = item.totalExpenses;
-            }
-        });
-    }
+    monthlyExpensesArr.forEach(item => {
+        const monthIndex = parseInt(item._id, 10) - 1;
+        if (monthIndex >= 0 && monthIndex < 12) {
+            data.monthlyFinancials[monthIndex].expenses = item.totalExpenses;
+        }
+    });
 
     data.monthlyFinancials.forEach(mf => {
         mf.profit = mf.revenue - mf.expenses;
