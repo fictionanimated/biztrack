@@ -53,7 +53,13 @@ export default function MonthlyRevenueVsTargetChart({ allYearlyData, selectedYea
         const config: ChartConfig = {};
         const legendData: Record<string, { label: string; total: number; avg: number; year?: number }> = {};
         
-        selectedYears.forEach((year, yearIndex) => {
+        const yearsWithData = selectedYears.filter(year => allYearlyData[year]);
+
+        if (yearsWithData.length === 0) {
+            return { chartData: [], chartConfig: {}, legendStats: {}, isYoy: yoy };
+        }
+
+        yearsWithData.forEach((year, yearIndex) => {
             const yearData = allYearlyData[year];
             if (!yearData) return;
 
@@ -62,14 +68,16 @@ export default function MonthlyRevenueVsTargetChart({ allYearlyData, selectedYea
                 const key = yoy ? `${baseKey}_${year}` : baseKey;
                 const label = yoy ? `${metric.charAt(0).toUpperCase() + metric.slice(1)} ${year}` : `${metric.charAt(0).toUpperCase() + metric.slice(1)}`;
                 
-                const colorIndex = (metricIndex * selectedYears.length + yearIndex) % Object.keys(colorVariants).length;
+                const colorIndex = (metricIndex * yearsWithData.length + yearIndex) % Object.keys(colorVariants).length;
                 config[key] = { 
                     label: label, 
                     color: colorVariants[colorIndex]
                 };
 
                 let total = 0;
-                const sourceData = metric === 'revenue' ? yearData.monthlyFinancials.map(f => f.revenue) : yearData.monthlyTargetRevenue;
+                const sourceData = metric === 'revenue' 
+                    ? yearData.monthlyFinancials.map(f => f.revenue) 
+                    : yearData.monthlyFinancials.map(f => f.monthlyTargetRevenue || 0);
 
                 sourceData.forEach((val, monthIndex) => {
                     data[monthIndex][key] = val;
@@ -243,3 +251,5 @@ export default function MonthlyRevenueVsTargetChart({ allYearlyData, selectedYea
         </Card>
     );
 }
+
+    

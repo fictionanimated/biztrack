@@ -34,7 +34,7 @@ async function getClientsCollection() {
 
 async function getCompetitorsCollection() {
     const client = await clientPromise;
-    return db.collection<Competitor>('competitors');
+    return client.db("biztrack-pro").collection<Competitor>('competitors');
 }
 
 // Interfaces for Analytics Data
@@ -632,6 +632,8 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
     const yearStart = format(startOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd');
     const yearEnd = format(endOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd');
     
+    const settings = await db.collection('settings').findOne({ _id: 'monthly_targets' });
+
     // Initialize with a default structure
     const data: SingleYearData = {
         year: year,
@@ -642,9 +644,9 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
             month: format(new Date(year, i, 1), 'MMM'),
             revenue: 0,
             expenses: 0,
-            profit: 0
+            profit: 0,
+            monthlyTargetRevenue: settings?.[`${year}`]?.[i] ?? 0,
         })),
-        monthlyTargetRevenue: Array(12).fill(0),
     };
 
     const myMonthlyDataArr = await ordersCol.aggregate([
@@ -704,3 +706,5 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
+
+    
