@@ -49,9 +49,11 @@ export default function YearlySummaryTable({ allYearlyData, selectedYear }: Year
             const prevMonthRevenue = index > 0 ? yearData.monthlyFinancials[index - 1].revenue : 0;
             let perfChange: { value: number; type: 'increase' | 'decrease' } | null = null;
 
-            if (prevMonthRevenue > 0) {
+            if (index > 0 && prevMonthRevenue > 0) {
                 const change = ((financials.revenue - prevMonthRevenue) / prevMonthRevenue) * 100;
                 perfChange = { value: change, type: change >= 0 ? 'increase' : 'decrease' };
+            } else if (index > 0 && prevMonthRevenue === 0 && financials.revenue > 0) {
+                 perfChange = { value: 100, type: 'increase' };
             }
 
             return {
@@ -70,13 +72,20 @@ export default function YearlySummaryTable({ allYearlyData, selectedYear }: Year
             data.sort((a, b) => {
                 const aVal = a[sortConfig.key as keyof typeof a];
                 const bVal = b[sortConfig.key as keyof typeof b];
+
+                if (sortConfig.key === 'perfVsPrevMonth') {
+                    const aPerf = a.perfVsPrevMonth?.value ?? -Infinity;
+                    const bPerf = b.perfVsPrevMonth?.value ?? -Infinity;
+                    if (aPerf < bPerf) return sortConfig.direction === 'ascending' ? -1 : 1;
+                    if (aPerf > bPerf) return sortConfig.direction === 'ascending' ? 1 : -1;
+                    return 0;
+                }
                 
                 if (typeof aVal === 'number' && typeof bVal === 'number') {
                      if (aVal < bVal) return sortConfig.direction === 'ascending' ? -1 : 1;
                      if (aVal > bVal) return sortConfig.direction === 'ascending' ? 1 : -1;
                 }
                 
-                // Fallback for non-numeric or equal values
                 return 0;
             });
         }
@@ -140,7 +149,11 @@ export default function YearlySummaryTable({ allYearlyData, selectedYear }: Year
                                     Net Profit {getSortIndicator('netProfit')}
                                 </Button>
                             </TableHead>
-                            <TableHead>Perf. vs Prev. Month</TableHead>
+                            <TableHead>
+                                <Button variant="ghost" onClick={() => requestSort('perfVsPrevMonth')} className="-ml-4">
+                                    Perf. vs Prev. Month {getSortIndicator('perfVsPrevMonth')}
+                                </Button>
+                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
