@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview Service for fetching and processing analytics data.
  */
@@ -630,6 +629,7 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
     const yearStart = format(startOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd');
     const yearEnd = format(endOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd');
     
+    // Initialize with a default structure
     const data: SingleYearData = {
         year: year,
         myTotalYearlyOrders: 0,
@@ -650,14 +650,16 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
         { $group: { _id: '$month', orders: { $sum: 1 }, revenue: { $sum: '$amount' } } },
         { $sort: { '_id': 1 } }
     ]).toArray();
-
-    myMonthlyDataArr.forEach(item => {
-        const monthIndex = parseInt(item._id, 10) - 1;
-        if (monthIndex >= 0 && monthIndex < 12) {
-            data.monthlyOrders[monthIndex] = item.orders;
-            data.monthlyFinancials[monthIndex].revenue = item.revenue;
-        }
-    });
+    
+    if (myMonthlyDataArr.length > 0) {
+        myMonthlyDataArr.forEach(item => {
+            const monthIndex = parseInt(item._id, 10) - 1;
+            if (monthIndex >= 0 && monthIndex < 12) {
+                data.monthlyOrders[monthIndex] = item.orders;
+                data.monthlyFinancials[monthIndex].revenue = item.revenue;
+            }
+        });
+    }
 
     const monthlyExpensesArr = await expensesCol.aggregate([
         { $match: { date: { $gte: yearStart, $lte: yearEnd } } },
@@ -666,12 +668,14 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
         { $sort: { '_id': 1 } }
     ]).toArray();
     
-    monthlyExpensesArr.forEach(item => {
-        const monthIndex = parseInt(item._id, 10) - 1;
-        if (monthIndex >= 0 && monthIndex < 12) {
-            data.monthlyFinancials[monthIndex].expenses = item.totalExpenses;
-        }
-    });
+    if (monthlyExpensesArr.length > 0) {
+        monthlyExpensesArr.forEach(item => {
+            const monthIndex = parseInt(item._id, 10) - 1;
+            if (monthIndex >= 0 && monthIndex < 12) {
+                data.monthlyFinancials[monthIndex].expenses = item.totalExpenses;
+            }
+        });
+    }
 
     data.monthlyFinancials.forEach(mf => {
         mf.profit = mf.revenue - mf.expenses;
@@ -701,4 +705,3 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
-
