@@ -43,8 +43,11 @@ const YearlyStatsPageComponent = () => {
 
           const dataPromises = yearsToFetch.map(year =>
               fetch(`/api/analytics/yearly-stats/${year}`)
-                  .then(res => {
-                      if (!res.ok) throw new Error(`Failed to fetch data for ${year}`);
+                  .then(async res => {
+                      if (!res.ok) {
+                          const errorText = await res.text();
+                          throw new Error(`Failed to fetch data for ${year}: ${res.status} ${errorText}`);
+                      }
                       return res.json();
                   })
                   .then(data => ({ year, data }))
@@ -94,7 +97,7 @@ const YearlyStatsPageComponent = () => {
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="w-[180px]">
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> :
+                        {isLoading && selectedYears.some(year => !fetchedData[year]) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> :
                          selectedYears.length > 1 ? `${selectedYears.length} years selected` : `Year: ${selectedYears[0]}`
                         }
                         <ChevronDown className="ml-auto h-4 w-4" />
@@ -123,7 +126,7 @@ const YearlyStatsPageComponent = () => {
             <MyOrdersVsCompetitorAvgChart allYearlyData={fetchedData} selectedYears={selectedYears}/>
         </Suspense>
         
-        {isLoading ? (
+        {isLoading && selectedYears.some(year => !fetchedData[year]) ? (
           <Skeleton className="h-[500px]" />
         ) : selectedYearsData.length > 0 ? (
           <Card>
@@ -154,20 +157,20 @@ const YearlyStatsPageComponent = () => {
 
       <div className="grid grid-cols-1 gap-6">
         <Suspense fallback={<Skeleton className="h-[500px]" />}>
-            <MonthlyRevenueVsTargetChart allYearlyData={fetchedData} selectedYears={selectedYears} />
+            <MonthlyRevenueVsTargetChart allYearlyData={yearlyStatsData} selectedYears={selectedYears} />
         </Suspense>
       </div>
       
       <div className="grid grid-cols-1 gap-6">
           <Suspense fallback={<Skeleton className="h-[500px]" />}>
-              <MonthlyFinancialsChart allYearlyData={fetchedData} selectedYears={selectedYears} />
+              <MonthlyFinancialsChart allYearlyData={yearlyStatsData} selectedYears={selectedYears} />
           </Suspense>
       </div>
       
-      {selectedYearsData.length === 1 && (
+      {selectedYears.length === 1 && (
         <div className="grid grid-cols-1 gap-6">
           <Suspense fallback={<Skeleton className="h-[500px]" />}>
-            <YearlySummaryTable allYearlyData={fetchedData} selectedYear={singleSelectedYear} />
+            <YearlySummaryTable allYearlyData={yearlyStatsData} selectedYear={singleSelectedYear} />
           </Suspense>
         </div>
       )}

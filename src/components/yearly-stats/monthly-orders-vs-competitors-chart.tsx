@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Line, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar, BarChart } from 'recharts';
 import {
   ChartContainer,
@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { BarChart2, LineChartIcon } from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
 
 interface MonthlyOrdersVsCompetitorsChartProps {
     allYearlyData: YearlyStatsData;
@@ -39,20 +40,25 @@ const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '');
 export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selectedYears }: MonthlyOrdersVsCompetitorsChartProps) {
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
     
-    const { chartData, chartConfig, metricKeys, legendStats, isYoy } = useMemo(() => {
-        const yoy = selectedYears.length > 1;
+    const { chartData, chartConfig, metricKeys, legendStats, isYoy, isLoading } = useMemo(() => {
+        const yearsWithData = selectedYears.filter(year => allYearlyData[year]);
+        if (yearsWithData.length === 0 || Object.keys(allYearlyData).length === 0) {
+            return { chartData: [], chartConfig: {}, metricKeys: [], legendStats: {}, isYoy: false, isLoading: true };
+        }
+
+        const yoy = yearsWithData.length > 1;
         const data: { month: string; [key: string]: string | number }[] = months.map((month) => ({ month }));
         const config: ChartConfig = {};
         let tempMetricKeys: string[] = [];
         const legendData: Record<string, { label: string; total: number; avg: number; year?: number }> = {};
         
-        const allCompetitors = selectedYears.flatMap(year => 
-            allYearlyData[year] ? allYearlyData[year].competitors.map(c => c.name) : []
+        const allCompetitors = yearsWithData.flatMap(year => 
+            allYearlyData[year]?.competitors.map(c => c.name) || []
         );
         const uniqueCompetitors = [...new Set(allCompetitors)];
         const allMetrics = ['My Orders', ...uniqueCompetitors];
 
-        selectedYears.forEach((year, yearIndex) => {
+        yearsWithData.forEach((year, yearIndex) => {
             const yearData = allYearlyData[year];
             if (!yearData) return;
 
@@ -76,7 +82,7 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selecte
 
                 if (monthlyDataSource.length > 0) {
                     tempMetricKeys.push(key);
-                    const colorIndex = (metricIndex * selectedYears.length + yearIndex) % Object.keys(colorVariants).length;
+                    const colorIndex = (metricIndex * yearsWithData.length + yearIndex) % Object.keys(colorVariants).length;
                     config[key] = { label, color: colorVariants[colorIndex] };
 
                     monthlyDataSource.forEach((value, monthIndex) => {
@@ -93,13 +99,13 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selecte
             });
         });
 
-        return { chartData: data, chartConfig: config, metricKeys: tempMetricKeys, legendStats: legendData, isYoy: yoy };
+        return { chartData: data, chartConfig: config, metricKeys: tempMetricKeys, legendStats: legendData, isYoy: yoy, isLoading: false };
 
     }, [selectedYears, allYearlyData]);
     
     const [activeMetrics, setActiveMetrics] = useState<Record<string, boolean>>({});
 
-    useMemo(() => {
+    useEffect(() => {
         setActiveMetrics(metricKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {}));
     }, [metricKeys]);
 
@@ -134,6 +140,10 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selecte
           })}
         </div>
       );
+    }
+    
+    if (isLoading) {
+        return <Skeleton className="h-[500px]" />;
     }
 
     return (
