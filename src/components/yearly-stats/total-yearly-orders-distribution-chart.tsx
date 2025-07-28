@@ -11,6 +11,7 @@ import {
   type ChartConfig
 } from "@/components/ui/chart";
 import { type SingleYearData } from '@/lib/data/yearly-stats-data';
+import { Skeleton } from '../ui/skeleton';
 
 interface TotalYearlyOrdersDistributionChartProps {
     yearData: SingleYearData;
@@ -29,6 +30,7 @@ export default function TotalYearlyOrdersDistributionChart({ yearData }: TotalYe
     const { chartData, chartConfig, totalOrders } = useMemo(() => {
         if (!yearData) return { chartData: [], chartConfig: {}, totalOrders: 0 };
         const { myTotalYearlyOrders, competitors } = yearData;
+        
         const data = [
             { name: "My Orders", value: myTotalYearlyOrders, color: chartColors[0] },
             ...(competitors || []).map((c, i) => ({
@@ -68,7 +70,15 @@ export default function TotalYearlyOrdersDistributionChart({ yearData }: TotalYe
     }
 
     if (!yearData) {
-        return <div className="flex h-[300px] w-full items-center justify-center">Loading...</div>;
+        return <Skeleton className="h-[300px]" />;
+    }
+    
+    if (totalOrders === 0) {
+        return (
+            <div className="flex h-[300px] w-full items-center justify-center">
+                <p className="text-muted-foreground">No order data for this year.</p>
+            </div>
+        );
     }
 
     return (

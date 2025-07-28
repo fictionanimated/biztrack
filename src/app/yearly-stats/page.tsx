@@ -38,7 +38,10 @@ const YearlyStatsPageComponent = () => {
           const yearsToFetch = selectedYears;
           const dataPromises = yearsToFetch.map(year =>
               fetch(`/api/analytics/yearly-stats/${year}`)
-                  .then(res => res.json())
+                  .then(res => {
+                      if (!res.ok) throw new Error(`Failed to fetch data for ${year}`);
+                      return res.json();
+                  })
                   .then(data => ({ year, data }))
                   .catch(err => {
                       console.error(`Failed to fetch data for ${year}`, err);
@@ -52,16 +55,6 @@ const YearlyStatsPageComponent = () => {
           results.forEach(({ year, data }) => {
               if (data) {
                   newData[year] = data;
-              } else {
-                  // Fallback to placeholder if fetch fails
-                  newData[year] = yearlyStatsData[year] || {
-                      year: year,
-                      myTotalYearlyOrders: 0,
-                      monthlyOrders: Array(12).fill(0),
-                      competitors: [],
-                      monthlyFinancials: Array(12).fill({ month: '', revenue: 0, expenses: 0, profit: 0 }),
-                      monthlyTargetRevenue: Array(12).fill(0),
-                  };
               }
           });
           
@@ -82,7 +75,7 @@ const YearlyStatsPageComponent = () => {
     };
 
     const singleSelectedYear = selectedYears[selectedYears.length - 1] || availableYears[0];
-    const selectedYearData = yearlyStatsData[singleSelectedYear];
+    const selectedYearData = fetchedData[singleSelectedYear];
     
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
@@ -123,7 +116,9 @@ const YearlyStatsPageComponent = () => {
             <MyOrdersVsCompetitorAvgChart allYearlyData={fetchedData} selectedYears={selectedYears}/>
         </Suspense>
         
-        {selectedYearData ? (
+        {isLoading ? (
+          <Skeleton className="h-[400px]" />
+        ) : selectedYearData ? (
           <Card>
              <CardHeader>
                 <CardTitle>Total Yearly Orders Distribution</CardTitle>
@@ -131,11 +126,17 @@ const YearlyStatsPageComponent = () => {
             </CardHeader>
             <CardContent>
                 <Suspense fallback={<Skeleton className="h-[300px]" />}>
-                   <TotalYearlyOrdersDistributionChart yearData={yearlyStatsData[singleSelectedYear]} />
+                   <TotalYearlyOrdersDistributionChart yearData={selectedYearData} />
                 </Suspense>
             </CardContent>
           </Card>
-        ) : <Skeleton className="h-[400px]" />}
+        ) : (
+          <Card className="flex items-center justify-center h-[400px]">
+            <CardContent>
+              <p className="text-muted-foreground">No data available for {singleSelectedYear}.</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6">
