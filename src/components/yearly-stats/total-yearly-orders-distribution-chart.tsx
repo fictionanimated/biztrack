@@ -14,7 +14,7 @@ import { type SingleYearData } from '@/lib/data/yearly-stats-data';
 import { Skeleton } from '../ui/skeleton';
 
 interface TotalYearlyOrdersDistributionChartProps {
-    yearData: SingleYearData;
+    yearsData: SingleYearData[];
 }
 
 const chartColors = [
@@ -25,20 +25,28 @@ const chartColors = [
   "hsl(var(--chart-5))",
 ];
 
-export default function TotalYearlyOrdersDistributionChart({ yearData }: TotalYearlyOrdersDistributionChartProps) {
+export default function TotalYearlyOrdersDistributionChart({ yearsData }: TotalYearlyOrdersDistributionChartProps) {
     
     const { chartData, chartConfig, totalOrders } = useMemo(() => {
-        if (!yearData) return { chartData: [], chartConfig: {}, totalOrders: 0 };
-        const { myTotalYearlyOrders, competitors } = yearData;
+        if (!yearsData || yearsData.length === 0) {
+            return { chartData: [], chartConfig: {}, totalOrders: 0 };
+        }
+
+        const aggregatedData: Record<string, number> = {};
         
-        const data = [
-            { name: "My Orders", value: myTotalYearlyOrders, color: chartColors[0] },
-            ...(competitors || []).map((c, i) => ({
-                name: c.name,
-                value: c.totalOrders,
-                color: chartColors[(i + 1) % chartColors.length]
-            }))
-        ];
+        // Aggregate data across all selected years
+        yearsData.forEach(yearData => {
+            aggregatedData["My Orders"] = (aggregatedData["My Orders"] || 0) + yearData.myTotalYearlyOrders;
+            (yearData.competitors || []).forEach(competitor => {
+                aggregatedData[competitor.name] = (aggregatedData[competitor.name] || 0) + competitor.totalOrders;
+            });
+        });
+
+        const data = Object.entries(aggregatedData).map(([name, value], index) => ({
+            name,
+            value,
+            color: chartColors[index % chartColors.length]
+        }));
         
         const config: ChartConfig = data.reduce((acc, item) => {
             acc[item.name] = { label: item.name, color: item.color };
@@ -49,7 +57,7 @@ export default function TotalYearlyOrdersDistributionChart({ yearData }: TotalYe
 
         return { chartData: data, chartConfig: config, totalOrders: total };
 
-    }, [yearData]);
+    }, [yearsData]);
 
     const CustomLegend = (props: any) => {
         const { payload } = props;
@@ -69,10 +77,6 @@ export default function TotalYearlyOrdersDistributionChart({ yearData }: TotalYe
         );
     }
 
-    if (!yearData) {
-        return <Skeleton className="h-[300px]" />;
-    }
-    
     if (totalOrders === 0) {
         return (
             <div className="flex h-[300px] w-full items-center justify-center">

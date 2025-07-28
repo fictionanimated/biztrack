@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { yearlyStatsData, type YearlyStatsData, type SingleYearData } from "@/lib/data/yearly-stats-data";
+import { type YearlyStatsData, type SingleYearData } from "@/lib/data/yearly-stats-data";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Loader2 } from "lucide-react";
@@ -26,8 +26,8 @@ const YearlySummaryTable = lazy(() => import("@/components/yearly-stats/yearly-s
 
 const YearlyStatsPageComponent = () => {
     const currentYear = new Date().getFullYear();
-    const availableYears = useMemo(() => Array.from({ length: 10 }, (_, i) => currentYear - i), [currentYear]);
-    const [selectedYears, setSelectedYears] = useState<number[]>([availableYears[0]]);
+    const availableYears = useMemo(() => Array.from({ length: 10 }, (_, i) => currentYear + 1 - i), [currentYear]);
+    const [selectedYears, setSelectedYears] = useState<number[]>([currentYear]);
     
     const [fetchedData, setFetchedData] = useState<YearlyStatsData>({});
     const [isLoading, setIsLoading] = useState(true);
@@ -35,7 +35,12 @@ const YearlyStatsPageComponent = () => {
     useEffect(() => {
       async function fetchDataForYears() {
           setIsLoading(true);
-          const yearsToFetch = selectedYears;
+          const yearsToFetch = selectedYears.filter(year => !fetchedData[year]);
+          if (yearsToFetch.length === 0) {
+            setIsLoading(false);
+            return;
+          }
+
           const dataPromises = yearsToFetch.map(year =>
               fetch(`/api/analytics/yearly-stats/${year}`)
                   .then(res => {
@@ -62,7 +67,7 @@ const YearlyStatsPageComponent = () => {
           setIsLoading(false);
       }
       fetchDataForYears();
-    }, [selectedYears]);
+    }, [selectedYears, fetchedData]);
 
     const handleYearToggle = (year: number) => {
         setSelectedYears(prev => {
@@ -75,7 +80,9 @@ const YearlyStatsPageComponent = () => {
     };
 
     const singleSelectedYear = selectedYears[selectedYears.length - 1] || availableYears[0];
-    const selectedYearData = fetchedData[singleSelectedYear];
+    const selectedYearsData = useMemo(() => {
+      return selectedYears.map(year => fetchedData[year]).filter(Boolean);
+    }, [selectedYears, fetchedData]);
     
   return (
     <main className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
@@ -117,23 +124,23 @@ const YearlyStatsPageComponent = () => {
         </Suspense>
         
         {isLoading ? (
-          <Skeleton className="h-[400px]" />
-        ) : selectedYearData ? (
+          <Skeleton className="h-[500px]" />
+        ) : selectedYearsData.length > 0 ? (
           <Card>
              <CardHeader>
                 <CardTitle>Total Yearly Orders Distribution</CardTitle>
-                <CardDescription>A pie chart showing the market share of orders between you and your competitors for {singleSelectedYear}.</CardDescription>
+                <CardDescription>A pie chart showing the market share of orders between you and your competitors for {selectedYears.join(', ')}.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Suspense fallback={<Skeleton className="h-[300px]" />}>
-                   <TotalYearlyOrdersDistributionChart yearData={selectedYearData} />
+                   <TotalYearlyOrdersDistributionChart yearsData={selectedYearsData} />
                 </Suspense>
             </CardContent>
           </Card>
         ) : (
-          <Card className="flex items-center justify-center h-[400px]">
+          <Card className="flex items-center justify-center h-[500px]">
             <CardContent>
-              <p className="text-muted-foreground">No data available for {singleSelectedYear}.</p>
+              <p className="text-muted-foreground">No data available for {selectedYears.join(', ')}.</p>
             </CardContent>
           </Card>
         )}
@@ -141,26 +148,26 @@ const YearlyStatsPageComponent = () => {
 
       <div className="grid grid-cols-1 gap-6">
         <Suspense fallback={<Skeleton className="h-[500px]" />}>
-          <MonthlyOrdersVsCompetitorsChart allYearlyData={yearlyStatsData} selectedYears={selectedYears} />
+          <MonthlyOrdersVsCompetitorsChart allYearlyData={fetchedData} selectedYears={selectedYears} />
         </Suspense>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         <Suspense fallback={<Skeleton className="h-[500px]" />}>
-            <MonthlyRevenueVsTargetChart allYearlyData={yearlyStatsData} selectedYears={selectedYears} />
+            <MonthlyRevenueVsTargetChart allYearlyData={fetchedData} selectedYears={selectedYears} />
         </Suspense>
       </div>
       
       <div className="grid grid-cols-1 gap-6">
           <Suspense fallback={<Skeleton className="h-[500px]" />}>
-              <MonthlyFinancialsChart allYearlyData={yearlyStatsData} selectedYears={selectedYears} />
+              <MonthlyFinancialsChart allYearlyData={fetchedData} selectedYears={selectedYears} />
           </Suspense>
       </div>
       
-      {selectedYearData && (
+      {selectedYearsData.length === 1 && (
         <div className="grid grid-cols-1 gap-6">
           <Suspense fallback={<Skeleton className="h-[500px]" />}>
-            <YearlySummaryTable allYearlyData={yearlyStatsData} selectedYear={singleSelectedYear} />
+            <YearlySummaryTable allYearlyData={fetchedData} selectedYear={singleSelectedYear} />
           </Suspense>
         </div>
       )}
