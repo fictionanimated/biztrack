@@ -5,7 +5,6 @@ import { z } from 'zod';
 const settingsSchema = z.object({
   timezone: z.string().optional(),
   geminiApiKey: z.string().optional(),
-  monthlyTargets: z.record(z.number()).optional(),
 });
 
 type Settings = z.infer<typeof settingsSchema>;
@@ -27,14 +26,12 @@ export async function getSettings(): Promise<Partial<Settings>> {
       return { 
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           geminiApiKey: '',
-          monthlyTargets: {},
       };
     }
     
     return {
       timezone: settings.timezone,
       geminiApiKey: settings.geminiApiKey,
-      monthlyTargets: settings.monthlyTargets,
     };
   } catch (error) {
     console.error('Error fetching settings from DB:', error);
@@ -52,9 +49,6 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<vo
     }
     if (newSettings.geminiApiKey !== undefined) {
       updatePayload['geminiApiKey'] = newSettings.geminiApiKey;
-    }
-    if (newSettings.monthlyTargets) {
-      updatePayload['monthlyTargets'] = newSettings.monthlyTargets;
     }
 
     if (Object.keys(updatePayload).length === 0) {

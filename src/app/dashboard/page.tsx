@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { dashboardData } from "@/lib/placeholder-data";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
-import { getSettings } from "@/lib/services/settingsService";
+import { getMonthlyTargets } from "@/lib/services/monthlyTargetsService";
 
 export default async function DashboardPage() {
   const {
@@ -21,7 +21,7 @@ export default async function DashboardPage() {
     incomeBySource,
   } = dashboardData;
 
-  const settings = await getSettings();
+  const monthlyTargets = await getMonthlyTargets();
 
   return (
     <DashboardClient
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
       aiInsights={aiInsights}
       topClients={topClients}
       incomeBySource={incomeBySource}
-      initialMonthlyTargets={settings.monthlyTargets || {}}
+      initialMonthlyTargets={monthlyTargets}
     />
   );
 }

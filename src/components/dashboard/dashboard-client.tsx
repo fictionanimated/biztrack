@@ -258,10 +258,10 @@ export function DashboardClient({
     setMonthlyTargets(updatedTargets);
 
     try {
-        await fetch('/api/settings', {
+        await fetch('/api/monthly-targets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ monthlyTargets: updatedTargets }),
+            body: JSON.stringify({ year, month: monthIndex + 1, target: newTarget }),
         });
         toast({ title: "Target Set", description: `Target for ${month} ${year} set to $${newTarget.toLocaleString()}.` });
     } catch (error) {

@@ -33,8 +33,8 @@ export function SetTargetDialog({
   initialYear,
 }: SetTargetDialogProps) {
   const [target, setTarget] = useState("");
-  const [month, setMonth] = useState("");
-  const [year, setYear] = useState(0);
+  const [month, setMonth] = useState(initialMonth);
+  const [year, setYear] = useState(initialYear);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
@@ -43,19 +43,21 @@ export function SetTargetDialog({
 
   useEffect(() => {
     if (open) {
+      // When dialog opens, set the state to the current month/year
       setMonth(initialMonth);
       setYear(initialYear);
     }
   }, [open, initialMonth, initialYear]);
   
   useEffect(() => {
-    if (month && year && open) {
+    // This effect runs when month or year changes, to pre-fill the input
+    if (month && year) {
         const monthIndex = months.indexOf(month);
         const monthKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
         const existingTarget = monthlyTargets[monthKey] || 0;
         setTarget(existingTarget > 0 ? existingTarget.toString() : "");
     }
-  }, [month, year, monthlyTargets, open]);
+  }, [month, year, monthlyTargets]);
 
   const handleSave = () => {
     const newTarget = parseFloat(target);
