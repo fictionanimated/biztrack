@@ -58,6 +58,9 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selecte
         const uniqueCompetitors = [...new Set(allCompetitors)];
         const allMetrics = ['My Orders', ...uniqueCompetitors];
 
+        const currentSysYear = new Date().getFullYear();
+        const currentSysMonth = new Date().getMonth(); // 0-11
+
         yearsWithData.forEach((year, yearIndex) => {
             const yearData = allYearlyData[year];
             if (!yearData) return;
@@ -88,11 +91,19 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selecte
                     monthlyDataSource.forEach((value, monthIndex) => {
                         data[monthIndex][key] = value;
                     });
+                    
+                    let monthsForAvg = 12;
+                    if (year === currentSysYear) {
+                        monthsForAvg = currentSysMonth + 1;
+                    } else if (year > currentSysYear) {
+                        monthsForAvg = 0;
+                    }
+                    const avg = monthsForAvg > 0 ? Math.round(totalSource / monthsForAvg) : 0;
 
                     legendData[key] = {
                         label: label,
                         total: totalSource,
-                        avg: Math.round(totalSource / 12),
+                        avg: avg,
                         year: yoy ? year : undefined,
                     };
                 }
@@ -165,7 +176,7 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selecte
                                     aria-label="Switch to Bar Chart"
                                 >
                                     <BarChart2 className="h-4 w-4" />
-                                    <span className="ml-2">Bar</span>
+                                    <span className="ml-2 hidden sm:inline">Bar</span>
                                 </Button>
                                 <Button
                                     variant={chartType === 'line' ? 'secondary' : 'ghost'}
@@ -175,7 +186,7 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selecte
                                     aria-label="Switch to Line Chart"
                                 >
                                     <LineChartIcon className="h-4 w-4" />
-                                    <span className="ml-2">Line</span>
+                                    <span className="ml-2 hidden sm:inline">Line</span>
                                 </Button>
                             </div>
                             <div>
