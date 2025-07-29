@@ -19,6 +19,8 @@ import { type YearlyStatsData, type SingleYearData } from "@/lib/data/yearly-sta
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Loader2, Maximize, ExternalLink } from "lucide-react";
+import { getNotes } from "@/lib/services/businessNotesService";
+import { type BusinessNote } from "@/lib/data/business-notes-data";
 
 
 const MyOrdersVsCompetitorAvgChart = lazy(() => import("@/components/yearly-stats/my-orders-vs-competitor-avg-chart"));
@@ -32,22 +34,24 @@ const YearlySummaryTable = lazy(() => import("@/components/yearly-stats/yearly-s
 type ChartKey = 'my-orders-vs-competitor' | 'total-yearly-orders' | 'monthly-orders-vs-competitors' | 'monthly-financials' | 'monthly-revenue-vs-target' | `yearly-summary-${number}`;
 
 const YearlyStatsPageComponent = () => {
-    const availableYears = useMemo(() => Array.from({ length: 20 }, (_, i) => 2040 - (i)), []);
+    const availableYears = useMemo(() => Array.from({ length: 20 }, (_, i) => 2040 - i), []);
     const [selectedYears, setSelectedYears] = useState<number[]>([new Date().getFullYear()]);
     
     const [fetchedData, setFetchedData] = useState<YearlyStatsData>({});
     const [isLoading, setIsLoading] = useState(true);
     const [maximizedChart, setMaximizedChart] = useState<ChartKey | null>(null);
+    const [businessNotes, setBusinessNotes] = useState<BusinessNote[]>([]);
 
     useEffect(() => {
       async function fetchDataForYears() {
           setIsLoading(true);
           const yearsToFetch = selectedYears.filter(year => !fetchedData[year]);
-          if (yearsToFetch.length === 0) {
-            setIsLoading(false);
-            return;
-          }
 
+          const notesPromise = getNotes().catch(err => {
+              console.error("Failed to fetch business notes:", err);
+              return []; // Return empty array on error to not block UI
+          });
+          
           const dataPromises = yearsToFetch.map(year =>
               fetch(`/api/analytics/yearly-stats/${year}`)
                   .then(async res => {
@@ -65,12 +69,13 @@ const YearlyStatsPageComponent = () => {
                   })
           );
           
-          const results = await Promise.all(dataPromises);
+          const [notesResult, ...statsResults] = await Promise.all([notesPromise, ...dataPromises]);
+          setBusinessNotes(notesResult);
           
           const newData: YearlyStatsData = {};
-          results.forEach(({ year, data }) => {
-              if (data) {
-                  newData[year] = data;
+          statsResults.forEach((result) => {
+              if (result && result.data) {
+                  newData[result.year] = result.data;
               }
           });
           
@@ -78,7 +83,7 @@ const YearlyStatsPageComponent = () => {
           setIsLoading(false);
       }
       fetchDataForYears();
-    }, [selectedYears, fetchedData]);
+    }, [selectedYears]);
 
     const handleYearToggle = (year: number) => {
         setSelectedYears(prev => {
@@ -96,7 +101,7 @@ const YearlyStatsPageComponent = () => {
     
     const renderChart = (chartKey: ChartKey) => {
         switch(chartKey) {
-            case 'my-orders-vs-competitor': return <MyOrdersVsCompetitorAvgChart allYearlyData={fetchedData} selectedYears={selectedYears}/>;
+            case 'my-orders-vs-competitor': return <MyOrdersVsCompetitorAvgChart allYearlyData={fetchedData} selectedYears={selectedYears} businessNotes={businessNotes} />;
             case 'total-yearly-orders': return <TotalYearlyOrdersDistributionChart yearsData={yearsWithData} />;
             case 'monthly-orders-vs-competitors': return <MonthlyOrdersVsCompetitorsChart allYearlyData={fetchedData} selectedYears={selectedYears} />;
             case 'monthly-financials': return <MonthlyFinancialsChart allYearlyData={fetchedData} selectedYears={selectedYears} />;
@@ -147,7 +152,7 @@ const YearlyStatsPageComponent = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Suspense fallback={<Skeleton className="h-[500px] lg:col-span-2" />}>
            <div className="relative lg:col-span-2">
-              <MyOrdersVsCompetitorAvgChart allYearlyData={fetchedData} selectedYears={selectedYears}/>
+              <MyOrdersVsCompetitorAvgChart allYearlyData={fetchedData} selectedYears={selectedYears} businessNotes={businessNotes} />
               <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-8 w-8" onClick={() => setMaximizedChart('my-orders-vs-competitor')}>
                 <Maximize className="h-4 w-4" />
               </Button>
