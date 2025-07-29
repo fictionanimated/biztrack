@@ -71,6 +71,10 @@ const parseDateString = (dateString: string): Date => {
   return new Date(year, month - 1, day);
 };
 
+interface DashboardClientProps extends DashboardData {
+    initialMonthlyTargets: Record<string, number>;
+}
+
 export function DashboardClient({
   stats: initialStats,
   revenueByDay,
@@ -79,7 +83,8 @@ export function DashboardClient({
   aiInsights,
   topClients,
   incomeBySource,
-}: DashboardData) {
+  initialMonthlyTargets,
+}: DashboardClientProps) {
   const [stats, setStats] = useState<Stat[]>(initialStats);
   const router = useRouter();
   const pathname = usePathname();
@@ -106,7 +111,7 @@ export function DashboardClient({
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
-  const [monthlyTargets, setMonthlyTargets] = useState<Record<string, number>>({ "2024-06": 50000 });
+  const [monthlyTargets, setMonthlyTargets] = useState<Record<string, number>>(initialMonthlyTargets);
 
   const { toast } = useToast();
 
@@ -245,14 +250,25 @@ export function DashboardClient({
     setEditingOrder(null);
   };
 
-  const handleSetTarget = (newTarget: number, month: string, year: number) => {
+  const handleSetTarget = async (newTarget: number, month: string, year: number) => {
     const monthIndex = new Date(Date.parse(month +" 1, 2021")).getMonth();
     const monthKey = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
     
     const updatedTargets = { ...monthlyTargets, [monthKey]: newTarget };
     setMonthlyTargets(updatedTargets);
 
-    toast({ title: "Target Set", description: `Target for ${month} ${year} set to $${newTarget.toLocaleString()}.` });
+    try {
+        await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ monthlyTargets: updatedTargets }),
+        });
+        toast({ title: "Target Set", description: `Target for ${month} ${year} set to $${newTarget.toLocaleString()}.` });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to save target to the database.'});
+        // Optionally revert state on failure
+        setMonthlyTargets(monthlyTargets);
+    }
   };
   
   const adrStat = stats.find((s) => s.title === "Avg Daily Revenue (ADR)");

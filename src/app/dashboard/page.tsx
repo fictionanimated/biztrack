@@ -6,10 +6,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { dashboardData, financialCardsData } from "@/lib/placeholder-data";
+import { dashboardData } from "@/lib/placeholder-data";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { getSettings } from "@/lib/services/settingsService";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
   const {
     stats,
     revenueByDay,
@@ -19,6 +20,9 @@ export default function DashboardPage() {
     topClients,
     incomeBySource,
   } = dashboardData;
+
+  const settings = await getSettings();
+
   return (
     <DashboardClient
       stats={stats}
@@ -28,6 +32,7 @@ export default function DashboardPage() {
       aiInsights={aiInsights}
       topClients={topClients}
       incomeBySource={incomeBySource}
+      initialMonthlyTargets={settings.monthlyTargets || {}}
     />
   );
 }
