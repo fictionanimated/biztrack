@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, memo, useCallback } from "react";
+import { useState, useEffect, memo, useCallback, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { format, subDays, differenceInDays } from 'date-fns';
 import type { DateRange } from "react-day-picker";
