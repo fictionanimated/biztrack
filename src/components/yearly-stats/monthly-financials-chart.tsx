@@ -25,9 +25,9 @@ interface MonthlyFinancialsChartProps {
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const baseChartColors = {
-  revenue: "hsl(var(--chart-1))",
-  expenses: "hsl(var(--chart-2))",
-  profit: "hsl(var(--chart-3))",
+  revenue: "hsl(var(--chart-1))", // Teal
+  expenses: "hsl(var(--destructive))", // Red
+  profit: "hsl(140 70% 45%)", // Bright Green
 };
 
 const generateColor = (index: number): string => {
