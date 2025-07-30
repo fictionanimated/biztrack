@@ -12,20 +12,16 @@ import {
 } from "@/components/ui/chart";
 import { type YearlyStatsData } from '@/lib/data/yearly-stats-data';
 import { Button } from '@/components/ui/button';
-import { BarChart2, LineChartIcon, BookText } from 'lucide-react';
+import { BarChart2, LineChartIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '../ui/skeleton';
-import { cn } from '@/lib/utils';
-import { type BusinessNote } from '@/lib/data/business-notes-data';
-import { Separator } from '@/components/ui/separator';
 
 interface MyOrdersVsCompetitorAvgChartProps {
     allYearlyData: YearlyStatsData;
     selectedYears: number[];
-    businessNotes: BusinessNote[];
 }
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -43,7 +39,7 @@ const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '');
 
 const baseMetrics = ['My Orders', 'Competitor Avg.'];
 
-export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYears, businessNotes }: MyOrdersVsCompetitorAvgChartProps) {
+export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYears }: MyOrdersVsCompetitorAvgChartProps) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
     const [activeMetrics, setActiveMetrics] = useState<Record<string, boolean>>({
         'My Orders': true,
@@ -57,7 +53,7 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
         }
 
         const yoy = yearsWithData.length > 1;
-        const data: { month: string; note?: string, [key: string]: string | number | undefined }[] = months.map((month) => ({ month }));
+        const data: { month: string; [key: string]: string | number }[] = months.map((month) => ({ month }));
         const config: ChartConfig = {};
         const legendData: Record<string, { label: string; total: number; avg: number; year?: number }> = {};
         
@@ -73,16 +69,6 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
             months.forEach((_, monthIndex) => {
                 const competitorTotalForMonth = (yearData.competitors || []).reduce((sum, comp) => sum + comp.monthlyOrders[monthIndex], 0);
                 metrics['Competitor Avg.'].push(yearData.competitors.length > 0 ? Math.round(competitorTotalForMonth / yearData.competitors.length) : 0);
-                
-                if (year === currentSysYear) {
-                    const notesForMonth = businessNotes
-                        .filter(note => note.date.getFullYear() === year && note.date.getMonth() === monthIndex)
-                        .map(note => note.title)
-                        .join('\n');
-                    if (notesForMonth) {
-                        data[monthIndex].note = notesForMonth;
-                    }
-                }
             });
             
             Object.entries(metrics).forEach(([metricName, monthlyValues], metricIndex) => {
@@ -135,7 +121,7 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
         
         return { chartData: data, chartConfig: config, legendStats: legendData, isYoy: yoy, isLoading: false };
 
-    }, [selectedYears, allYearlyData, businessNotes]);
+    }, [selectedYears, allYearlyData]);
 
     const handleMetricToggle = (metric: string) => {
         setActiveMetrics(prev => ({ ...prev, [metric]: !prev[metric] }));
@@ -147,56 +133,6 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
             return baseMetric && activeMetrics[baseMetric];
         });
     }, [chartConfig, activeMetrics]);
-
-    const CustomTooltipWithNotes = (props: any) => {
-      const { active, payload, label } = props;
-      if (active && payload && payload.length) {
-        const note = payload[0].payload.note;
-        return (
-          <div className="z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md">
-            <p className="font-medium">{label}</p>
-            {payload.map((pld: any) => (
-              pld.value !== undefined && (
-                <div key={pld.dataKey} className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke || pld.fill }} />
-                    <span>{chartConfig[pld.dataKey as keyof typeof chartConfig]?.label}:</span>
-                  </div>
-                  <span className="ml-4 font-mono font-medium">{pld.value.toLocaleString()}</span>
-                </div>
-              )
-            ))}
-            {note && (
-              <>
-                <Separator className="my-2" />
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <BookText className="size-4 shrink-0 mt-0.5" />
-                  <p className="font-medium whitespace-pre-line">{note}</p>
-                </div>
-              </>
-            )}
-          </div>
-        );
-      }
-      return null;
-    };
-
-    const CustomDotWithNote = (props: any) => {
-      const { cx, cy, payload } = props;
-      if (payload.note) {
-        return (
-          <Dot
-            cx={cx}
-            cy={cy}
-            r={5}
-            fill="hsl(var(--primary))"
-            stroke="hsl(var(--background))"
-            strokeWidth={2}
-          />
-        );
-      }
-      return null;
-    };
 
     const CustomLegend = (props: any) => {
       const { payload } = props;
@@ -311,7 +247,7 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
                         </div>
                     </div>
                     <div className="md:col-span-4">
-                        <ChartContainer config={chartConfig} className={cn("w-full", selectedYears.length > 1 ? "min-h-[500px]" : "min-h-[400px]")}>
+                        <ChartContainer config={chartConfig} className={`w-full ${selectedYears.length > 1 ? "min-h-[500px]" : "min-h-[400px]"}`}>
                             {chartType === 'bar' ? (
                                 <BarChart
                                     data={chartData}
@@ -331,7 +267,7 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
                                     />
                                     <Tooltip
                                         cursor={false}
-                                        content={<CustomTooltipWithNotes />}
+                                        content={<ChartTooltipContent indicator="dot" />}
                                     />
                                     <ChartLegend content={<CustomLegend />} />
                                     {activeChartKeys.map(key => (
@@ -354,7 +290,7 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
                                     />
                                     <Tooltip
                                         cursor={false}
-                                        content={<CustomTooltipWithNotes />}
+                                        content={<ChartTooltipContent indicator="dot" />}
                                     />
                                     <ChartLegend content={<CustomLegend />} />
                                     {activeChartKeys.map(key => (
@@ -364,7 +300,7 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
                                           type="monotone"
                                           stroke={`var(--color-${key})`}
                                           strokeWidth={2}
-                                          dot={<CustomDotWithNote />}
+                                          dot={true}
                                         />
                                     ))}
                                 </LineChart>
