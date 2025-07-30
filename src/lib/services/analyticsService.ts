@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Service for fetching and processing analytics data.
  */
@@ -437,10 +438,10 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
     const currentVipGrowth = calculateGrowth(P2_metrics.vipClients, P1_metrics.vipClients);
     const prevVipGrowth = calculateGrowth(P1_metrics.vipClients, P0_metrics.vipClients);
     
-    const P2_topSourceRevenue = P2_metrics.topSource.source === P1_metrics.topSource.source ? P1_metrics.topSource.revenue : 0;
-    const P1_topSourceRevenue = P1_metrics.topSource.source === P0_metrics.topSource.source ? P0_metrics.topSource.revenue : 0;
-    const currentTopSourceGrowth = calculateGrowth(P2_metrics.topSource.revenue, P2_topSourceRevenue);
-    const prevTopSourceGrowth = calculateGrowth(P1_metrics.topSource.revenue, P1_topSourceRevenue);
+    const P2_topSourcePrevPeriodRevenue = (await ordersCol.aggregate([ { $match: { source: P2_metrics.topSource.source, date: { $gte: format(P1_from, 'yyyy-MM-dd'), $lte: format(P1_to, 'yyyy-MM-dd') }, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray())[0]?.total || 0;
+    const P1_topSourcePrevPeriodRevenue = (await ordersCol.aggregate([ { $match: { source: P1_metrics.topSource.source, date: { $gte: format(P0_from, 'yyyy-MM-dd'), $lte: format(P0_to, 'yyyy-MM-dd') }, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray())[0]?.total || 0;
+    const currentTopSourceGrowth = calculateGrowth(P2_metrics.topSource.revenue, P2_topSourcePrevPeriodRevenue);
+    const prevTopSourceGrowth = calculateGrowth(P1_metrics.topSource.revenue, P1_topSourcePrevPeriodRevenue);
 
     const currentClientGrowth = P1_metrics.clientsAtStart > 0 ? (P2_metrics.newClients / P1_metrics.clientsAtStart) * 100 : (P2_metrics.newClients > 0 ? 100 : 0);
     const prevClientGrowth = P0_metrics.clientsAtStart > 0 ? (P1_metrics.newClients / P0_metrics.clientsAtStart) * 100 : (P1_metrics.newClients > 0 ? 100 : 0);
@@ -494,14 +495,36 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
         
         const marketingExpensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Marketing' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
         const newClientsCountPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
-        
-        const [revenueRes, expensesRes, ordersCount, marketingExpensesRes, newClientsCount] = await Promise.all([
-            revenuePromise, expensesPromise, ordersCountPromise, marketingExpensesPromise, newClientsCountPromise
+
+        // CLTV specific queries
+        const buyerStatsPromise = ordersCol.aggregate([
+            { $match: { date: { $gte: startStr, $lte: endStr } } },
+            { $group: { _id: "$clientUsername", orderCount: { $sum: 1 } } }
+        ]).toArray();
+
+        const avgLifespanPromise = clientsCol.aggregate([
+            { $lookup: { from: 'orders', localField: 'username', foreignField: 'clientUsername', as: 'clientOrders' } },
+            { $match: { 'clientOrders.1': { $exists: true } } }, // Only repeat customers
+            { $project: { firstOrder: { $min: '$clientOrders.date' }, lastOrder: { $max: '$clientOrders.date' } } },
+            { $project: { lifespanDays: { $divide: [{ $subtract: [{ $dateFromString: { dateString: '$lastOrder' } }, { $dateFromString: { dateString: '$firstOrder' } }] }, 1000 * 60 * 60 * 24] } } },
+            { $group: { _id: null, avgLifespan: { $avg: '$lifespanDays' } } }
+        ]).toArray();
+
+        const [revenueRes, expensesRes, ordersCount, marketingExpensesRes, newClientsCount, buyerStats, avgLifespanRes] = await Promise.all([
+            revenuePromise, expensesPromise, ordersCountPromise, marketingExpensesPromise, newClientsCountPromise, buyerStatsPromise, avgLifespanPromise
         ]);
         
         const revenue = revenueRes[0]?.total || 0;
         const expenses = expensesRes[0]?.total || 0;
         const marketingExpenses = marketingExpensesRes[0]?.total || 0;
+        const aov = ordersCount > 0 ? revenue / ordersCount : 0;
+        
+        const totalBuyers = buyerStats.length;
+        const repeatBuyers = buyerStats.filter(b => b.orderCount > 1).length;
+        const repeatPurchaseRate = totalBuyers > 0 ? repeatBuyers / totalBuyers : 0;
+        const avgLifespanMonths = (avgLifespanRes[0]?.avgLifespan || 0) / 30.44;
+
+        const cltv = aov * repeatPurchaseRate * avgLifespanMonths;
 
         return {
             totalRevenue: revenue,
@@ -510,8 +533,8 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             profitMargin: revenue > 0 ? ((revenue - expenses) / revenue) * 100 : 0,
             grossMargin: revenue > 0 ? ((revenue - expenses) / revenue) * 100 : 0, // Using expenses as COGS proxy
             cac: newClientsCount > 0 ? marketingExpenses / newClientsCount : 0,
-            cltv: 0, // Placeholder as we can't calculate this accurately yet
-            aov: ordersCount > 0 ? revenue / ordersCount : 0,
+            cltv: cltv,
+            aov: aov,
         };
     };
 
@@ -534,7 +557,7 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             profitMargin: currentMetrics.profitMargin * (0.95 + Math.random() * 0.1),
             grossMargin: currentMetrics.grossMargin * (0.95 + Math.random() * 0.1),
             cac: currentMetrics.cac * (0.9 + Math.random() * 0.2),
-            cltv: 0,
+            cltv: currentMetrics.cltv * (0.95 + Math.random() * 0.1),
             aov: currentMetrics.aov * (0.95 + Math.random() * 0.1),
         };
     });
