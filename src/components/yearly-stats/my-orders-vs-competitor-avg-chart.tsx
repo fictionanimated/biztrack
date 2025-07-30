@@ -66,7 +66,7 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
     const { chartData, chartConfig, legendStats, isYoy, isLoading } = useMemo(() => {
         const yearsWithData = selectedYears.filter(year => allYearlyData[year]);
         if (yearsWithData.length === 0 || Object.keys(allYearlyData).length === 0) {
-            return { chartData: [], chartConfig: {}, legendStats: {}, isYoy: false, isLoading: true };
+            return { chartData: [], chartConfig: {}, metricKeys: [], legendStats: {}, isYoy: false, isLoading: true };
         }
 
         const yoy = yearsWithData.length > 1;
@@ -98,7 +98,20 @@ export default function MyOrdersVsCompetitorAvgChart({ allYearlyData, selectedYe
                 const key = yoy ? `${baseKey}_${year}` : baseKey;
                 const label = yoy ? `${metricName} ${year}` : metricName;
                 
-                config[key] = { label, color: generateColor(colorCounter++) };
+                let color;
+                if (!yoy) {
+                    if (metricName === 'My Orders') {
+                        color = 'hsl(var(--chart-1))'; // Green
+                    } else if (metricName === 'Competitor Avg.') {
+                        color = 'hsl(var(--chart-2))'; // Red/Gray tone
+                    } else {
+                        color = generateColor(colorCounter++);
+                    }
+                } else {
+                    color = generateColor(colorCounter++);
+                }
+                
+                config[key] = { label, color };
 
                 monthlyValues.forEach((value, monthIndex) => {
                     data[monthIndex][key] = value;
