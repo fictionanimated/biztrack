@@ -1,4 +1,7 @@
 
+
+import { type BusinessNote } from "./business-notes-data";
+
 export interface CompetitorYearlyData {
     id: string;
     name: string;
@@ -12,6 +15,7 @@ export interface MonthlyFinancials {
     expenses: number;
     profit: number;
     monthlyTargetRevenue: number;
+    notes: Pick<BusinessNote, 'title' | 'content' | 'date'>[];
 }
 
 export interface SingleYearData {

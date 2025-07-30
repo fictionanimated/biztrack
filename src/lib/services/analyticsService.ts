@@ -10,6 +10,7 @@ import type { IncomeSource } from '@/lib/data/incomes-data';
 import type { Client } from '@/lib/data/clients-data';
 import type { Order } from '@/lib/data/orders-data';
 import type { SingleYearData } from '@/lib/data/yearly-stats-data';
+import type { BusinessNote } from '../data/business-notes-data';
 
 // Helper function to get database collections
 async function getIncomesCollection() {
@@ -35,6 +36,11 @@ async function getClientsCollection() {
 async function getCompetitorsCollection() {
     const client = await clientPromise;
     return client.db("biztrack-pro").collection<Competitor>('competitors');
+}
+
+async function getBusinessNotesCollection() {
+    const client = await clientPromise;
+    return client.db("biztrack-pro").collection<Omit<BusinessNote, 'id' | 'date'>>('businessNotes');
 }
 
 // Interfaces for Analytics Data
@@ -628,6 +634,7 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
     const ordersCol = db.collection('orders');
     const competitorsCol = db.collection('competitors');
     const expensesCol = db.collection('expenses');
+    const businessNotesCol = await getBusinessNotesCollection();
 
     const yearStart = format(startOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd');
     const yearEnd = format(endOfYear(new Date(year, 0, 1)), 'yyyy-MM-dd');
@@ -646,6 +653,7 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
             expenses: 0,
             profit: 0,
             monthlyTargetRevenue: settings?.[`${year}`]?.[i] ?? 0,
+            notes: [],
         })),
     };
 
@@ -677,6 +685,21 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
             data.monthlyFinancials[monthIndex].expenses = item.totalExpenses;
         }
     });
+    
+    const notesForYear = await businessNotesCol.find({
+        date: { $gte: yearStart, $lte: yearEnd }
+    }).project({ title: 1, content: 1, date: 1 }).toArray();
+
+    notesForYear.forEach(note => {
+        const monthIndex = parseISO(note.date).getMonth();
+        if (monthIndex >= 0 && monthIndex < 12) {
+            data.monthlyFinancials[monthIndex].notes.push({
+                title: note.title,
+                content: note.content,
+                date: note.date,
+            });
+        }
+    });
 
     data.monthlyFinancials.forEach(mf => {
         mf.profit = mf.revenue - mf.expenses;
@@ -706,5 +729,3 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
-
-    
