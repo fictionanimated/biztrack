@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Line, LineChart } from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Line, LineChart, Dot } from 'recharts';
 import {
   ChartContainer,
   ChartTooltipContent,
@@ -12,9 +12,10 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { type YearlyStatsData, type MonthlyFinancials } from '@/lib/data/yearly-stats-data';
 import { Button } from '@/components/ui/button';
-import { BarChart2, LineChartIcon } from 'lucide-react';
+import { BarChart2, LineChartIcon, BookText } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Separator } from '../ui/separator';
 
 interface MonthlyFinancialsChartProps {
     allYearlyData: YearlyStatsData;
@@ -41,6 +42,23 @@ const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '');
 
 const baseMetrics = Object.keys(baseChartColors);
 
+const CustomDotWithNote = (props: any) => {
+  const { cx, cy, payload } = props;
+  if (payload.notes && payload.notes.length > 0) {
+    return (
+      <Dot
+        cx={cx}
+        cy={cy}
+        r={5}
+        fill="hsl(var(--primary))"
+        stroke="hsl(var(--background))"
+        strokeWidth={2}
+      />
+    );
+  }
+  return null;
+};
+
 export default function MonthlyFinancialsChart({ allYearlyData, selectedYears }: MonthlyFinancialsChartProps) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
     const [activeMetrics, setActiveMetrics] = useState<Record<string, boolean>>({
@@ -51,12 +69,16 @@ export default function MonthlyFinancialsChart({ allYearlyData, selectedYears }:
     
     const { chartData, chartConfig, legendStats, isYoy } = useMemo(() => {
         const yoy = selectedYears.length > 1;
-        const data: { month: string; [key: string]: string | number }[] = months.map((month) => ({ month }));
+        const yearsWithData = selectedYears.filter(year => allYearlyData[year]);
+        
+        const data: { month: string; notes?: any[]; [key: string]: any }[] = months.map((month, index) => ({ 
+            month, 
+            notes: yearsWithData.flatMap(year => allYearlyData[year]?.monthlyFinancials[index]?.notes || [])
+        }));
+
         const config: ChartConfig = {};
         const legendData: Record<string, { label: string; total: number; avg: number; year?: number }> = {};
         
-        const yearsWithData = selectedYears.filter(year => allYearlyData[year]);
-
         if (yearsWithData.length === 0) {
             return { chartData: [], chartConfig: {}, legendStats: {}, isYoy: yoy };
         }
@@ -120,6 +142,42 @@ export default function MonthlyFinancialsChart({ allYearlyData, selectedYears }:
             return baseMetric && activeMetrics[baseMetric];
         });
     }, [chartConfig, activeMetrics]);
+
+    const CustomTooltipWithNotes = (props: any) => {
+        const { active, payload, label } = props;
+        if (active && payload && payload.length) {
+            const notes = payload[0].payload.notes;
+            return (
+                <div className="z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md max-w-sm">
+                    <p className="font-medium">{label}</p>
+                    {payload.map((pld: any) => (
+                      <div key={pld.dataKey} className="flex items-center justify-between">
+                          <div className="flex items-center">
+                              <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke || pld.fill }} />
+                              <span>{chartConfig[pld.dataKey as keyof typeof chartConfig]?.label}:</span>
+                          </div>
+                          <span className="ml-4 font-mono font-medium">${Number(pld.value).toLocaleString()}</span>
+                      </div>
+                    ))}
+                    {notes && notes.length > 0 && (
+                        <>
+                            <Separator className="my-2" />
+                            {notes.map((note: any, index: number) => (
+                                <div key={index} className="flex items-start gap-2 text-muted-foreground mt-1">
+                                    <BookText className="size-4 shrink-0 mt-0.5 text-primary" />
+                                    <div className="flex flex-col">
+                                        <p className="font-semibold text-foreground">{note.title}</p>
+                                        <p className="text-xs whitespace-pre-wrap">{note.content}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </>
+                    )}
+                </div>
+            );
+        }
+        return null;
+    };
 
     const CustomLegend = (props: any) => {
         const { payload } = props;
@@ -220,10 +278,7 @@ export default function MonthlyFinancialsChart({ allYearlyData, selectedYears }:
                                     />
                                     <Tooltip
                                         cursor={false}
-                                        content={<ChartTooltipContent
-                                            indicator="dot"
-                                            valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
-                                        />}
+                                        content={<CustomTooltipWithNotes />}
                                     />
                                     <ChartLegend content={<CustomLegend />} />
                                     {activeChartKeys.map(key => (
@@ -247,14 +302,11 @@ export default function MonthlyFinancialsChart({ allYearlyData, selectedYears }:
                                     />
                                     <Tooltip
                                         cursor={false}
-                                        content={<ChartTooltipContent
-                                            indicator="dot"
-                                            valueFormatter={(value) => `$${Number(value).toLocaleString()}`}
-                                        />}
+                                        content={<CustomTooltipWithNotes />}
                                     />
                                     <ChartLegend content={<CustomLegend />} />
                                     {activeChartKeys.map(key => (
-                                        <Line key={key} dataKey={key} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot={true} />
+                                        <Line key={key} dataKey={key} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot={<CustomDotWithNote />} />
                                     ))}
                                 </LineChart>
                             )}
