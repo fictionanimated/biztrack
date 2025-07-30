@@ -26,15 +26,13 @@ interface MonthlyOrdersVsCompetitorsChartProps {
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const colorVariants: { [key: number]: string } = {
-    0: "hsl(var(--chart-1))",
-    1: "hsl(var(--chart-2))",
-    2: "hsl(var(--chart-3))",
-    3: "hsl(var(--chart-4))",
-    4: "hsl(var(--chart-5))",
-    5: "hsl(var(--primary))",
+// Function to generate a distinct color based on an index
+const generateColor = (index: number): string => {
+    const hue = (index * 137.508) % 360; // Use golden angle approximation for distinct colors
+    const saturation = 70;
+    const lightness = 50;
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 };
-
 
 const sanitizeKey = (key: string) => key.replace(/[^a-zA-Z0-9_]/g, '');
 
@@ -83,12 +81,13 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selecte
 
         const currentSysYear = new Date().getFullYear();
         const currentSysMonth = new Date().getMonth(); // 0-11
+        let colorCounter = 0;
 
         yearsWithData.forEach((year, yearIndex) => {
             const yearData = allYearlyData[year];
             if (!yearData) return;
 
-            allMetrics.forEach((metricName, metricIndex) => {
+            allMetrics.forEach((metricName) => {
                 const baseKey = sanitizeKey(metricName);
                 const key = yoy ? `${baseKey}_${year}` : baseKey;
                 const label = yoy ? `${metricName} ${year}` : metricName;
@@ -108,8 +107,15 @@ export default function MonthlyOrdersVsCompetitorsChart({ allYearlyData, selecte
 
                 if (monthlyDataSource.length > 0) {
                     tempMetricKeys.push(key);
-                    const colorIndex = (metricIndex * yearsWithData.length + yearIndex) % Object.keys(colorVariants).length;
-                    config[key] = { label, color: colorVariants[colorIndex] };
+                    
+                    let color: string;
+                    if (!yoy) {
+                        color = metricName === 'My Orders' ? 'hsl(var(--chart-1))' : generateColor(colorCounter++);
+                    } else {
+                        color = generateColor(colorCounter++);
+                    }
+                    
+                    config[key] = { label, color };
 
                     monthlyDataSource.forEach((value, monthIndex) => {
                         data[monthIndex][key] = value;
