@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/chart";
 import { type YearlyStatsData, type SingleYearData } from '@/lib/data/yearly-stats-data';
 import { Button } from '@/components/ui/button';
-import { BarChart2, LineChartIcon, BookText } from 'lucide-react';
+import { BarChart2, BookText, LineChartIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -27,12 +27,23 @@ interface MyOrdersVsCompetitorAvgChartProps {
 
 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const colorVariants: {[key: number]: string} = {
+// Expanded color palette for better distinction between multiple lines
+const colorVariants: { [key: number]: string } = {
     0: "hsl(var(--chart-1))",
     1: "hsl(var(--chart-2))",
     2: "hsl(var(--chart-3))",
     3: "hsl(var(--chart-4))",
     4: "hsl(var(--chart-5))",
+    5: "hsl(22, 90%, 60%)",  // Orange
+    6: "hsl(262, 82%, 66%)", // Purple
+    7: "hsl(340, 82%, 60%)", // Pink
+    8: "hsl(145, 63%, 49%)", // Green
+    9: "hsl(45, 93%, 60%)",  // Yellow
+    10: "hsl(210, 89%, 64%)", // Blue
+    11: "hsl(0, 84%, 60%)",   // Red
+    12: "hsl(175, 75%, 40%)", // Teal
+    13: "hsl(290, 60%, 65%)", // Magenta
+    14: "hsl(75, 70%, 50%)",  // Lime
 };
 
 
