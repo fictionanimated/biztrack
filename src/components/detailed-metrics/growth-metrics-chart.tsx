@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useMemo, useState } from 'react';
@@ -13,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import type { GrowthMetricTimeSeries } from '@/lib/services/analyticsService';
-import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, startOfQuarter, startOfYear } from "date-fns";
+import { format, parse, startOfWeek, startOfMonth, getQuarter, getYear, startOfQuarter, startOfYear, endOfWeek, endOfMonth, endOfQuarter, endOfYear } from "date-fns";
 
 const chartConfig = {
     revenueGrowth: { label: "Revenue Growth", color: "hsl(var(--chart-1))" },
@@ -79,7 +80,7 @@ const CustomDot = (props: any) => {
   return null;
 };
 
-type ChartView = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+type ChartView = 'monthly' | 'quarterly' | 'yearly';
 
 export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle }: GrowthMetricsChartProps) {
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
@@ -89,50 +90,59 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
         if (!data || data.length === 0) return [];
         const dataMap = new Map<string, any>();
         
-        // Assuming data is monthly for now, as per backend.
-        // We will need to know the start/end date from props if we get daily data.
-        const currentYear = new Date().getFullYear();
+        data.forEach(item => {
+            const itemDate = parse(item.month, 'MMM', new Date());
 
-        data.forEach((item, index) => {
-            // Create a parsable date. item.month is "MMM" format.
-            const itemDate = new Date(`${item.month} 1, ${currentYear}`);
-
-            if (isNaN(itemDate.getTime())) return; // Skip invalid dates
+            if (isNaN(itemDate.getTime())) return;
 
             let key = '';
             switch(chartView) {
-                case 'weekly': key = format(startOfWeek(itemDate, { weekStartsOn: 1 }), 'yyyy-MM-dd'); break;
-                case 'monthly': key = format(startOfMonth(itemDate), 'yyyy-MM-dd'); break;
-                case 'quarterly': key = `${getYear(itemDate)}-Q${getQuarter(itemDate)}`; break;
-                case 'yearly': key = format(startOfYear(itemDate), 'yyyy'); break;
-                default: key = format(itemDate, 'yyyy-MM-dd'); break; // default to daily-like format
+                case 'quarterly': key = `Q${getQuarter(itemDate)} ${getYear(itemDate)}`; break;
+                case 'yearly': key = getYear(itemDate).toString(); break;
+                default: key = item.month; break; // monthly
             }
 
-            const existing = dataMap.get(key) || { month: key };
+            const existing = dataMap.get(key) || { month: key, count: 0 };
             Object.keys(chartConfig).forEach(metricKey => {
                 const itemValue = item[metricKey as keyof GrowthMetricTimeSeries] || 0;
                 existing[metricKey] = (existing[metricKey] || 0) + (typeof itemValue === 'number' ? itemValue : 0);
             });
+            existing.count++;
             dataMap.set(key, existing);
         });
         
-        return Array.from(dataMap.values()).sort((a,b) => {
-            // Handle quarter/year sorting
-            if (chartView === 'quarterly' || chartView === 'yearly') {
-                return a.month.localeCompare(b.month);
-            }
-            return new Date(a.month).getTime() - new Date(b.month).getTime()
+        // Average the growth rates for quarterly/yearly views
+        dataMap.forEach((value, key) => {
+             if (value.count > 1) {
+                Object.keys(chartConfig).forEach(metricKey => {
+                    if (value[metricKey]) {
+                        value[metricKey] /= value.count;
+                    }
+                });
+             }
         });
+
+        const result = Array.from(dataMap.values());
+        
+        if (chartView === 'monthly') return result;
+        if (chartView === 'yearly') return result.sort((a,b) => a.month.localeCompare(b.month));
+        
+        // Sort quarters correctly
+        return result.sort((a, b) => {
+            const [aQ, aY] = a.month.split(' ');
+            const [bQ, bY] = b.month.split(' ');
+            if (aY !== bY) return aY.localeCompare(bY);
+            return aQ.localeCompare(bQ);
+        });
+
     }, [data, chartView]);
 
     const tickFormatter = (value: string) => {
         try {
             switch (chartView) {
-                case 'weekly': return `W/C ${format(parseISO(value), "MMM d")}`;
-                case 'monthly': return format(parseISO(value), "MMM");
                 case 'quarterly': return value;
                 case 'yearly': return value;
-                default: return format(parseISO(value), "MMM d");
+                default: return value; // Monthly
             }
         } catch (e) {
             return value;
@@ -163,8 +173,6 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
                                 <SelectValue placeholder="Select view" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="daily">Daily</SelectItem>
-                                <SelectItem value="weekly">Weekly</SelectItem>
                                 <SelectItem value="monthly">Monthly</SelectItem>
                                 <SelectItem value="quarterly">Quarterly</SelectItem>
                                 <SelectItem value="yearly">Yearly</SelectItem>
