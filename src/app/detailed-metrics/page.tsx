@@ -108,11 +108,11 @@ const DetailedMetricsPageComponent = () => {
   }, [date, toast]);
 
   const previousPeriodLabel = useMemo(() => {
-    if (!date?.from || !date?.to) return "vs. previous period";
+    if (!date?.from || !date?.to) return "previous period";
     const duration = differenceInDays(date.to, date.from);
     const prevTo = subDays(date.from, 1);
     const prevFrom = subDays(prevTo, duration);
-    return `vs. ${format(prevFrom, 'MMM d')} - ${format(prevTo, 'MMM d, yyyy')}`;
+    return `${format(prevFrom, 'MMM d')} - ${format(prevTo, 'MMM d, yyyy')}`;
   }, [date]);
 
 
