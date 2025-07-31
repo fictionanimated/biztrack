@@ -32,12 +32,12 @@ export function GrowthMetrics({ data, previousPeriodLabel }: GrowthMetricsProps)
   };
   
   const growthMetrics = [
-    { name: "Revenue Growth (%)", value: `${data.revenueGrowth.value.toFixed(1)}%`, formula: "((This Period’s Revenue - Last Period’s Revenue) / Last Period’s Revenue) × 100", change: `${data.revenueGrowth.change.toFixed(1)}%`, changeType: data.revenueGrowth.change >= 0 ? 'increase' : 'decrease' as const },
-    { name: "Net Profit Growth (%)", value: `${data.profitGrowth.value.toFixed(1)}%`, formula: "((This Period's Net Profit - Last Period's) / Last Period's) × 100", change: `${data.profitGrowth.change.toFixed(1)}%`, changeType: data.profitGrowth.change >= 0 ? 'increase' : 'decrease' as const },
-    { name: "Client Growth Rate (%)", value: `${data.clientGrowth.value.toFixed(1)}%`, formula: "((New Clients) / Clients at Start of Period) × 100", change: `${data.clientGrowth.change.toFixed(1)}%`, changeType: data.clientGrowth.change >= 0 ? 'increase' : 'decrease' as const },
-    { name: "Average Order Value (AOV) Growth (%)", value: `${data.aovGrowth.value.toFixed(1)}%`, formula: "Growth rate of AOV over a period", change: `${data.aovGrowth.change.toFixed(1)}%`, changeType: data.aovGrowth.change >= 0 ? 'increase' : 'decrease' as const },
-    { name: "High-Value Client Growth Rate (%)", value: `${data.vipClientGrowth.value.toFixed(1)}%`, formula: "Growth rate of clients marked as VIP", change: `${data.vipClientGrowth.change.toFixed(1)}%`, changeType: data.vipClientGrowth.change >= 0 ? 'increase' : 'decrease' as const },
-    { name: "Top Source Growth Rate (%)", value: `${data.topSourceGrowth.value.toFixed(1)}%`, formula: `Growth of '${data.topSourceGrowth.source}'`, change: `${data.topSourceGrowth.change.toFixed(1)}%`, changeType: data.topSourceGrowth.change >= 0 ? 'increase' : 'decrease' as const },
+    { name: "Revenue Growth (%)", value: `${data.revenueGrowth.value.toFixed(1)}%`, change: data.revenueGrowth.change.toFixed(1), changeType: data.revenueGrowth.change >= 0 ? 'increase' : 'decrease' as const, formula: "((This Period’s Revenue - Last Period’s Revenue) / Last Period’s Revenue) × 100" },
+    { name: "Net Profit Growth (%)", value: `${data.profitGrowth.value.toFixed(1)}%`, change: data.profitGrowth.change.toFixed(1), changeType: data.profitGrowth.change >= 0 ? 'increase' : 'decrease' as const, formula: "((This Period's Net Profit - Last Period's) / Last Period's) × 100" },
+    { name: "Client Growth Rate (%)", value: `${data.clientGrowth.value.toFixed(1)}%`, change: data.clientGrowth.change.toFixed(1), changeType: data.clientGrowth.change >= 0 ? 'increase' : 'decrease' as const, formula: "((New Clients) / Clients at Start of Period) × 100" },
+    { name: "Average Order Value (AOV) Growth (%)", value: `${data.aovGrowth.value.toFixed(1)}%`, change: data.aovGrowth.change.toFixed(1), changeType: data.aovGrowth.change >= 0 ? 'increase' : 'decrease' as const, formula: "Growth rate of AOV over a period" },
+    { name: "High-Value Client Growth Rate (%)", value: `${data.vipClientGrowth.value.toFixed(1)}%`, change: data.vipClientGrowth.change.toFixed(1), changeType: data.vipClientGrowth.change >= 0 ? 'increase' : 'decrease' as const, formula: "Growth rate of clients marked as VIP" },
+    { name: "Top Source Growth Rate (%)", value: `${data.topSourceGrowth.value.toFixed(1)}%`, change: data.topSourceGrowth.change.toFixed(1), changeType: data.topSourceGrowth.change >= 0 ? 'increase' : 'decrease' as const, formula: `Growth of '${data.topSourceGrowth.source}'` },
 ];
 
   return (
@@ -55,28 +55,38 @@ export function GrowthMetrics({ data, previousPeriodLabel }: GrowthMetricsProps)
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {growthMetrics.map((metric) => {
-            const isPositive = metric.changeType === "increase";
-            const changeType = metric.changeType;
+            const mainValue = parseFloat(metric.value);
+            const mainIsPositive = mainValue >= 0;
             const changeValue = parseFloat(metric.change);
+            const changeIsPositive = changeValue >= 0;
+
             return (
                 <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
                 <div>
                     <p className="text-sm font-medium text-muted-foreground">{metric.name}</p>
-                    <p className="text-2xl font-bold mt-1">{metric.value}</p>
+                    <p className={cn(
+                      "text-2xl font-bold mt-1 flex items-center gap-1",
+                      mainIsPositive ? "text-green-600" : "text-red-600"
+                    )}>
+                      {mainIsPositive ? <ArrowUp className="h-5 w-5" /> : <ArrowDown className="h-5 w-5" />}
+                      {metric.value}
+                    </p>
                 </div>
                 <div className="mt-2 pt-2 border-t space-y-1">
-                    <div className="flex items-center text-xs">
-                        <span
-                            className={cn(
-                                "flex items-center gap-1 font-semibold",
-                                changeValue >= 0 ? "text-green-600" : "text-red-600"
-                            )}
-                        >
-                            {changeValue >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                            {Math.abs(changeValue).toFixed(1)}%
-                        </span>
-                        <span className="ml-1 text-muted-foreground">{previousPeriodLabel}</span>
-                    </div>
+                    {metric.change && (
+                        <div className="flex items-center text-xs">
+                             <span
+                                className={cn(
+                                    "flex items-center gap-1 font-semibold",
+                                    changeIsPositive ? "text-green-600" : "text-red-600"
+                                )}
+                            >
+                                {changeIsPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                                {Math.abs(changeValue).toFixed(1)}%
+                            </span>
+                            <span className="ml-1 text-muted-foreground">From {previousPeriodLabel}</span>
+                        </div>
+                    )}
                     <p className="text-xs text-muted-foreground">{metric.formula}</p>
                 </div>
                 </div>
