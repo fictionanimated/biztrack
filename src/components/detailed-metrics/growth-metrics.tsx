@@ -68,7 +68,7 @@ export function GrowthMetrics({ data, previousPeriodLabel }: GrowthMetricsProps)
                       isPositive ? "text-green-600" : "text-red-600"
                     )}>
                       {isPositive ? <ArrowUp className="h-5 w-5" /> : <ArrowDown className="h-5 w-5" />}
-                      {Math.abs(metric.value).toFixed(1)}%
+                      {metric.value.toFixed(1)}%
                     </p>
                 </div>
                 <div className="mt-2 pt-2 border-t space-y-1">
@@ -81,7 +81,7 @@ export function GrowthMetrics({ data, previousPeriodLabel }: GrowthMetricsProps)
                                 )}
                             >
                                 {changeIsPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                                {Math.abs(changeValue).toFixed(1)}%
+                                {changeValue.toFixed(1)}%
                             </span>
                             <span className="ml-1 text-muted-foreground">From {previousPeriodLabel}</span>
                         </div>
