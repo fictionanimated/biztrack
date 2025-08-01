@@ -1,10 +1,9 @@
 
-
 /**
  * @fileoverview Service for fetching and processing analytics data.
  */
 import { ObjectId } from 'mongodb';
-import { format, subDays, eachDayOfInterval, differenceInDays, parseISO, sub, startOfMonth, endOfMonth, eachMonthOfInterval, startOfYear, endOfYear, getMonth, getYear } from 'date-fns';
+import { format, subDays, eachDayOfInterval, differenceInDays, parseISO, sub, startOfMonth, endOfMonth, eachMonthOfInterval, startOfYear, endOfYear, getMonth, getYear, differenceInMonths } from 'date-fns';
 import clientPromise from '@/lib/mongodb';
 import { type Competitor } from '@/lib/data/incomes-data';
 import type { IncomeSource } from '@/lib/data/incomes-data';
@@ -101,12 +100,12 @@ export interface GrowthMetricTimeSeries {
     sourceGrowth: number;
 }
 export interface GrowthMetricData {
-  revenueGrowth: { value: number; change: number };
-  profitGrowth: { value: number; change: number };
-  clientGrowth: { value: number; change: number };
-  aovGrowth: { value: number; change: number };
-  vipClientGrowth: { value: number; change: number };
-  topSourceGrowth: { value: number; change: number; source: string };
+  revenueGrowth: { value: number; previousValue: number };
+  profitGrowth: { value: number; previousValue: number };
+  clientGrowth: { value: number; previousValue: number };
+  aovGrowth: { value: number; previousValue: number };
+  vipClientGrowth: { value: number; previousValue: number };
+  topSourceGrowth: { value: number; previousValue: number; source: string };
   timeSeries: GrowthMetricTimeSeries[];
 }
 
@@ -123,16 +122,17 @@ export interface FinancialMetricTimeSeries {
 }
 
 export interface FinancialMetricData {
-    totalRevenue: { value: number; change: number };
-    totalExpenses: { value: number; change: number };
-    netProfit: { value: number; change: number };
-    profitMargin: { value: number; change: number };
-    grossMargin: { value: number; change: number };
-    cac: { value: number; change: number };
-    cltv: { value: number; change: number };
-    aov: { value: number; change: number };
+    totalRevenue: { value: number; change: number; previousValue: number };
+    totalExpenses: { value: number; change: number; previousValue: number };
+    netProfit: { value: number; change: number; previousValue: number };
+    profitMargin: { value: number; change: number; previousValue: number };
+    grossMargin: { value: number; change: number; previousValue: number };
+    cac: { value: number; change: number; previousValue: number };
+    cltv: { value: number; change: number; previousValue: number };
+    aov: { value: number; change: number; previousValue: number };
     timeSeries: FinancialMetricTimeSeries[];
 }
+
 
 export interface ClientMetricData {
     totalClients: { value: number; change: number };
@@ -398,6 +398,24 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
         return ((currentVal - prevVal) / prevVal) * 100;
     }
 
+    const calcMonthMetrics = async (start: Date, end: Date) => {
+        const startStr = format(start, 'yyyy-MM-dd');
+        const endStr = format(end, 'yyyy-MM-dd');
+
+        const revenueRes = await ordersCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const expensesRes = await expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr } } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const ordersInPeriod = await ordersCol.find({ date: { $gte: startStr, $lte: endStr }, status: 'Completed' }).toArray();
+        
+        const revenue = revenueRes[0]?.total || 0;
+        return {
+            revenue: revenue,
+            netProfit: revenue - (expensesRes[0]?.total || 0),
+            aov: ordersInPeriod.length > 0 ? revenue / ordersInPeriod.length : 0,
+            newClients: await clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } }),
+            clientsAtStart: await clientsCol.countDocuments({ clientSince: { $lt: startStr } }),
+        };
+    };
+
     // Time Series Calculations
     const timeSeriesMonths = eachMonthOfInterval({ start: P2_from, end: P2_to });
     const timeSeries: GrowthMetricTimeSeries[] = await Promise.all(
@@ -406,24 +424,6 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
             const prevMonthStart = sub(monthStart, { months: 1 });
             const prevMonthEnd = endOfMonth(prevMonthStart);
 
-            const calcMonthMetrics = async (start: Date, end: Date) => {
-                const startStr = format(start, 'yyyy-MM-dd');
-                const endStr = format(end, 'yyyy-MM-dd');
-
-                const revenueRes = await ordersCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-                const expensesRes = await expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr } } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-                const ordersInPeriod = await ordersCol.find({ date: { $gte: startStr, $lte: endStr }, status: 'Completed' }).toArray();
-                
-                const revenue = revenueRes[0]?.total || 0;
-                return {
-                    revenue: revenue,
-                    netProfit: revenue - (expensesRes[0]?.total || 0),
-                    aov: ordersInPeriod.length > 0 ? revenue / ordersInPeriod.length : 0,
-                    newClients: await clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } }),
-                    clientsAtStart: await clientsCol.countDocuments({ clientSince: { $lt: startStr } }),
-                };
-            };
-            
             const [currentMonthMetrics, prevMonthMetrics] = await Promise.all([
                 calcMonthMetrics(monthStart, monthEnd),
                 calcMonthMetrics(prevMonthStart, prevMonthEnd)
@@ -483,12 +483,12 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
         : 0;
 
     return {
-        revenueGrowth: { value: calculateGrowth(P2_metrics.revenue, P1_metrics.revenue), change: calculateGrowth(P1_metrics.revenue, P0_metrics.revenue) },
-        profitGrowth: { value: calculateGrowth(P2_metrics.netProfit, P1_metrics.netProfit), change: calculateGrowth(P1_metrics.netProfit, P0_metrics.netProfit) },
-        aovGrowth: { value: calculateGrowth(P2_metrics.aov, P1_metrics.aov), change: calculateGrowth(P1_metrics.aov, P0_metrics.aov) },
-        vipClientGrowth: { value: calculateGrowth(P2_metrics.vipClients, P1_metrics.vipClients), change: calculateGrowth(P1_metrics.vipClients, P0_metrics.vipClients) },
-        topSourceGrowth: { value: calculateGrowth(P2_metrics.topSource.revenue, P2_topSourcePrevPeriodRevenue), change: 0, source: P2_metrics.topSource.source }, // Change for top source growth is complex and deferred
-        clientGrowth: { value: calculateGrowth(P2_metrics.newClients, P1_metrics.newClients), change: calculateGrowth(P1_metrics.newClients, P0_metrics.newClients) },
+        revenueGrowth: { value: calculateGrowth(P2_metrics.revenue, P1_metrics.revenue), previousValue: calculateGrowth(P1_metrics.revenue, P0_metrics.revenue) },
+        profitGrowth: { value: calculateGrowth(P2_metrics.netProfit, P1_metrics.netProfit), previousValue: calculateGrowth(P1_metrics.netProfit, P0_metrics.netProfit) },
+        aovGrowth: { value: calculateGrowth(P2_metrics.aov, P1_metrics.aov), previousValue: calculateGrowth(P1_metrics.aov, P0_metrics.aov) },
+        vipClientGrowth: { value: calculateGrowth(P2_metrics.vipClients, P1_metrics.vipClients), previousValue: calculateGrowth(P1_metrics.vipClients, P0_metrics.vipClients) },
+        topSourceGrowth: { value: calculateGrowth(P2_metrics.topSource.revenue, P2_topSourcePrevPeriodRevenue), previousValue: 0, source: P2_metrics.topSource.source }, // Change for top source growth is complex and deferred
+        clientGrowth: { value: P1_metrics.clientsAtStart > 0 ? (P2_metrics.newClients / P1_metrics.clientsAtStart) * 100 : P2_metrics.newClients > 0 ? 100 : 0, previousValue: P0_metrics.clientsAtStart > 0 ? (P1_metrics.newClients / P0_metrics.clientsAtStart) * 100 : P1_metrics.newClients > 0 ? 100 : 0 },
         timeSeries,
     };
 }
@@ -526,6 +526,8 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
         const avgLifespanPromise = clientsCol.aggregate([
             { $lookup: { from: 'orders', localField: 'username', foreignField: 'clientUsername', as: 'clientOrders' } },
             { $match: { 'clientOrders.1': { $exists: true } } },
+            { $addFields: { clientOrders: { $filter: { input: "$clientOrders", as: "order", cond: { $ne: ["$$order.status", "Cancelled"] } } } } },
+            { $match: { 'clientOrders.1': { $exists: true } } },
             { $project: {
                 firstOrderDate: { $min: '$clientOrders.date' },
                 lastOrderDate: { $max: '$clientOrders.date' },
@@ -533,7 +535,7 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             { $project: {
                 lifespanDays: {
                     $cond: {
-                        if: { $and: [{ $ne: ['$firstOrderDate', null] }, { $ne: ['$lastOrderDate', null] }] },
+                        if: { $and: [{ $ne: ['$firstOrderDate', null] }, { $ne: ['$lastOrderDate', null] }, { $ne: ['$firstOrderDate', '$lastOrderDate'] }] },
                         then: {
                             $divide: [
                                 { $subtract: [
@@ -549,7 +551,6 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             }},
             { $group: { _id: null, avgLifespan: { $avg: '$lifespanDays' } } }
         ]).toArray();
-
 
         const [revenueRes, expensesRes, ordersCount, marketingExpensesRes, newClientsCount, buyerStats, avgLifespanRes] = await Promise.all([
             revenuePromise, expensesPromise, ordersCountPromise, marketingExpensesPromise, newClientsCountPromise, buyerStatsPromise, avgLifespanPromise
@@ -589,12 +590,13 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
     // Time Series data (dummy for now)
     const timeSeries: FinancialMetricTimeSeries[] = eachMonthOfInterval({ start: fromDate, end: toDate }).map(monthStart => {
         // In a real app, this would be another aggregation by month
-        const dummyRevenue = currentMetrics.totalRevenue / (differenceInDays(toDate, fromDate)/30.44);
+        const numMonths = differenceInMonths(toDate, fromDate) + 1;
+        const dummyRevenue = currentMetrics.totalRevenue / numMonths;
         return {
             month: format(monthStart, 'MMM'),
             totalRevenue: dummyRevenue * (0.8 + Math.random() * 0.4),
-            totalExpenses: currentMetrics.totalExpenses / (differenceInDays(toDate, fromDate)/30.44) * (0.8 + Math.random() * 0.4),
-            netProfit: (dummyRevenue - currentMetrics.totalExpenses / (differenceInDays(toDate, fromDate)/30.44)) * (0.8 + Math.random() * 0.4),
+            totalExpenses: currentMetrics.totalExpenses / numMonths * (0.8 + Math.random() * 0.4),
+            netProfit: (dummyRevenue - currentMetrics.totalExpenses / numMonths) * (0.8 + Math.random() * 0.4),
             profitMargin: currentMetrics.profitMargin * (0.95 + Math.random() * 0.1),
             grossMargin: currentMetrics.grossMargin * (0.95 + Math.random() * 0.1),
             cac: currentMetrics.cac * (0.9 + Math.random() * 0.2),
@@ -604,14 +606,14 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
     });
 
     return {
-        totalRevenue: { value: currentMetrics.totalRevenue, change: calculateChange(currentMetrics.totalRevenue, prevMetrics.totalRevenue) },
-        totalExpenses: { value: currentMetrics.totalExpenses, change: calculateChange(currentMetrics.totalExpenses, prevMetrics.totalExpenses) },
-        netProfit: { value: currentMetrics.netProfit, change: calculateChange(currentMetrics.netProfit, prevMetrics.netProfit) },
-        profitMargin: { value: currentMetrics.profitMargin, change: currentMetrics.profitMargin - prevMetrics.profitMargin },
-        grossMargin: { value: currentMetrics.grossMargin, change: currentMetrics.grossMargin - prevMetrics.grossMargin },
-        cac: { value: currentMetrics.cac, change: calculateChange(currentMetrics.cac, prevMetrics.cac) },
-        cltv: { value: currentMetrics.cltv, change: calculateChange(currentMetrics.cltv, prevMetrics.cltv) },
-        aov: { value: currentMetrics.aov, change: calculateChange(currentMetrics.aov, prevMetrics.aov) },
+        totalRevenue: { value: currentMetrics.totalRevenue, change: calculateChange(currentMetrics.totalRevenue, prevMetrics.totalRevenue), previousValue: prevMetrics.totalRevenue },
+        totalExpenses: { value: currentMetrics.totalExpenses, change: calculateChange(currentMetrics.totalExpenses, prevMetrics.totalExpenses), previousValue: prevMetrics.totalExpenses },
+        netProfit: { value: currentMetrics.netProfit, change: calculateChange(currentMetrics.netProfit, prevMetrics.netProfit), previousValue: prevMetrics.netProfit },
+        profitMargin: { value: currentMetrics.profitMargin, change: currentMetrics.profitMargin - prevMetrics.profitMargin, previousValue: prevMetrics.profitMargin },
+        grossMargin: { value: currentMetrics.grossMargin, change: currentMetrics.grossMargin - prevMetrics.grossMargin, previousValue: prevMetrics.grossMargin },
+        cac: { value: currentMetrics.cac, change: calculateChange(currentMetrics.cac, prevMetrics.cac), previousValue: prevMetrics.cac },
+        cltv: { value: currentMetrics.cltv, change: calculateChange(currentMetrics.cltv, prevMetrics.cltv), previousValue: prevMetrics.cltv },
+        aov: { value: currentMetrics.aov, change: calculateChange(currentMetrics.aov, prevMetrics.aov), previousValue: prevMetrics.aov },
         timeSeries
     };
 }
@@ -646,19 +648,27 @@ export async function getClientMetrics(from: string, to: string): Promise<Client
             clientsCol.aggregate([
                 { $lookup: { from: 'orders', localField: 'username', foreignField: 'clientUsername', as: 'clientOrders' } },
                 { $match: { 'clientOrders.1': { $exists: true } } },
+                { $addFields: { clientOrders: { $filter: { input: "$clientOrders", as: "order", cond: { $ne: ["$$order.status", "Cancelled"] } } } } },
+                { $match: { 'clientOrders.1': { $exists: true } } },
                 { $project: {
                     firstOrderDate: { $min: '$clientOrders.date' },
                     lastOrderDate: { $max: '$clientOrders.date' }
                 }},
                 { $project: {
                     lifespanDays: {
-                        $divide: [
-                            { $subtract: [
-                                { $dateFromString: { dateString: '$lastOrderDate' } },
-                                { $dateFromString: { dateString: '$firstOrderDate' } }
-                            ]},
-                            1000 * 60 * 60 * 24
-                        ]
+                        $cond: {
+                             if: { $and: [{ $ne: ['$firstOrderDate', null] }, { $ne: ['$lastOrderDate', null] }, { $ne: ['$firstOrderDate', '$lastOrderDate'] }] },
+                             then: {
+                                $divide: [
+                                    { $subtract: [
+                                        { $dateFromString: { dateString: '$lastOrderDate' } },
+                                        { $dateFromString: { dateString: '$firstOrderDate' } }
+                                    ]},
+                                    1000 * 60 * 60 * 24
+                                ]
+                             },
+                             else: 0
+                        }
                     }
                 }},
                 { $group: { _id: null, avgLifespan: { $avg: '$lifespanDays' } } }
@@ -819,6 +829,4 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
-
-
 

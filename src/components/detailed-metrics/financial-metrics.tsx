@@ -29,16 +29,16 @@ export function FinancialMetrics({ data, previousPeriodLabel }: FinancialMetrics
   const handlePercentageMetricToggle = (metric: string) => {
     setActivePercentageMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
   };
-
+  
   const financialMetrics = [
-    { name: "Total Revenue", value: formatCurrency(data.totalRevenue.value), formula: "Sum of all income from services", change: `${data.totalRevenue.change.toFixed(1)}%`, changeType: data.totalRevenue.change >= 0 ? "increase" : "decrease" as const },
-    { name: "Total Expenses", value: formatCurrency(data.totalExpenses.value), formula: "Sum of all business expenses", change: `${data.totalExpenses.change.toFixed(1)}%`, changeType: data.totalExpenses.change >= 0 ? "increase" : "decrease" as const, invertColor: true },
-    { name: "Net Profit", value: formatCurrency(data.netProfit.value), formula: "Total Revenue - Total Expenses", change: `${data.netProfit.change.toFixed(1)}%`, changeType: data.netProfit.change >= 0 ? "increase" : "decrease" as const },
-    { name: "Profit Margin (%)", value: `${data.profitMargin.value.toFixed(1)}%`, formula: "(Net Profit / Total Revenue) × 100", change: `${data.profitMargin.change.toFixed(1)}%`, changeType: data.profitMargin.change >= 0 ? "increase" : "decrease" as const },
-    { name: "Gross Margin (%)", value: `${data.grossMargin.value.toFixed(1)}%`, formula: "((Revenue - Cost of Services) / Revenue) × 100", change: `${data.grossMargin.change.toFixed(1)}%`, changeType: data.grossMargin.change >= 0 ? "increase" : "decrease" as const },
-    { name: "Client Acquisition Cost (CAC)", value: formatCurrency(data.cac.value), formula: "Sales & Marketing Costs / New Clients", change: `${data.cac.change.toFixed(1)}%`, changeType: data.cac.change >= 0 ? "increase" : "decrease" as const, invertColor: true },
-    { name: "Customer Lifetime Value (CLTV)", value: formatCurrency(data.cltv.value), formula: "AOV × Repeat Purchase Rate × Avg. Lifespan", change: `${data.cltv.change.toFixed(1)}%`, changeType: data.cltv.change >= 0 ? "increase" : "decrease" as const },
-    { name: "Average Order Value (AOV)", value: formatCurrency(data.aov.value), formula: "Total Revenue / Number of Orders", change: `${data.aov.change.toFixed(1)}%`, changeType: data.aov.change >= 0 ? "increase" : "decrease" as const },
+    { name: "Total Revenue", data: data.totalRevenue, formula: "Sum of all income from services" },
+    { name: "Total Expenses", data: data.totalExpenses, formula: "Sum of all business expenses", invertColor: true },
+    { name: "Net Profit", data: data.netProfit, formula: "Total Revenue - Total Expenses" },
+    { name: "Profit Margin (%)", data: data.profitMargin, formula: "(Net Profit / Total Revenue) × 100", isPercentage: true },
+    { name: "Gross Margin (%)", data: data.grossMargin, formula: "((Revenue - Cost of Services) / Revenue) × 100", isPercentage: true },
+    { name: "Client Acquisition Cost (CAC)", data: data.cac, formula: "Sales & Marketing Costs / New Clients", invertColor: true },
+    { name: "Customer Lifetime Value (CLTV)", data: data.cltv, formula: "AOV × Repeat Purchase Rate × Avg. Lifespan" },
+    { name: "Average Order Value (AOV)", data: data.aov, formula: "Total Revenue / Number of Orders" },
   ];
 
   return (
@@ -56,28 +56,35 @@ export function FinancialMetrics({ data, previousPeriodLabel }: FinancialMetrics
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {financialMetrics.map((metric) => {
-            const isPositive = metric.invertColor ? metric.changeType === "decrease" : metric.changeType === "increase";
+            const { value, change, previousValue } = metric.data;
+            const isPositive = metric.invertColor ? change < 0 : change >= 0;
+            const displayValue = metric.isPercentage ? `${value.toFixed(1)}%` : formatCurrency(value);
+
             return (
                 <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
                 <div>
                     <p className="text-sm font-medium text-muted-foreground">{metric.name}</p>
-                    <p className="text-2xl font-bold mt-1">{metric.value}</p>
+                    <p className="text-2xl font-bold mt-1">{displayValue}</p>
                 </div>
                 <div className="mt-2 pt-2 border-t space-y-1">
-                    {metric.change && (
-                        <div className="flex items-center text-xs">
-                            <span
-                                className={cn(
-                                    "flex items-center gap-1 font-semibold",
-                                    isPositive ? "text-green-600" : "text-red-600"
-                                )}
-                            >
-                                {metric.changeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                                {metric.change}
-                            </span>
-                            <span className="ml-1 text-muted-foreground">From {previousPeriodLabel}</span>
-                        </div>
-                    )}
+                    <div className="flex items-center text-xs">
+                        {metric.name === "Total Revenue" || metric.name === "Net Profit" ? (
+                            <span className="text-muted-foreground">From {previousPeriodLabel}: <span className="font-semibold text-foreground">{formatCurrency(previousValue)}</span></span>
+                        ) : (
+                             <div className="flex items-center text-xs">
+                                <span
+                                    className={cn(
+                                        "flex items-center gap-1 font-semibold",
+                                        isPositive ? "text-green-600" : "text-red-600"
+                                    )}
+                                >
+                                    {change >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                                    {Math.abs(change).toFixed(1)}%
+                                </span>
+                                <span className="ml-1 text-muted-foreground">From {formatCurrency(previousValue)}</span>
+                            </div>
+                        )}
+                    </div>
                     <p className="text-xs text-muted-foreground">{metric.formula}</p>
                 </div>
                 </div>
