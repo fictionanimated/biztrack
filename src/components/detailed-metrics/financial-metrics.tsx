@@ -83,7 +83,7 @@ export function FinancialMetrics({ data, previousPeriodLabel }: FinancialMetrics
                                     {change >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                                     {Math.abs(change).toFixed(1)}%
                                 </span>
-                                <span className="ml-1 text-muted-foreground">From {formatCurrency(previousValue)}</span>
+                                <span className="ml-1 text-muted-foreground">from {formatCurrency(previousValue)} ({previousPeriodLabel})</span>
                             </div>
                         )}
                     </div>
