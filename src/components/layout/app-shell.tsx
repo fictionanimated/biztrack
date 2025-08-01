@@ -44,7 +44,7 @@ const navItems = [
   { href: "/daily-summary", icon: BookText, label: "Daily Summary" },
   { href: "/business-notes", icon: Notebook, label: "Business Notes" },
   { href: "/competitors", icon: Swords, label: "Competitors" },
-  { href: "/detailed-metrics/financial", icon: Gauge, label: "Detailed Metrics" },
+  { href: "/detailed-metrics", icon: Gauge, label: "Detailed Metrics" },
   { href: "/yearly-stats", icon: CalendarRange, label: "Yearly Stats" },
 ];
 
