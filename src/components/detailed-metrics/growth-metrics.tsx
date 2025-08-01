@@ -57,7 +57,7 @@ export function GrowthMetrics({ data, previousPeriodLabel }: GrowthMetricsProps)
           {growthMetrics.map((metric) => {
             const isPositive = metric.value >= 0;
             const changeValue = metric.change;
-            const changeIsPositive = changeValue >= 0;
+            const changeIsPositive = changeValue != null && changeValue >= 0;
 
             return (
                 <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
@@ -72,7 +72,7 @@ export function GrowthMetrics({ data, previousPeriodLabel }: GrowthMetricsProps)
                     </p>
                 </div>
                 <div className="mt-2 pt-2 border-t space-y-1">
-                    {metric.change != null && (
+                    {changeValue != null && (
                         <div className="flex items-center text-xs">
                              <span
                                 className={cn(
@@ -83,7 +83,7 @@ export function GrowthMetrics({ data, previousPeriodLabel }: GrowthMetricsProps)
                                 {changeIsPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                                 {changeValue.toFixed(1)}%
                             </span>
-                            <span className="ml-1 text-muted-foreground">From {previousPeriodLabel}</span>
+                            <span className="ml-1 text-muted-foreground">{previousPeriodLabel}</span>
                         </div>
                     )}
                     <p className="text-xs text-muted-foreground">{metric.formula}</p>
