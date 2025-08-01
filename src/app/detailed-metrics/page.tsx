@@ -11,13 +11,14 @@ import { GrowthMetrics } from "@/components/detailed-metrics/growth-metrics";
 import { SalesMetrics } from "@/components/detailed-metrics/sales-metrics";
 import { MarketingMetrics } from "@/components/detailed-metrics/marketing-metrics";
 import { ProjectMetrics } from "@/components/detailed-metrics/project-metrics";
+import { OrderMetrics } from "@/components/detailed-metrics/order-metrics";
 
 export default function DetailedMetricsPage() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
-    const [date, setDate] = useState<DateRange | undefined>();
+    const [date, setDate] = useState<DateRange | undefined>(undefined);
 
     useEffect(() => {
         const fromParam = searchParams.get('from');
@@ -29,11 +30,11 @@ export default function DetailedMetricsPage() {
                 setDate({ from, to });
                 return;
             }
+        } else {
+             const today = new Date();
+             const from = new Date(today.getFullYear(), today.getMonth(), 1);
+             setDate({ from, to: today });
         }
-        // Fallback to default if params are invalid or not present
-        const today = new Date();
-        const from = new Date(today.getFullYear(), today.getMonth(), 1);
-        setDate({ from, to: today });
     }, [searchParams]);
 
     const createQueryString = useCallback(
@@ -59,12 +60,10 @@ export default function DetailedMetricsPage() {
         })}`, { scroll: false });
     };
 
-    const fromParam = searchParams.get('from');
-    const toParam = searchParams.get('to');
     const previousPeriodLabel = (() => {
-        if (!fromParam || !toParam) return "previous period";
-        const from = new Date(fromParam.replace(/-/g, '/'));
-        const to = new Date(toParam.replace(/-/g, '/'));
+        if (!date?.from || !date?.to) return "previous period";
+        const from = date.from;
+        const to = date.to;
         const duration = differenceInDays(to, from);
         const prevTo = subDays(from, 1);
         const prevFrom = subDays(prevTo, duration);
@@ -85,6 +84,7 @@ export default function DetailedMetricsPage() {
 
             <div className="space-y-6">
                 <FinancialMetrics previousPeriodLabel={previousPeriodLabel} />
+                <OrderMetrics />
                 <ClientMetrics />
                 <GrowthMetrics previousPeriodLabel={previousPeriodLabel} />
                 <SalesMetrics />
