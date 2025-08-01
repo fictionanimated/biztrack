@@ -515,6 +515,8 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
         const ordersCountPromise = ordersCol.countDocuments({ date: { $gte: startStr, $lte: endStr }, status: 'Completed' });
         
         const marketingExpensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Marketing' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const salaryExpensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Salary' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        
         const newClientsCountPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
 
         // CLTV specific queries
@@ -552,13 +554,14 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             { $group: { _id: null, avgLifespan: { $avg: '$lifespanDays' } } }
         ]).toArray();
 
-        const [revenueRes, expensesRes, ordersCount, marketingExpensesRes, newClientsCount, buyerStats, avgLifespanRes] = await Promise.all([
-            revenuePromise, expensesPromise, ordersCountPromise, marketingExpensesPromise, newClientsCountPromise, buyerStatsPromise, avgLifespanPromise
+        const [revenueRes, expensesRes, ordersCount, marketingExpensesRes, salaryExpensesRes, newClientsCount, buyerStats, avgLifespanRes] = await Promise.all([
+            revenuePromise, expensesPromise, ordersCountPromise, marketingExpensesPromise, salaryExpensesPromise, newClientsCountPromise, buyerStatsPromise, avgLifespanPromise
         ]);
         
         const revenue = revenueRes[0]?.total || 0;
         const expenses = expensesRes[0]?.total || 0;
         const marketingExpenses = marketingExpensesRes[0]?.total || 0;
+        const salaryExpenses = salaryExpensesRes[0]?.total || 0;
         const aov = ordersCount > 0 ? revenue / ordersCount : 0;
         
         const totalBuyers = buyerStats.length;
@@ -573,7 +576,7 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             totalExpenses: expenses,
             netProfit: revenue - expenses,
             profitMargin: revenue > 0 ? ((revenue - expenses) / revenue) * 100 : 0,
-            grossMargin: revenue > 0 ? ((revenue - expenses) / revenue) * 100 : 0, // Using expenses as COGS proxy
+            grossMargin: revenue > 0 ? ((revenue - salaryExpenses) / revenue) * 100 : 0,
             cac: newClientsCount > 0 ? marketingExpenses / newClientsCount : 0,
             cltv: cltv,
             aov: aov,
