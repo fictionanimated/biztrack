@@ -1,8 +1,9 @@
+
 "use client";
 
+import * as React from "react";
 import { useState, lazy, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { format, subDays, differenceInDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, ArrowUp, ArrowDown, BarChart, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -113,13 +114,13 @@ export function FinancialMetrics({ previousPeriodLabel }: FinancialMetricsProps)
                         <p className="text-2xl font-bold mt-1">{displayValue}</p>
                     </div>
                     <div className="mt-2 pt-2 border-t space-y-1">
-                       <div className="flex items-center text-xs">
+                        <div className="flex items-center text-xs flex-wrap">
                           {metric.name === "Total Revenue" || metric.name === "Net Profit" ? (
                               <span className="text-muted-foreground">From {previousPeriodLabel}: <span className="font-semibold text-foreground">{formatCurrency(previousValue)}</span></span>
                           ) : metric.name === "Average Order Value (AOV)" ? (
                               <span className="text-muted-foreground">From {previousPeriodLabel}: <span className="font-semibold text-foreground">{formatCurrency(previousValue)}</span></span>
                           ) : (
-                              <div className="flex items-center text-xs flex-wrap">
+                              <>
                                   <span
                                       className={cn(
                                           "flex items-center gap-1 font-semibold",
@@ -127,10 +128,10 @@ export function FinancialMetrics({ previousPeriodLabel }: FinancialMetricsProps)
                                       )}
                                   >
                                       {change >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                                      {Math.abs(change).toFixed(1)}%
+                                      {metric.isPercentage ? change.toFixed(1) : Math.abs(change).toFixed(1)}%
                                   </span>
                                   <span className="ml-1 text-muted-foreground">from {formatCurrency(previousValue)} ({previousPeriodLabel})</span>
-                              </div>
+                              </>
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">{metric.formula}</p>
