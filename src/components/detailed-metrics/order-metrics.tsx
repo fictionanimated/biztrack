@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, lazy, Suspense } from "react";
@@ -9,12 +10,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 // Placeholder data - replace with dynamic data later
 const orderMetricsData = [
-    { name: "Total Orders", value: "1,250", formula: "Total number of completed orders", change: "+15.2%", changeType: "increase" as const },
-    { name: "Orders From New Buyers", value: "850", formula: "Orders from clients making their first purchase", change: "+20.1%", changeType: "increase" as const },
-    { name: "Orders From Repeat Buyers", value: "400", formula: "Orders from clients who have purchased before", change: "+8.5%", changeType: "increase" as const },
-    { name: "Average Order Value", value: "$125.50", formula: "Total Revenue / Total Orders", change: "-2.5%", changeType: "decrease" as const },
-    { name: "Average Rating", value: "4.8 / 5.0", formula: "Average of all order ratings", change: "+0.1", changeType: "increase" as const },
-    { name: "Cancelled Orders", value: "35", formula: "Total number of cancelled orders", change: "+5.1%", changeType: "increase" as const, invertColor: true },
+    { name: "Total Orders", value: "1,250", formula: "Total number of completed orders", change: 15.2, previousValue: "1,085", changeType: "increase" as const },
+    { name: "Orders From New Buyers", value: "850", formula: "Orders from clients making their first purchase", change: 20.1, previousValue: "708", changeType: "increase" as const },
+    { name: "Orders From Repeat Buyers", value: "400", formula: "Orders from clients who have purchased before", change: 8.5, previousValue: "368", changeType: "increase" as const },
+    { name: "Average Order Value", value: "$125.50", formula: "Total Revenue / Total Orders", change: -2.5, previousValue: "$128.72", changeType: "decrease" as const },
+    { name: "Average Rating", value: "4.8 / 5.0", formula: "Average of all order ratings", change: 0.1, previousValue: "4.7", changeType: "increase" as const },
+    { name: "Cancelled Orders", value: "35", formula: "Total number of cancelled orders", change: 5.1, previousValue: "33", changeType: "increase" as const, invertColor: true },
 ];
 
 export function OrderMetrics() {
@@ -40,6 +41,9 @@ export function OrderMetrics() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {orderMetricsData.map((metric) => {
             const isPositive = metric.invertColor ? metric.changeType === "decrease" : metric.changeType === "increase";
+            const isCurrency = metric.value.includes("$");
+            const previousValueDisplay = isCurrency ? metric.previousValue : metric.previousValue;
+
             return (
                 <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
                 <div>
@@ -56,9 +60,9 @@ export function OrderMetrics() {
                                 )}
                             >
                                 {metric.changeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                                {metric.change}
+                                {metric.name === "Average Rating" ? metric.change.toFixed(1) : `${metric.change.toFixed(1)}%`}
                             </span>
-                            <span className="ml-1 text-muted-foreground">vs selected period</span>
+                            <span className="ml-1 text-muted-foreground">from {previousValueDisplay} (vs selected period)</span>
                         </div>
                     )}
                     <p className="text-xs text-muted-foreground">{metric.formula}</p>
