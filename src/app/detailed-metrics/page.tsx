@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format, subDays, differenceInDays } from 'date-fns';
 import type { DateRange } from "react-day-picker";
@@ -11,27 +12,29 @@ import { GrowthMetrics } from "@/components/detailed-metrics/growth-metrics";
 import { SalesMetrics } from "@/components/detailed-metrics/sales-metrics";
 import { MarketingMetrics } from "@/components/detailed-metrics/marketing-metrics";
 import { ProjectMetrics } from "@/components/detailed-metrics/project-metrics";
-import { type FinancialMetricData } from "@/lib/services/analyticsService";
 
 export default function DetailedMetricsPage() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
-    const [date, setDate] = useState<DateRange | undefined>(() => {
+    const [date, setDate] = useState<DateRange | undefined>();
+
+    useEffect(() => {
         const fromParam = searchParams.get('from');
         const toParam = searchParams.get('to');
         if (fromParam && toParam) {
             const from = new Date(fromParam.replace(/-/g, '/'));
             const to = new Date(toParam.replace(/-/g, '/'));
             if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
-                return { from, to };
+                setDate({ from, to });
+                return;
             }
         }
         const today = new Date();
         const from = new Date(today.getFullYear(), today.getMonth(), 1);
-        return { from, to: today };
-    });
+        setDate({ from, to: today });
+    }, [searchParams]);
 
     const createQueryString = useCallback(
         (paramsToUpdate: Record<string, string | null>) => {
