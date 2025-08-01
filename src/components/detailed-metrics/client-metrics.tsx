@@ -13,9 +13,10 @@ const ClientMetricsChart = lazy(() => import("@/components/detailed-metrics/clie
 
 interface ClientMetricsProps {
     data: ClientMetricData;
+    previousPeriodLabel: string;
 }
 
-export function ClientMetrics({ data }: ClientMetricsProps) {
+export function ClientMetrics({ data, previousPeriodLabel }: ClientMetricsProps) {
   const [showChart, setShowChart] = useState(false);
   const [activeMetrics, setActiveMetrics] = useState({
     totalClients: true,
@@ -74,7 +75,7 @@ export function ClientMetrics({ data }: ClientMetricsProps) {
                                 {metric.changeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                                 {metric.change}
                             </span>
-                            <span className="ml-1 text-muted-foreground">vs selected period</span>
+                            <span className="ml-1 text-muted-foreground">From {previousPeriodLabel}</span>
                         </div>
                     )}
                     <p className="text-xs text-muted-foreground">{metric.formula}</p>

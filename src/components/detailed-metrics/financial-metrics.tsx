@@ -14,11 +14,12 @@ const FinancialPercentageChart = lazy(() => import("@/components/detailed-metric
 
 interface FinancialMetricsProps {
     data: FinancialMetricData;
+    previousPeriodLabel: string;
 }
 
 const formatCurrency = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export function FinancialMetrics({ data }: FinancialMetricsProps) {
+export function FinancialMetrics({ data, previousPeriodLabel }: FinancialMetricsProps) {
   const [showChart, setShowChart] = useState(false);
   const [activePercentageMetrics, setActivePercentageMetrics] = useState({
     profitMargin: true,
@@ -74,7 +75,7 @@ export function FinancialMetrics({ data }: FinancialMetricsProps) {
                                 {metric.changeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                                 {metric.change}
                             </span>
-                            <span className="ml-1 text-muted-foreground">vs selected period</span>
+                            <span className="ml-1 text-muted-foreground">From {previousPeriodLabel}</span>
                         </div>
                     )}
                     <p className="text-xs text-muted-foreground">{metric.formula}</p>

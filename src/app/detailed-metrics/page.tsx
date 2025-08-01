@@ -129,8 +129,8 @@ const DetailedMetricsPageComponent = () => {
 
       <div className="space-y-8">
         {isLoading ? <Skeleton className="h-[250px] w-full" /> : growthMetrics && <GrowthMetrics data={growthMetrics} previousPeriodLabel={previousPeriodLabel} />}
-        {isLoading ? <Skeleton className="h-[250px] w-full" /> : financialMetrics && <FinancialMetrics data={financialMetrics} />}
-        {isLoading ? <Skeleton className="h-[250px] w-full" /> : clientMetrics && <ClientMetrics data={clientMetrics} />}
+        {isLoading ? <Skeleton className="h-[250px] w-full" /> : financialMetrics && <FinancialMetrics data={financialMetrics} previousPeriodLabel={previousPeriodLabel} />}
+        {isLoading ? <Skeleton className="h-[250px] w-full" /> : clientMetrics && <ClientMetrics data={clientMetrics} previousPeriodLabel={previousPeriodLabel} />}
         <SalesMetrics />
         <MarketingMetrics />
         <ProjectMetrics />
