@@ -48,7 +48,22 @@ export function OrderMetrics() {
             return (
                 <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
                 <div>
-                    <p className="text-sm font-medium text-muted-foreground">{metric.name}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-muted-foreground">{metric.name}</p>
+                      {metric.change && (
+                          <span
+                              className={cn(
+                                  "flex items-center gap-1 text-xs font-semibold",
+                                  isPositive ? "text-green-600" : "text-red-600"
+                              )}
+                          >
+                              (
+                              {metric.changeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                              {metric.name === "Average Rating" ? metric.change.toFixed(1) : `${Math.abs(metric.change).toFixed(1)}%`}
+                              )
+                          </span>
+                      )}
+                    </div>
                     <p className="text-2xl font-bold mt-1">{metric.value}</p>
                 </div>
                 <div className="mt-2 pt-2 border-t space-y-1 text-xs">
