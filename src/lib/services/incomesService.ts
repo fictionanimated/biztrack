@@ -56,12 +56,7 @@ async function getOrdersCollection() {
 export async function getIncomeSources(): Promise<IncomeSource[]> {
   try {
     const incomesCollection = await getIncomesCollection();
-    // Clear existing data as requested
-    if (process.env.NODE_ENV === 'development' && !process.env.DATA_CLEARED_INCOMES_V6) {
-        console.log("Clearing 'incomes' collection...");
-        await incomesCollection.deleteMany({});
-        process.env.DATA_CLEARED_INCOMES_V6 = 'true';
-    }
+    
     const sources = await incomesCollection.find({}).sort({ _id: -1 }).toArray();
     
     return sources.map(source => ({

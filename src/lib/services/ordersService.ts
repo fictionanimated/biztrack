@@ -25,12 +25,6 @@ async function getOrdersCollection() {
 export async function getOrdersList(): Promise<Partial<Order>[]> {
   try {
     const ordersCollection = await getOrdersCollection();
-    // Clear existing data as requested
-    if (process.env.NODE_ENV === 'development' && !process.env.DATA_CLEARED_ORDERS_V6) {
-        console.log("Clearing 'orders' collection...");
-        await ordersCollection.deleteMany({});
-        process.env.DATA_CLEARED_ORDERS_V6 = 'true';
-    }
     const orders = await ordersCollection.find({}, {
       projection: {
         _id: 1,

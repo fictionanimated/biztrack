@@ -22,12 +22,6 @@ async function getClientsCollection() {
 export async function getClients(): Promise<Client[]> {
   try {
     const clientsCollection = await getClientsCollection();
-    // Clear existing data as requested
-    if (process.env.NODE_ENV === 'development' && !process.env.DATA_CLEARED_CLIENTS_V6) {
-        console.log("Clearing 'clients' collection...");
-        await clientsCollection.deleteMany({});
-        process.env.DATA_CLEARED_CLIENTS_V6 = 'true';
-    }
     
     const aggregationPipeline = [
       // Stage 1: Lookup orders for each client
