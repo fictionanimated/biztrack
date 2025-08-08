@@ -184,8 +184,8 @@ async function processAnalytics(
     const gigNames = filter.gigId 
         ? [source.gigs.find(g => g.id === filter.gigId)?.name] 
         : source.gigs.map(g => g.name);
-
-    // Aggregate orders for the periods
+    
+    // This function was previously removed, but is needed by getFinancialMetrics.
     const getOrdersForPeriod = async (start: Date, end: Date) => {
         return ordersCollection.aggregate([
             { $match: { 
@@ -758,12 +758,12 @@ export async function getOrderCountAnalytics(from: string, to: string): Promise<
     const p0_to = subDays(p1_from, 1);
     const p0_from = subDays(p0_to, durationInDays);
     
-    const ordersCol = await getOrdersCollection();
-    const clientsCol = await getClientsCollection();
-    
     const getPeriodStats = async (start: Date, end: Date): Promise<PeriodOrderStats> => {
         const startStr = format(start, 'yyyy-MM-dd');
         const endStr = format(end, 'yyyy-MM-dd');
+        
+        const ordersCol = await getOrdersCollection();
+        const clientsCol = await getClientsCollection();
 
         const ordersInPeriod = await ordersCol.find({
             date: { $gte: startStr, $lte: endStr },
@@ -780,26 +780,18 @@ export async function getOrderCountAnalytics(from: string, to: string): Promise<
             { projection: { username: 1, clientSince: 1 } }
         ).toArray();
         
-        const clientSinceMap = new Map(clientsFromDB.map(c => [c.username, c.clientSince]));
-
+        const clientSinceMap = new Map(clientsFromDB.map(c => [c.username, parseISO(c.clientSince)]));
+        
         const newBuyerUsernames = new Set<string>();
-        const repeatBuyerUsernames = new Set<string>();
-
         clientUsernamesInPeriod.forEach(username => {
-            const clientSinceStr = clientSinceMap.get(username);
-            if (!clientSinceStr) return; 
-            
-            // The clientSince date needs to be parsed correctly
-            const clientSinceDate = parseISO(clientSinceStr);
-            if (clientSinceDate >= start && clientSinceDate <= end) {
+            const clientSinceDate = clientSinceMap.get(username);
+            if (clientSinceDate && clientSinceDate >= start && clientSinceDate <= end) {
                 newBuyerUsernames.add(username);
-            } else {
-                repeatBuyerUsernames.add(username);
             }
         });
 
         const newBuyerOrders = ordersInPeriod.filter(o => newBuyerUsernames.has(o.clientUsername)).length;
-        const repeatBuyerOrders = ordersInPeriod.filter(o => repeatBuyerUsernames.has(o.clientUsername)).length;
+        const repeatBuyerOrders = totalOrders - newBuyerOrders;
         
         return { total: totalOrders, fromNewBuyers: newBuyerOrders, fromRepeatBuyers: repeatBuyerOrders };
     }
