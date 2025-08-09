@@ -746,7 +746,7 @@ export async function getClientMetrics(from: string, to: string): Promise<Client
 export async function getOrderCountAnalytics(from: string, to: string): Promise<OrderCountAnalytics> {
     const fromDate = parseISO(from);
     const toDate = parseISO(to);
-    
+
     const durationInDays = differenceInDays(toDate, fromDate);
     if (durationInDays < 0) throw new Error("Invalid date range");
 
@@ -756,11 +756,11 @@ export async function getOrderCountAnalytics(from: string, to: string): Promise<
     const p1_from = subDays(p1_to, durationInDays);
     const p0_to = subDays(p1_from, 1);
     const p0_from = subDays(p0_to, durationInDays);
-    
+
     const getPeriodStats = async (start: Date, end: Date): Promise<PeriodOrderStats> => {
         const startStr = format(start, 'yyyy-MM-dd');
         const endStr = format(end, 'yyyy-MM-dd');
-        
+
         const ordersCol = await getOrdersCollection();
         const clientsCol = await getClientsCollection();
 
@@ -778,35 +778,38 @@ export async function getOrderCountAnalytics(from: string, to: string): Promise<
             { username: { $in: clientUsernamesInPeriod } },
             { projection: { username: 1, clientSince: 1 } }
         ).toArray();
-        
-        const clientSinceMap = new Map(clientsFromDB.map(c => [c.username, parseISO(c.clientSince as string)]));
-        
+
         const newBuyerUsernames = new Set<string>();
-        clientUsernamesInPeriod.forEach(username => {
-            const clientSinceDate = clientSinceMap.get(username);
-            if (clientSinceDate && clientSinceDate >= start && clientSinceDate <= end) {
-                newBuyerUsernames.add(username);
+        const repeatBuyerUsernames = new Set<string>();
+
+        clientsFromDB.forEach(client => {
+            const clientSinceDate = parseISO(client.clientSince as string);
+            if (clientSinceDate >= start) {
+                newBuyerUsernames.add(client.username);
+            } else {
+                repeatBuyerUsernames.add(client.username);
             }
         });
-
-        const newBuyerOrders = ordersInPeriod.filter(o => newBuyerUsernames.has(o.clientUsername)).length;
-        const repeatBuyerOrders = totalOrders - newBuyerOrders;
         
+        const newBuyerOrders = ordersInPeriod.filter(o => newBuyerUsernames.has(o.clientUsername)).length;
+        const repeatBuyerOrders = ordersInPeriod.filter(o => repeatBuyerUsernames.has(o.clientUsername)).length;
+
         return { total: totalOrders, fromNewBuyers: newBuyerOrders, fromRepeatBuyers: repeatBuyerOrders };
-    }
+    };
 
     const [currentPeriodOrders, previousPeriodOrders, periodBeforePreviousOrders] = await Promise.all([
         getPeriodStats(p2_from, p2_to),
         getPeriodStats(p1_from, p1_to),
         getPeriodStats(p0_from, p0_to)
     ]);
-    
+
     return {
         currentPeriodOrders,
         previousPeriodOrders,
         periodBeforePreviousOrders
     };
 }
+
 
 export async function getYearlyStats(year: number): Promise<SingleYearData> {
     const ordersCol = await getOrdersCollection();
