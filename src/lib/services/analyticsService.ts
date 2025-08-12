@@ -508,16 +508,15 @@ export async function getFinancialMetrics(): Promise<FinancialMetricData> {
     const expensesCol = await getExpensesCollection();
     const clientsCol = await getClientsCollection();
     
-    const calcPeriodMetrics = async (matchQuery: any = {}) => {
-        const revenuePromise = ordersCol.aggregate([ { $match: { ...matchQuery, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const expensesPromise = expensesCol.aggregate([ { $match: matchQuery }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const ordersCountPromise = ordersCol.countDocuments({ ...matchQuery, status: 'Completed' });
-        const marketingExpensesPromise = expensesCol.aggregate([ { $match: { ...matchQuery, category: 'Marketing' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const salaryExpensesPromise = expensesCol.aggregate([ { $match: { ...matchQuery, category: 'Salary' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const newClientsCountPromise = clientsCol.countDocuments({ clientSince: matchQuery.date });
+    const calcAllTimeMetrics = async () => {
+        const revenuePromise = ordersCol.aggregate([ { $match: { status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const expensesPromise = expensesCol.aggregate([ { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const ordersCountPromise = ordersCol.countDocuments({ status: 'Completed' });
+        const marketingExpensesPromise = expensesCol.aggregate([ { $match: { category: 'Marketing' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const salaryExpensesPromise = expensesCol.aggregate([ { $match: { category: 'Salary' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const newClientsCountPromise = clientsCol.countDocuments();
 
         const buyerStatsPromise = ordersCol.aggregate([
-            { $match: matchQuery },
             { $group: { _id: "$clientUsername", orderCount: { $sum: 1 } } }
         ]).toArray();
         
@@ -551,7 +550,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetricData> {
         ]).toArray();
 
         const [revenueRes, expensesRes, ordersCount, marketingExpensesRes, salaryExpensesRes, newClientsCount, buyerStats, avgLifespanRes] = await Promise.all([
-            revenuePromise, expensesPromise, ordersCountPromise, marketingExpensesPromise, salaryExpensesPromise, newClientsCountPromise, buyerStatsPromise, avgLifespanRes
+            revenuePromise, expensesPromise, ordersCountPromise, marketingExpensesPromise, salaryExpensesPromise, newClientsCountPromise, buyerStatsPromise, avgLifespanPromise
         ]);
         
         const revenue = revenueRes[0]?.total || 0;
@@ -578,24 +577,10 @@ export async function getFinancialMetrics(): Promise<FinancialMetricData> {
         };
     };
 
-    const currentMetrics = await calcPeriodMetrics();
+    const currentMetrics = await calcAllTimeMetrics();
     
-    // Time Series data (dummy for now)
-    const timeSeries: FinancialMetricTimeSeries[] = eachMonthOfInterval({ start: new Date('2024-01-01'), end: new Date() }).map(monthStart => {
-        const numMonths = differenceInMonths(new Date(), new Date('2024-01-01')) + 1;
-        const dummyRevenue = currentMetrics.totalRevenue / numMonths;
-        return {
-            month: format(monthStart, 'MMM'),
-            totalRevenue: dummyRevenue * (0.8 + Math.random() * 0.4),
-            totalExpenses: currentMetrics.totalExpenses / numMonths * (0.8 + Math.random() * 0.4),
-            netProfit: (dummyRevenue - currentMetrics.totalExpenses / numMonths) * (0.8 + Math.random() * 0.4),
-            profitMargin: currentMetrics.profitMargin * (0.95 + Math.random() * 0.1),
-            grossMargin: currentMetrics.grossMargin * (0.95 + Math.random() * 0.1),
-            cac: currentMetrics.cac * (0.9 + Math.random() * 0.2),
-            cltv: currentMetrics.cltv * (0.95 + Math.random() * 0.1),
-            aov: currentMetrics.aov * (0.95 + Math.random() * 0.1),
-        };
-    });
+    // For "All Time", change vs previous is not applicable.
+    const timeSeries: FinancialMetricTimeSeries[] = []; // Not applicable for all-time view
 
     return {
         totalRevenue: { value: currentMetrics.totalRevenue, change: 0, previousValue: 0 },
