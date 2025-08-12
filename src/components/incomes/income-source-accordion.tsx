@@ -188,22 +188,13 @@ export function IncomeSourceAccordion({
                         </TableCell>
                         <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1">
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => onAddGigData(source, gig)}
-                                >
-                                    <BarChart className="h-4 w-4" />
-                                    <span className="sr-only">Add Data</span>
-                                </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                <p>Add Performance Data</p>
-                                </TooltipContent>
-                            </Tooltip>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onAddGigData(source, gig)}
+                            >
+                                Add Metrics
+                            </Button>
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                 <Button
