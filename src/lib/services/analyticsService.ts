@@ -504,35 +504,58 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
 
 
 export async function getFinancialMetrics(from: string, to: string): Promise<FinancialMetricData> {
-    const ordersCol = await getOrdersCollection();
-    const expensesCol = await getExpensesCollection();
+    const fromDate = parseISO(from);
+    const toDate = parseISO(to);
     
-    const revenueRes = await ordersCol.aggregate([
-        { $match: { date: { $gte: from, $lte: to }, status: 'Completed' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]).toArray();
-    const totalRevenue = revenueRes[0]?.total || 0;
+    const durationInDays = differenceInDays(toDate, fromDate);
+    if (durationInDays < 0) throw new Error("Invalid date range");
 
-    const expensesRes = await expensesCol.aggregate([
-        { $match: { date: { $gte: from, $lte: to } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]).toArray();
-    const totalExpenses = expensesRes[0]?.total || 0;
+    const prevTo = subDays(fromDate, 1);
+    const prevFrom = subDays(prevTo, durationInDays);
 
-    const netProfit = totalRevenue - totalExpenses;
+    const getPeriodFinancials = async (start: Date, end: Date) => {
+        const ordersCol = await getOrdersCollection();
+        const expensesCol = await getExpensesCollection();
 
-    // For now, other metrics are 0 as requested.
-    // In a real implementation, these would also be calculated from the database.
+        const revenueRes = await ordersCol.aggregate([
+            { $match: { date: { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') }, status: 'Completed' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]).toArray();
+        const totalRevenue = revenueRes[0]?.total || 0;
+
+        const expensesRes = await expensesCol.aggregate([
+            { $match: { date: { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') } } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]).toArray();
+        const totalExpenses = expensesRes[0]?.total || 0;
+
+        return {
+            totalRevenue,
+            totalExpenses,
+            netProfit: totalRevenue - totalExpenses
+        };
+    };
+
+    const [currentPeriod, previousPeriod] = await Promise.all([
+        getPeriodFinancials(fromDate, toDate),
+        getPeriodFinancials(prevFrom, prevTo)
+    ]);
+    
+    const calculateChange = (current: number, prev: number) => {
+        if (prev === 0) return current > 0 ? 100 : 0;
+        return ((current - prev) / prev) * 100;
+    };
+
     return {
-        totalRevenue: { value: totalRevenue, change: 0, previousValue: 0 },
-        totalExpenses: { value: totalExpenses, change: 0, previousValue: 0 },
-        netProfit: { value: netProfit, change: 0, previousValue: 0 },
+        totalRevenue: { value: currentPeriod.totalRevenue, change: calculateChange(currentPeriod.totalRevenue, previousPeriod.totalRevenue), previousValue: previousPeriod.totalRevenue },
+        totalExpenses: { value: currentPeriod.totalExpenses, change: calculateChange(currentPeriod.totalExpenses, previousPeriod.totalExpenses), previousValue: previousPeriod.totalExpenses },
+        netProfit: { value: currentPeriod.netProfit, change: calculateChange(currentPeriod.netProfit, previousPeriod.netProfit), previousValue: previousPeriod.netProfit },
         profitMargin: { value: 0, change: 0, previousValue: 0 },
         grossMargin: { value: 0, change: 0, previousValue: 0 },
         cac: { value: 0, change: 0, previousValue: 0 },
         cltv: { value: 0, change: 0, previousValue: 0 },
         aov: { value: 0, change: 0, previousValue: 0 },
-        timeSeries: [] // Placeholder, would be built out in a full implementation
+        timeSeries: [] // Placeholder
     };
 }
 
