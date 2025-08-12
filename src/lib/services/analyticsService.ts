@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview Service for fetching and processing analytics data.
  */
@@ -108,18 +107,6 @@ export interface GrowthMetricData {
   vipClientGrowth: { value: number; previousValue: number };
   topSourceGrowth: { value: number; previousValue: number; source: string };
   timeSeries: GrowthMetricTimeSeries[];
-}
-
-export interface FinancialMetricTimeSeries {
-  month: string;
-  totalRevenue: number;
-  totalExpenses: number;
-  netProfit: number;
-  profitMargin: number;
-  grossMargin: number;
-  cac: number;
-  cltv: number;
-  aov: number;
 }
 
 export interface FinancialMetricData {
@@ -504,34 +491,21 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
 }
 
 
-export async function getFinancialMetrics(from: string, to: string): Promise<FinancialMetricData> {
-    const fromDate = parseISO(from);
-    const toDate = parseISO(to);
-    const duration = differenceInDays(toDate, fromDate);
-    
-    const P1_to = subDays(fromDate, 1);
-    const P1_from = subDays(P1_to, duration);
-
+export async function getFinancialMetrics(): Promise<FinancialMetricData> {
     const ordersCol = await getOrdersCollection();
     const expensesCol = await getExpensesCollection();
     const clientsCol = await getClientsCollection();
     
-    const calcPeriodMetrics = async (start: Date, end: Date) => {
-        const startStr = format(start, 'yyyy-MM-dd');
-        const endStr = format(end, 'yyyy-MM-dd');
+    const calcPeriodMetrics = async (matchQuery: any = {}) => {
+        const revenuePromise = ordersCol.aggregate([ { $match: { ...matchQuery, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const expensesPromise = expensesCol.aggregate([ { $match: matchQuery }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const ordersCountPromise = ordersCol.countDocuments({ ...matchQuery, status: 'Completed' });
+        const marketingExpensesPromise = expensesCol.aggregate([ { $match: { ...matchQuery, category: 'Marketing' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const salaryExpensesPromise = expensesCol.aggregate([ { $match: { ...matchQuery, category: 'Salary' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const newClientsCountPromise = clientsCol.countDocuments({ clientSince: matchQuery.date });
 
-        const revenuePromise = ordersCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const expensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr } } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const ordersCountPromise = ordersCol.countDocuments({ date: { $gte: startStr, $lte: endStr }, status: 'Completed' });
-        
-        const marketingExpensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Marketing' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const salaryExpensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Salary' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        
-        const newClientsCountPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
-
-        // CLTV specific queries
         const buyerStatsPromise = ordersCol.aggregate([
-            { $match: { date: { $gte: startStr, $lte: endStr } } },
+            { $match: matchQuery },
             { $group: { _id: "$clientUsername", orderCount: { $sum: 1 } } }
         ]).toArray();
         
@@ -565,7 +539,7 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
         ]).toArray();
 
         const [revenueRes, expensesRes, ordersCount, marketingExpensesRes, salaryExpensesRes, newClientsCount, buyerStats, avgLifespanRes] = await Promise.all([
-            revenuePromise, expensesPromise, ordersCountPromise, marketingExpensesPromise, salaryExpensesPromise, newClientsCountPromise, buyerStatsPromise, avgLifespanResPromise
+            revenuePromise, expensesPromise, ordersCountPromise, marketingExpensesPromise, salaryExpensesPromise, newClientsCountPromise, buyerStatsPromise, avgLifespanPromise
         ]);
         
         const revenue = revenueRes[0]?.total || 0;
@@ -578,7 +552,6 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
         const repeatBuyers = buyerStats.filter(b => b.orderCount > 1).length;
         const repeatPurchaseRate = totalBuyers > 0 ? repeatBuyers / totalBuyers : 0;
         const avgLifespanMonths = (avgLifespanRes[0]?.avgLifespan || 0) / 30.44;
-
         const cltv = aov * repeatPurchaseRate * avgLifespanMonths;
 
         return {
@@ -593,17 +566,11 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
         };
     };
 
-    const [currentMetrics, prevMetrics] = await Promise.all([
-        calcPeriodMetrics(fromDate, toDate),
-        calcPeriodMetrics(P1_from, P1_to)
-    ]);
-    
-    const calculateChange = (current: number, prev: number) => prev === 0 ? (current !== 0 ? 100 : 0) : ((current - prev) / prev) * 100;
+    const currentMetrics = await calcPeriodMetrics();
     
     // Time Series data (dummy for now)
-    const timeSeries: FinancialMetricTimeSeries[] = eachMonthOfInterval({ start: fromDate, end: toDate }).map(monthStart => {
-        // In a real app, this would be another aggregation by month
-        const numMonths = differenceInMonths(toDate, fromDate) + 1;
+    const timeSeries: FinancialMetricTimeSeries[] = eachMonthOfInterval({ start: new Date('2024-01-01'), end: new Date() }).map(monthStart => {
+        const numMonths = differenceInMonths(new Date(), new Date('2024-01-01')) + 1;
         const dummyRevenue = currentMetrics.totalRevenue / numMonths;
         return {
             month: format(monthStart, 'MMM'),
@@ -619,17 +586,18 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
     });
 
     return {
-        totalRevenue: { value: currentMetrics.totalRevenue, change: calculateChange(currentMetrics.totalRevenue, prevMetrics.totalRevenue), previousValue: prevMetrics.totalRevenue },
-        totalExpenses: { value: currentMetrics.totalExpenses, change: calculateChange(currentMetrics.totalExpenses, prevMetrics.totalExpenses), previousValue: prevMetrics.totalExpenses },
-        netProfit: { value: currentMetrics.netProfit, change: calculateChange(currentMetrics.netProfit, prevMetrics.netProfit), previousValue: prevMetrics.netProfit },
-        profitMargin: { value: currentMetrics.profitMargin, change: currentMetrics.profitMargin - prevMetrics.profitMargin, previousValue: prevMetrics.profitMargin },
-        grossMargin: { value: currentMetrics.grossMargin, change: currentMetrics.grossMargin - prevMetrics.grossMargin, previousValue: prevMetrics.grossMargin },
-        cac: { value: currentMetrics.cac, change: calculateChange(currentMetrics.cac, prevMetrics.cac), previousValue: prevMetrics.cac },
-        cltv: { value: currentMetrics.cltv, change: calculateChange(currentMetrics.cltv, prevMetrics.cltv), previousValue: prevMetrics.cltv },
-        aov: { value: currentMetrics.aov, change: calculateChange(currentMetrics.aov, prevMetrics.aov), previousValue: prevMetrics.aov },
+        totalRevenue: { value: currentMetrics.totalRevenue, change: 0, previousValue: 0 },
+        totalExpenses: { value: currentMetrics.totalExpenses, change: 0, previousValue: 0 },
+        netProfit: { value: currentMetrics.netProfit, change: 0, previousValue: 0 },
+        profitMargin: { value: currentMetrics.profitMargin, change: 0, previousValue: 0 },
+        grossMargin: { value: currentMetrics.grossMargin, change: 0, previousValue: 0 },
+        cac: { value: currentMetrics.cac, change: 0, previousValue: 0 },
+        cltv: { value: currentMetrics.cltv, change: 0, previousValue: 0 },
+        aov: { value: currentMetrics.aov, change: 0, previousValue: 0 },
         timeSeries
     };
 }
+
 
 export async function getClientMetrics(from: string, to: string): Promise<ClientMetricData> {
     const fromDate = parseISO(from);
@@ -769,8 +737,9 @@ export async function getOrderCountAnalytics(from: string, to: string): Promise<
             status: 'Completed'
         }).toArray();
 
-        const totalOrders = ordersInPeriod.length;
-        if (totalOrders === 0) return { total: 0, fromNewBuyers: 0, fromRepeatBuyers: 0 };
+        if (ordersInPeriod.length === 0) {
+            return { total: 0, fromNewBuyers: 0, fromRepeatBuyers: 0 };
+        }
         
         const clientUsernamesInPeriod = [...new Set(ordersInPeriod.map(o => o.clientUsername))];
 
@@ -779,11 +748,11 @@ export async function getOrderCountAnalytics(from: string, to: string): Promise<
             { projection: { username: 1, clientSince: 1 } }
         ).toArray();
 
+        const periodStartDate = start;
+
         const newBuyerUsernames = new Set<string>();
         const repeatBuyerUsernames = new Set<string>();
         
-        const periodStartDate = parseISO(startStr);
-
         for (const client of clientsFromDB) {
             const clientSinceDate = parseISO(client.clientSince as string);
             if (clientSinceDate >= periodStartDate) {
@@ -796,7 +765,7 @@ export async function getOrderCountAnalytics(from: string, to: string): Promise<
         const newBuyerOrders = ordersInPeriod.filter(o => newBuyerUsernames.has(o.clientUsername)).length;
         const repeatBuyerOrders = ordersInPeriod.filter(o => repeatBuyerUsernames.has(o.clientUsername)).length;
         
-        return { total: totalOrders, fromNewBuyers: newBuyerOrders, fromRepeatBuyers: repeatBuyerOrders };
+        return { total: ordersInPeriod.length, fromNewBuyers: newBuyerOrders, fromRepeatBuyers: repeatBuyerOrders };
     };
 
     const [currentPeriodOrders, previousPeriodOrders, periodBeforePreviousOrders] = await Promise.all([

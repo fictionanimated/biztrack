@@ -35,15 +35,11 @@ export function FinancialMetrics({ previousPeriodLabel }: FinancialMetricsProps)
     setActivePercentageMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
   };
   
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
-
   React.useEffect(() => {
     async function fetchData() {
-        if (!from || !to) return;
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/analytics/financials?from=${from}&to=${to}`);
+            const res = await fetch(`/api/analytics/financials`);
             if (!res.ok) throw new Error('Failed to fetch financial metrics');
             const data = await res.json();
             setFinancialMetricsData(data);
@@ -55,7 +51,7 @@ export function FinancialMetrics({ previousPeriodLabel }: FinancialMetricsProps)
         }
     }
     fetchData();
-  }, [from, to]);
+  }, []);
   
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />
@@ -71,7 +67,7 @@ export function FinancialMetrics({ previousPeriodLabel }: FinancialMetricsProps)
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <p>Could not load financial metrics. Please select a valid date range.</p>
+                <p>Could not load financial metrics. Please try again later.</p>
             </CardContent>
         </Card>
     );
@@ -115,24 +111,7 @@ export function FinancialMetrics({ previousPeriodLabel }: FinancialMetricsProps)
                     </div>
                     <div className="mt-2 pt-2 border-t space-y-1">
                         <div className="flex items-center text-xs flex-wrap">
-                          {metric.name === "Total Revenue" || metric.name === "Net Profit" ? (
-                              <span className="text-muted-foreground">From {previousPeriodLabel}: <span className="font-semibold text-foreground">{formatCurrency(previousValue)}</span></span>
-                          ) : metric.name === "Average Order Value (AOV)" ? (
-                              <span className="text-muted-foreground">From {previousPeriodLabel}: <span className="font-semibold text-foreground">{formatCurrency(previousValue)}</span></span>
-                          ) : (
-                              <>
-                                  <span
-                                      className={cn(
-                                          "flex items-center gap-1 font-semibold",
-                                          isPositive ? "text-green-600" : "text-red-600"
-                                      )}
-                                  >
-                                      {change >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                                      {metric.isPercentage ? change.toFixed(1) : Math.abs(change).toFixed(1)}%
-                                  </span>
-                                  <span className="ml-1 text-muted-foreground">from {formatCurrency(previousValue)} ({previousPeriodLabel})</span>
-                              </>
-                          )}
+                            <span className="text-muted-foreground">All-Time Data</span>
                         </div>
                         <p className="text-xs text-muted-foreground">{metric.formula}</p>
                     </div>
