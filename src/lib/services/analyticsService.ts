@@ -503,95 +503,36 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
 }
 
 
-export async function getFinancialMetrics(): Promise<FinancialMetricData> {
+export async function getFinancialMetrics(from: string, to: string): Promise<FinancialMetricData> {
     const ordersCol = await getOrdersCollection();
     const expensesCol = await getExpensesCollection();
-    const clientsCol = await getClientsCollection();
     
-    const calcAllTimeMetrics = async () => {
-        const revenuePromise = ordersCol.aggregate([ { $match: { status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const expensesPromise = expensesCol.aggregate([ { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const ordersCountPromise = ordersCol.countDocuments({ status: 'Completed' });
-        const marketingExpensesPromise = expensesCol.aggregate([ { $match: { category: 'Marketing' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const salaryExpensesPromise = expensesCol.aggregate([ { $match: { category: 'Salary' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const newClientsCountPromise = clientsCol.countDocuments();
+    const revenueRes = await ordersCol.aggregate([
+        { $match: { date: { $gte: from, $lte: to }, status: 'Completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]).toArray();
+    const totalRevenue = revenueRes[0]?.total || 0;
 
-        const buyerStatsPromise = ordersCol.aggregate([
-            { $group: { _id: "$clientUsername", orderCount: { $sum: 1 } } }
-        ]).toArray();
-        
-        const avgLifespanPromise = clientsCol.aggregate([
-            { $lookup: { from: 'orders', localField: 'username', foreignField: 'clientUsername', as: 'clientOrders' } },
-            { $match: { 'clientOrders.1': { $exists: true } } },
-            { $addFields: { clientOrders: { $filter: { input: "$clientOrders", as: "order", cond: { $ne: ["$$order.status", "Cancelled"] } } } } },
-            { $match: { 'clientOrders.1': { $exists: true } } },
-            { $project: {
-                firstOrderDate: { $min: '$clientOrders.date' },
-                lastOrderDate: { $max: '$clientOrders.date' },
-            }},
-            { $project: {
-                lifespanDays: {
-                    $cond: {
-                         if: { $and: [{ $ne: ['$firstOrderDate', null] }, { $ne: ['$lastOrderDate', null] }, { $ne: ['$firstOrderDate', '$lastOrderDate'] }] },
-                         then: {
-                            $divide: [
-                                { $subtract: [
-                                    { $dateFromString: { dateString: '$lastOrderDate' } },
-                                    { $dateFromString: { dateString: '$firstOrderDate' } }
-                                ]},
-                                1000 * 60 * 60 * 24
-                            ]
-                         },
-                         else: 0
-                    }
-                }
-            }},
-            { $group: { _id: null, avgLifespan: { $avg: '$lifespanDays' } } }
-        ]).toArray();
+    const expensesRes = await expensesCol.aggregate([
+        { $match: { date: { $gte: from, $lte: to } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]).toArray();
+    const totalExpenses = expensesRes[0]?.total || 0;
 
-        const [revenueRes, expensesRes, ordersCount, marketingExpensesRes, salaryExpensesRes, newClientsCount, buyerStats, avgLifespanRes] = await Promise.all([
-            revenuePromise, expensesPromise, ordersCountPromise, marketingExpensesPromise, salaryExpensesPromise, newClientsCountPromise, buyerStatsPromise, avgLifespanPromise
-        ]);
-        
-        const revenue = revenueRes[0]?.total || 0;
-        const expenses = expensesRes[0]?.total || 0;
-        const marketingExpenses = marketingExpensesRes[0]?.total || 0;
-        const salaryExpenses = salaryExpensesRes[0]?.total || 0;
-        const aov = ordersCount > 0 ? revenue / ordersCount : 0;
-        
-        const totalBuyers = buyerStats.length;
-        const repeatBuyers = buyerStats.filter(b => b.orderCount > 1).length;
-        const repeatPurchaseRate = totalBuyers > 0 ? repeatBuyers / totalBuyers : 0;
-        const avgLifespanMonths = (avgLifespanRes[0]?.avgLifespan || 0) / 30.44;
-        const cltv = aov * repeatPurchaseRate * avgLifespanMonths;
+    const netProfit = totalRevenue - totalExpenses;
 
-        return {
-            totalRevenue: revenue,
-            totalExpenses: expenses,
-            netProfit: revenue - expenses,
-            profitMargin: revenue > 0 ? ((revenue - expenses) / revenue) * 100 : 0,
-            grossMargin: revenue > 0 ? ((revenue - salaryExpenses) / revenue) * 100 : 0,
-            cac: newClientsCount > 0 ? marketingExpenses / newClientsCount : 0,
-            cltv: cltv,
-            aov: aov,
-        };
-    };
-
-    const currentMetrics = await calcAllTimeMetrics();
-    
-    // For "All Time", change vs previous is not applicable.
-    const timeSeries: FinancialMetricTimeSeries[] = []; // Not applicable for all-time view
-
+    // For now, other metrics are 0 as requested.
+    // In a real implementation, these would also be calculated from the database.
     return {
-        totalRevenue: { value: currentMetrics.totalRevenue, change: 0, previousValue: 0 },
-        totalExpenses: { value: currentMetrics.totalExpenses, change: 0, previousValue: 0 },
-        netProfit: { value: currentMetrics.netProfit, change: 0, previousValue: 0 },
-        profitMargin: { value: currentMetrics.profitMargin, change: 0, previousValue: 0 },
-        grossMargin: { value: currentMetrics.grossMargin, change: 0, previousValue: 0 },
-        cac: { value: currentMetrics.cac, change: 0, previousValue: 0 },
-        cltv: { value: currentMetrics.cltv, change: 0, previousValue: 0 },
-        aov: { value: currentMetrics.aov, change: 0, previousValue: 0 },
-        timeSeries
+        totalRevenue: { value: totalRevenue, change: 0, previousValue: 0 },
+        totalExpenses: { value: totalExpenses, change: 0, previousValue: 0 },
+        netProfit: { value: netProfit, change: 0, previousValue: 0 },
+        profitMargin: { value: 0, change: 0, previousValue: 0 },
+        grossMargin: { value: 0, change: 0, previousValue: 0 },
+        cac: { value: 0, change: 0, previousValue: 0 },
+        cltv: { value: 0, change: 0, previousValue: 0 },
+        aov: { value: 0, change: 0, previousValue: 0 },
+        timeSeries: [] // Placeholder, would be built out in a full implementation
     };
 }
 

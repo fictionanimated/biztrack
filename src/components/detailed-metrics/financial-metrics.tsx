@@ -31,11 +31,19 @@ export function FinancialMetrics() {
     setActivePercentageMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
   };
   
+  const from = searchParams.get('from');
+  const to = searchParams.get('to');
+
   React.useEffect(() => {
     async function fetchData() {
+        if (!from || !to) {
+            setIsLoading(false);
+            setFinancialMetricsData(null);
+            return;
+        }
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/analytics/financials`);
+            const res = await fetch(`/api/analytics/financials?from=${from}&to=${to}`);
             if (!res.ok) throw new Error('Failed to fetch financial metrics');
             const data = await res.json();
             setFinancialMetricsData(data);
@@ -47,7 +55,7 @@ export function FinancialMetrics() {
         }
     }
     fetchData();
-  }, []);
+  }, [from, to]);
   
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />
@@ -63,7 +71,7 @@ export function FinancialMetrics() {
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <p>Could not load financial metrics. Please try again later.</p>
+                <p>Could not load financial metrics. Please select a valid date range.</p>
             </CardContent>
         </Card>
     );
@@ -87,7 +95,7 @@ export function FinancialMetrics() {
           <DollarSign className="h-6 w-6 text-primary" />
           <span>Financial Metrics</span>
         </CardTitle>
-        <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)}>
+        <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)} disabled>
             {showChart ? <EyeOff className="mr-2 h-4 w-4" /> : <BarChart className="mr-2 h-4 w-4" />}
             {showChart ? "Hide Graphs" : "Show Graphs"}
         </Button>
@@ -107,7 +115,7 @@ export function FinancialMetrics() {
                     </div>
                     <div className="mt-2 pt-2 border-t space-y-1">
                         <div className="flex items-center text-xs flex-wrap">
-                            <span className="text-muted-foreground">All-Time Data</span>
+                            <span className="text-muted-foreground">vs previous period</span>
                         </div>
                         <p className="text-xs text-muted-foreground">{metric.formula}</p>
                     </div>
