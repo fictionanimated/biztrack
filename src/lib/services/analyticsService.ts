@@ -511,6 +511,65 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
 }
 
 
+const getPeriodFinancials = async (start?: Date, end?: Date) => {
+    const ordersCol = await getOrdersCollection();
+    const expensesCol = await getExpensesCollection();
+    const clientsCol = await getClientsCollection();
+    
+    const matchQuery: any = {};
+    if (start && end) {
+        matchQuery.date = { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') };
+    }
+
+    const clientsMatchQuery: any = {};
+    if (start && end) {
+        clientsMatchQuery.clientSince = { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') };
+    }
+
+    const revenueRes = await ordersCol.aggregate([
+        { $match: { ...matchQuery, status: 'Completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
+    ]).toArray();
+    const totalRevenue = revenueRes[0]?.total || 0;
+    const totalOrders = revenueRes[0]?.count || 0;
+
+
+    const expensesRes = await expensesCol.aggregate([
+        { $match: matchQuery },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]).toArray();
+    const totalExpenses = expensesRes[0]?.total || 0;
+    
+    const salaryExpensesRes = await expensesCol.aggregate([
+        { $match: { ...matchQuery, category: "Salary" } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]).toArray();
+    const salaryExpenses = salaryExpensesRes[0]?.total || 0;
+
+    const marketingExpensesRes = await expensesCol.aggregate([
+        { $match: { ...matchQuery, category: "Marketing" } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]).toArray();
+    const marketingExpenses = marketingExpensesRes[0]?.total || 0;
+
+    const newClientsCount = await clientsCol.countDocuments(clientsMatchQuery);
+    
+    const cac = newClientsCount > 0 ? marketingExpenses / newClientsCount : marketingExpenses > 0 ? marketingExpenses : 0;
+    const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+
+    return {
+        totalRevenue,
+        totalExpenses,
+        salaryExpenses,
+        cac,
+        aov,
+        netProfit: totalRevenue - totalExpenses,
+        profitMargin: totalRevenue > 0 ? ((totalRevenue - totalExpenses) / totalRevenue) * 100 : 0,
+        grossMargin: totalRevenue > 0 ? ((totalRevenue - salaryExpenses) / totalRevenue) * 100 : 0,
+    };
+};
+
 export async function getFinancialMetrics(from?: string, to?: string): Promise<FinancialMetricData> {
     const fromDate = from ? parseISO(from) : undefined;
     const toDate = to ? parseISO(to) : undefined;
@@ -518,61 +577,6 @@ export async function getFinancialMetrics(from?: string, to?: string): Promise<F
     const calculateChange = (current: number, prev: number) => {
         if (prev === 0) return current > 0 ? 100 : 0;
         return ((current - prev) / prev) * 100;
-    };
-
-    const getPeriodFinancials = async (start?: Date, end?: Date) => {
-        const ordersCol = await getOrdersCollection();
-        const expensesCol = await getExpensesCollection();
-        const clientsCol = await getClientsCollection();
-        
-        const matchQuery: any = {};
-        if (start && end) {
-            matchQuery.date = { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') };
-        }
-
-        const clientsMatchQuery: any = {};
-        if (start && end) {
-            clientsMatchQuery.clientSince = { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') };
-        }
-
-        const revenueRes = await ordersCol.aggregate([
-            { $match: { ...matchQuery, status: 'Completed' } },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]).toArray();
-        const totalRevenue = revenueRes[0]?.total || 0;
-
-        const expensesRes = await expensesCol.aggregate([
-            { $match: matchQuery },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]).toArray();
-        const totalExpenses = expensesRes[0]?.total || 0;
-        
-        const salaryExpensesRes = await expensesCol.aggregate([
-            { $match: { ...matchQuery, category: "Salary" } },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]).toArray();
-        const salaryExpenses = salaryExpensesRes[0]?.total || 0;
-
-        const marketingExpensesRes = await expensesCol.aggregate([
-            { $match: { ...matchQuery, category: "Marketing" } },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]).toArray();
-        const marketingExpenses = marketingExpensesRes[0]?.total || 0;
-
-        const newClientsCount = await clientsCol.countDocuments(clientsMatchQuery);
-        
-        const cac = newClientsCount > 0 ? marketingExpenses / newClientsCount : marketingExpenses > 0 ? marketingExpenses : 0;
-
-
-        return {
-            totalRevenue,
-            totalExpenses,
-            salaryExpenses,
-            cac,
-            netProfit: totalRevenue - totalExpenses,
-            profitMargin: totalRevenue > 0 ? ((totalRevenue - totalExpenses) / totalRevenue) * 100 : 0,
-            grossMargin: totalRevenue > 0 ? ((totalRevenue - salaryExpenses) / totalRevenue) * 100 : 0,
-        };
     };
 
     const [currentPeriod, previousPeriod, periodBeforePrevious] = await (async () => {
@@ -591,7 +595,7 @@ export async function getFinancialMetrics(from?: string, to?: string): Promise<F
         }
         // Fallback for "All Time"
         const allTime = await getPeriodFinancials();
-        const emptyPeriod = { totalRevenue: 0, totalExpenses: 0, salaryExpenses: 0, cac: 0, netProfit: 0, profitMargin: 0, grossMargin: 0 };
+        const emptyPeriod = { totalRevenue: 0, totalExpenses: 0, salaryExpenses: 0, cac: 0, aov: 0, netProfit: 0, profitMargin: 0, grossMargin: 0 };
         return [allTime, emptyPeriod, emptyPeriod];
     })();
 
@@ -609,9 +613,9 @@ export async function getFinancialMetrics(from?: string, to?: string): Promise<F
         profitMargin: createMetric(currentPeriod.profitMargin, previousPeriod.profitMargin, periodBeforePrevious.profitMargin),
         grossMargin: createMetric(currentPeriod.grossMargin, previousPeriod.grossMargin, periodBeforePrevious.grossMargin),
         cac: createMetric(currentPeriod.cac, previousPeriod.cac, periodBeforePrevious.cac),
+        aov: createMetric(currentPeriod.aov, previousPeriod.aov, periodBeforePrevious.aov),
         // Placeholders for other metrics
         cltv: { value: 0, change: 0, previousValue: 0, previousPeriodChange: 0 },
-        aov: { value: 0, change: 0, previousValue: 0, previousPeriodChange: 0 },
         timeSeries: [] // Placeholder
     };
 }
