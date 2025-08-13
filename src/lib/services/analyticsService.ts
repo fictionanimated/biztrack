@@ -648,15 +648,16 @@ export async function getClientMetrics(from: string, to: string): Promise<Client
                 { $match: { date: { $gte: startStr, $lte: endStr }, rating: { $ne: null } } },
                 { $group: { _id: null, positiveRatings: { $sum: { $cond: [{ $gte: ['$rating', 4] }, 1, 0] } }, totalRatings: { $sum: 1 }, avgRating: { $avg: '$rating' } } }
             ]).toArray(),
-            clientsCol.aggregate([
+             clientsCol.aggregate([
                 { $lookup: { from: 'orders', localField: 'username', foreignField: 'clientUsername', as: 'clientOrders' } },
-                { $match: { 'clientOrders.1': { $exists: true } } },
                 { $addFields: { clientOrders: { $filter: { input: "$clientOrders", as: "order", cond: { $ne: ["$$order.status", "Cancelled"] } } } } },
                 { $match: { 'clientOrders.1': { $exists: true } } },
-                { $project: {
+                { $addFields: {
                     firstOrderDate: { $min: '$clientOrders.date' },
                     lastOrderDate: { $max: '$clientOrders.date' },
                 }},
+                 // Filter for clients whose last order is within the period
+                { $match: { lastOrderDate: { $gte: startStr, $lte: endStr } } },
                 { $project: {
                     lifespanDays: {
                         $cond: {
