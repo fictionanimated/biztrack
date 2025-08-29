@@ -45,7 +45,7 @@ export function IncomeSourceFilter({
     setSelectedSources(newSelected);
   }
   
-  const allSelected = selectedSources.length === availableSources.length;
+  const allSelected = availableSources.length > 0 && selectedSources.length === availableSources.length;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -57,7 +57,7 @@ export function IncomeSourceFilter({
           className="w-full sm:w-[260px] justify-between"
         >
             <span className="truncate">
-          {selectedSources.length === 0
+          {selectedSources.length === 0 || allSelected
             ? "All Income Sources"
             : selectedSources.length === 1
             ? selectedSources[0]
@@ -74,7 +74,9 @@ export function IncomeSourceFilter({
             <CommandGroup>
                 <CommandItem
                     value="all"
-                    onSelect={() => handleSelect("all")}
+                    onSelect={(currentValue) => {
+                        handleSelect(currentValue);
+                    }}
                 >
                     <Check
                     className={cn(
@@ -88,7 +90,9 @@ export function IncomeSourceFilter({
                 <CommandItem
                   key={source}
                   value={source}
-                  onSelect={handleSelect}
+                   onSelect={(currentValue) => {
+                        handleSelect(currentValue);
+                    }}
                 >
                   <Check
                     className={cn(
