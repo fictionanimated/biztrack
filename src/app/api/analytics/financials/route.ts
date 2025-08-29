@@ -6,15 +6,18 @@ import { z } from 'zod';
 const querySchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
+  sources: z.string().optional(),
 });
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const query = Object.fromEntries(searchParams.entries());
-    const { from, to } = querySchema.parse(query);
+    const { from, to, sources } = querySchema.parse(query);
 
-    const financialData = await getFinancialMetrics(from, to);
+    const sourceList = sources ? sources.split(',') : undefined;
+
+    const financialData = await getFinancialMetrics(from, to, sourceList);
 
     return NextResponse.json(financialData);
   } catch (error) {

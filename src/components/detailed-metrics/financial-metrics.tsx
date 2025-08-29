@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -36,6 +35,7 @@ export function FinancialMetrics() {
   
   const from = searchParams.get('from');
   const to = searchParams.get('to');
+  const sources = searchParams.get('sources');
   
   const { previousPeriodLabel } = React.useMemo(() => {
     if (!from || !to) return { previousPeriodLabel: "previous period" };
@@ -53,12 +53,15 @@ export function FinancialMetrics() {
 
   React.useEffect(() => {
     async function fetchData() {
-        const fromParam = searchParams.get('from');
-        const toParam = searchParams.get('to');
-        
+        if (!from || !to) return;
         setIsLoading(true);
+        const query = new URLSearchParams({ from, to });
+        if (sources) {
+            query.set('sources', sources);
+        }
+
         try {
-            const res = await fetch(`/api/analytics/financials?from=${fromParam}&to=${toParam}`);
+            const res = await fetch(`/api/analytics/financials?${query.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch financial metrics');
             const data = await res.json();
             setFinancialMetricsData(data);
@@ -70,7 +73,79 @@ export function FinancialMetrics() {
         }
     }
     fetchData();
-  }, [searchParams]);
+  }, [from, to, sources]);
+  
+  const renderMetricCard = (
+      name: string,
+      metricData: { value: number; change: number; previousValue: number; previousPeriodChange: number; },
+      formula: string,
+      { isPercentage = false, invertColor = false } = {}
+  ) => {
+    if (!metricData) {
+        return (
+            <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between min-h-[160px]">
+                <p className="text-sm font-medium text-muted-foreground">{name}</p>
+                <p className="text-2xl font-bold mt-1 text-muted-foreground">--</p>
+                 <div className="mt-2 pt-2 border-t space-y-1">
+                    <p className="text-xs text-muted-foreground">{formula}</p>
+                </div>
+            </div>
+        );
+    }
+    const { value, change, previousValue, previousPeriodChange } = metricData;
+    const isPositive = invertColor ? change < 0 : change >= 0;
+    const displayValue = isPercentage ? `${value.toFixed(1)}%` : formatCurrency(value);
+    const isPrevPositive = invertColor ? previousPeriodChange < 0 : previousPeriodChange >= 0;
+
+    return (
+        <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between min-h-[160px]">
+            <div>
+                <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-muted-foreground">{name}</p>
+                     {change != null && (
+                        <span className={cn(
+                            "flex items-center gap-1 text-xs font-semibold",
+                            isPositive ? "text-green-600" : "text-red-600"
+                        )}>
+                            {change >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                            {`${Math.abs(change).toFixed(1)}%`}
+                        </span>
+                    )}
+                </div>
+                <p className="text-2xl font-bold mt-1">{displayValue}</p>
+            </div>
+            <div className="mt-2 pt-2 border-t space-y-1">
+                {previousPeriodChange != null && previousValue != null ? (
+                    <div className="flex items-center text-xs flex-wrap">
+                        <span className={cn("font-semibold", (isPercentage || previousValue >= 0) ? "text-foreground" : "text-red-600")}>
+                           {isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue)}
+                        </span>
+                        <span className={cn(
+                            "ml-1 flex items-center gap-0.5",
+                            isPrevPositive ? "text-green-600" : "text-red-600"
+                        )}>
+                            ({previousPeriodChange >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{Math.abs(previousPeriodChange).toFixed(1)}%)
+                        </span>
+                        <span className="ml-1 text-muted-foreground">{previousPeriodLabel}</span>
+                    </div>
+                ) : (
+                     <p className="text-xs text-muted-foreground">{formula}</p>
+                )}
+            </div>
+        </div>
+    );
+  };
+
+  const metricsToShow = [
+    { name: "Total Revenue", data: financialMetricsData?.totalRevenue, formula: "Sum of all income from services" },
+    { name: "Total Expenses", data: financialMetricsData?.totalExpenses, formula: "Sum of all business expenses", options: { invertColor: true } },
+    { name: "Net Profit", data: financialMetricsData?.netProfit, formula: "Total Revenue - Total Expenses" },
+    { name: "Profit Margin (%)", data: financialMetricsData?.profitMargin, formula: "((Revenue - Expenses) / Revenue) * 100", options: { isPercentage: true } },
+    { name: "Gross Margin (%)", data: financialMetricsData?.grossMargin, formula: "((Revenue - Salary) / Revenue) * 100", options: { isPercentage: true } },
+    { name: "Client Acquisition Cost (CAC)", data: financialMetricsData?.cac, formula: "Marketing Costs / New Clients", options: { invertColor: true } },
+    { name: "Customer Lifetime Value (CLTV)", data: financialMetricsData?.cltv, formula: "AOV × Repeat Purchase Rate × Avg. Lifespan" },
+    { name: "Average Order Value (AOV)", data: financialMetricsData?.aov, formula: "Total Revenue / Number of Orders" },
+  ];
   
   if (isLoading) {
     return (
@@ -95,17 +170,6 @@ export function FinancialMetrics() {
         </Card>
     );
   }
-  
-  const metricsToShow = [
-    { name: "Total Revenue", data: financialMetricsData.totalRevenue, formula: "Sum of all income from services" },
-    { name: "Total Expenses", data: financialMetricsData.totalExpenses, formula: "Sum of all business expenses", invertColor: true },
-    { name: "Net Profit", data: financialMetricsData.netProfit, formula: "Total Revenue - Total Expenses" },
-    { name: "Profit Margin (%)", data: financialMetricsData.profitMargin, formula: "((Revenue - Expenses) / Revenue) * 100", isPercentage: true },
-    { name: "Gross Margin (%)", data: financialMetricsData.grossMargin, formula: "((Revenue - Salary) / Revenue) * 100", isPercentage: true },
-    { name: "Client Acquisition Cost (CAC)", data: financialMetricsData.cac, formula: "Marketing Costs / New Clients", invertColor: true },
-    { name: "Customer Lifetime Value (CLTV)", data: financialMetricsData.cltv, formula: "AOV × Repeat Purchase Rate × Avg. Lifespan" },
-    { name: "Average Order Value (AOV)", data: financialMetricsData.aov, formula: "Total Revenue / Number of Orders" },
-  ];
 
   return (
     <Card>
@@ -121,49 +185,7 @@ export function FinancialMetrics() {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {metricsToShow.map((metric) => {
-            const { value, change, previousValue, previousPeriodChange } = metric.data;
-            const isPositive = metric.invertColor ? change < 0 : change >= 0;
-            const displayValue = metric.isPercentage ? `${value.toFixed(1)}%` : formatCurrency(value);
-            
-            return (
-                <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between min-h-[160px]">
-                    <div>
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-muted-foreground">{metric.name}</p>
-                             {change != null && (
-                                <span className={cn(
-                                    "flex items-center gap-1 text-xs font-semibold",
-                                    isPositive ? "text-green-600" : "text-red-600"
-                                )}>
-                                    {change >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                                    {`${Math.abs(change).toFixed(1)}%`}
-                                </span>
-                            )}
-                        </div>
-                        <p className="text-2xl font-bold mt-1">{displayValue}</p>
-                    </div>
-                    <div className="mt-2 pt-2 border-t space-y-1">
-                        {previousPeriodChange != null && previousValue != null ? (
-                            <div className="flex items-center text-xs flex-wrap">
-                                <span className={cn("font-semibold", (metric.isPercentage || previousValue >= 0) ? "text-foreground" : "text-red-600")}>
-                                   {metric.isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue)}
-                                </span>
-                                <span className={cn(
-                                    "ml-1 flex items-center gap-0.5",
-                                    (metric.invertColor ? previousPeriodChange < 0 : previousPeriodChange >= 0) ? "text-green-600" : "text-red-600"
-                                )}>
-                                    ({previousPeriodChange >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{Math.abs(previousPeriodChange).toFixed(1)}%)
-                                </span>
-                                <span className="ml-1 text-muted-foreground">{previousPeriodLabel}</span>
-                            </div>
-                        ) : (
-                             <p className="text-xs text-muted-foreground">{metric.formula}</p>
-                        )}
-                    </div>
-                </div>
-            )
-          })}
+          {metricsToShow.map((metric) => renderMetricCard(metric.name, metric.data, metric.formula, metric.options))}
         </div>
       </CardContent>
        {showChart && (
