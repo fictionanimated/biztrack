@@ -510,52 +510,51 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
 }
 
 
-const getPeriodFinancials = async (start?: Date, end?: Date) => {
+const getPeriodFinancials = async (start?: Date, end?: Date, sources?: string[]) => {
     const ordersCol = await getOrdersCollection();
     const expensesCol = await getExpensesCollection();
     const clientsCol = await getClientsCollection();
     
-    const matchQuery: any = {};
+    const dateMatch: any = {};
     if (start && end) {
-        matchQuery.date = { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') };
+        dateMatch.date = { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') };
     }
 
-    const clientsMatchQuery: any = {};
-    if (start && end) {
-        clientsMatchQuery.clientSince = { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') };
-    }
+    const sourceMatch = sources && sources.length > 0 ? { source: { $in: sources } } : {};
+
+    const ordersMatch = { ...dateMatch, ...sourceMatch, status: 'Completed' };
+    const expensesMatch = { ...dateMatch };
+    const clientsMatch = start && end ? { clientSince: { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') } } : {};
 
     const revenueRes = await ordersCol.aggregate([
-        { $match: { ...matchQuery, status: 'Completed' } },
+        { $match: ordersMatch },
         { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }
     ]).toArray();
     const totalRevenue = revenueRes[0]?.total || 0;
     const totalOrders = revenueRes[0]?.count || 0;
 
-
     const expensesRes = await expensesCol.aggregate([
-        { $match: matchQuery },
+        { $match: expensesMatch },
         { $group: { _id: null, total: { $sum: '$amount' } } }
     ]).toArray();
     const totalExpenses = expensesRes[0]?.total || 0;
     
     const salaryExpensesRes = await expensesCol.aggregate([
-        { $match: { ...matchQuery, category: "Salary" } },
+        { $match: { ...expensesMatch, category: "Salary" } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
     ]).toArray();
     const salaryExpenses = salaryExpensesRes[0]?.total || 0;
 
     const marketingExpensesRes = await expensesCol.aggregate([
-        { $match: { ...matchQuery, category: "Marketing" } },
+        { $match: { ...expensesMatch, category: "Marketing" } },
         { $group: { _id: null, total: { $sum: '$amount' } } }
     ]).toArray();
     const marketingExpenses = marketingExpensesRes[0]?.total || 0;
 
-    const newClientsCount = await clientsCol.countDocuments(clientsMatchQuery);
+    const newClientsCount = await clientsCol.countDocuments(clientsMatch);
     
     const cac = newClientsCount > 0 ? marketingExpenses / newClientsCount : marketingExpenses > 0 ? marketingExpenses : 0;
     const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
 
     return {
         totalRevenue,
@@ -569,7 +568,7 @@ const getPeriodFinancials = async (start?: Date, end?: Date) => {
     };
 };
 
-export async function getFinancialMetrics(from?: string, to?: string): Promise<FinancialMetricData> {
+export async function getFinancialMetrics(from?: string, to?: string, sources?: string[]): Promise<FinancialMetricData> {
     const fromDate = from ? parseISO(from) : undefined;
     const toDate = to ? parseISO(to) : undefined;
 
@@ -587,13 +586,13 @@ export async function getFinancialMetrics(from?: string, to?: string): Promise<F
             const p0_from = subDays(p0_to, durationInDays);
 
             return Promise.all([
-                getPeriodFinancials(fromDate, toDate),
-                getPeriodFinancials(p1_from, p1_to),
-                getPeriodFinancials(p0_from, p0_to)
+                getPeriodFinancials(fromDate, toDate, sources),
+                getPeriodFinancials(p1_from, p1_to, sources),
+                getPeriodFinancials(p0_from, p0_to, sources)
             ]);
         }
         // Fallback for "All Time"
-        const allTime = await getPeriodFinancials(undefined, undefined);
+        const allTime = await getPeriodFinancials(undefined, undefined, sources);
         const emptyPeriod = { totalRevenue: 0, totalExpenses: 0, salaryExpenses: 0, cac: 0, aov: 0, netProfit: 0, profitMargin: 0, grossMargin: 0 };
         return [allTime, emptyPeriod, emptyPeriod];
     })();
