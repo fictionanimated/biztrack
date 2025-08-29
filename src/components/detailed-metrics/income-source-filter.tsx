@@ -74,8 +74,8 @@ export function IncomeSourceFilter({
             <CommandGroup>
                 <CommandItem
                     value="all"
-                    onSelect={(currentValue) => {
-                        handleSelect(currentValue);
+                    onSelect={() => {
+                        handleSelect("all");
                     }}
                 >
                     <Check
@@ -92,6 +92,7 @@ export function IncomeSourceFilter({
                   value={source}
                    onSelect={(currentValue) => {
                         handleSelect(currentValue);
+                        // setOpen(false) // This can be added if you want the popover to close on selection
                     }}
                 >
                   <Check
