@@ -510,7 +510,7 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
 }
 
 
-const getPeriodFinancials = async (start?: Date, end?: Date, sources?: string[]) => {
+const getPeriodFinancials = async (start?: Date, end?: Date) => {
     const ordersCol = await getOrdersCollection();
     const expensesCol = await getExpensesCollection();
     const clientsCol = await getClientsCollection();
@@ -518,9 +518,6 @@ const getPeriodFinancials = async (start?: Date, end?: Date, sources?: string[])
     const matchQuery: any = {};
     if (start && end) {
         matchQuery.date = { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') };
-    }
-    if (sources && sources.length > 0) {
-        matchQuery.source = { $in: sources };
     }
 
     const clientsMatchQuery: any = {};
@@ -572,7 +569,7 @@ const getPeriodFinancials = async (start?: Date, end?: Date, sources?: string[])
     };
 };
 
-export async function getFinancialMetrics(from?: string, to?: string, sources?: string[]): Promise<FinancialMetricData> {
+export async function getFinancialMetrics(from?: string, to?: string): Promise<FinancialMetricData> {
     const fromDate = from ? parseISO(from) : undefined;
     const toDate = to ? parseISO(to) : undefined;
 
@@ -590,13 +587,13 @@ export async function getFinancialMetrics(from?: string, to?: string, sources?: 
             const p0_from = subDays(p0_to, durationInDays);
 
             return Promise.all([
-                getPeriodFinancials(fromDate, toDate, sources),
-                getPeriodFinancials(p1_from, p1_to, sources),
-                getPeriodFinancials(p0_from, p0_to, sources)
+                getPeriodFinancials(fromDate, toDate),
+                getPeriodFinancials(p1_from, p1_to),
+                getPeriodFinancials(p0_from, p0_to)
             ]);
         }
         // Fallback for "All Time"
-        const allTime = await getPeriodFinancials(undefined, undefined, sources);
+        const allTime = await getPeriodFinancials(undefined, undefined);
         const emptyPeriod = { totalRevenue: 0, totalExpenses: 0, salaryExpenses: 0, cac: 0, aov: 0, netProfit: 0, profitMargin: 0, grossMargin: 0 };
         return [allTime, emptyPeriod, emptyPeriod];
     })();
@@ -653,12 +650,12 @@ export async function getClientMetrics(from: string, to: string): Promise<Client
              clientsCol.aggregate([
                 { $lookup: { from: 'orders', localField: 'username', foreignField: 'clientUsername', as: 'clientOrders' } },
                 { $addFields: { clientOrders: { $filter: { input: "$clientOrders", as: "order", cond: { $ne: ["$$order.status", "Cancelled"] } } } } },
-                { $match: { 'clientOrders.1': { $exists: true } } },
+                { $match: { 'clientOrders.1': { $exists: true } } }, // Filter for repeat customers
                 { $addFields: {
                     firstOrderDate: { $min: '$clientOrders.date' },
                     lastOrderDate: { $max: '$clientOrders.date' },
                 }},
-                 // Filter for clients whose last order is within the period
+                // Filter for clients whose last order is within the specified period
                 { $match: { lastOrderDate: { $gte: startStr, $lte: endStr } } },
                 { $project: {
                     lifespanDays: {

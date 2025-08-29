@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FinancialMetricData } from "@/lib/services/analyticsService";
-import { format, subDays, differenceInDays } from 'date-fns';
 
 
 const FinancialValueChart = lazy(() => import("@/components/detailed-metrics/financial-value-chart"));
@@ -36,20 +35,6 @@ export function FinancialMetrics() {
   const from = searchParams.get('from');
   const to = searchParams.get('to');
   const sources = searchParams.get('sources');
-  
-  const { previousPeriodLabel } = React.useMemo(() => {
-    if (!from || !to) return { previousPeriodLabel: "previous period" };
-    const fromDate = new Date(from.replace(/-/g, '/'));
-    const toDate = new Date(to.replace(/-/g, '/'));
-    const duration = differenceInDays(toDate, fromDate);
-
-    const prevTo = subDays(fromDate, 1);
-    const prevFrom = subDays(prevTo, duration);
-    
-    return {
-        previousPeriodLabel: `from ${format(prevFrom, 'MMM d')} - ${format(prevTo, 'MMM d, yyyy')}`,
-    }
-  }, [from, to]);
 
   React.useEffect(() => {
     async function fetchData() {
@@ -77,7 +62,7 @@ export function FinancialMetrics() {
   
   const renderMetricCard = (
       name: string,
-      metricData: { value: number; change: number; previousValue: number; previousPeriodChange: number; },
+      metricData: { value: number; change: number; previousValue: number; },
       formula: string,
       { isPercentage = false, invertColor = false } = {}
   ) => {
@@ -92,10 +77,9 @@ export function FinancialMetrics() {
             </div>
         );
     }
-    const { value, change, previousValue, previousPeriodChange } = metricData;
+    const { value, change, previousValue } = metricData;
     const isPositive = invertColor ? change < 0 : change >= 0;
     const displayValue = isPercentage ? `${value.toFixed(1)}%` : formatCurrency(value);
-    const isPrevPositive = invertColor ? previousPeriodChange < 0 : previousPeriodChange >= 0;
 
     return (
         <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between min-h-[160px]">
@@ -115,19 +99,10 @@ export function FinancialMetrics() {
                 <p className="text-2xl font-bold mt-1">{displayValue}</p>
             </div>
             <div className="mt-2 pt-2 border-t space-y-1">
-                {previousPeriodChange != null && previousValue != null ? (
-                    <div className="flex items-center text-xs flex-wrap">
-                        <span className={cn("font-semibold", (isPercentage || previousValue >= 0) ? "text-foreground" : "text-red-600")}>
-                           {isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue)}
-                        </span>
-                        <span className={cn(
-                            "ml-1 flex items-center gap-0.5",
-                            isPrevPositive ? "text-green-600" : "text-red-600"
-                        )}>
-                            ({previousPeriodChange >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}{Math.abs(previousPeriodChange).toFixed(1)}%)
-                        </span>
-                        <span className="ml-1 text-muted-foreground">{previousPeriodLabel}</span>
-                    </div>
+                {previousValue != null ? (
+                    <p className="text-xs text-muted-foreground">
+                        vs. {isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue)} in previous period
+                    </p>
                 ) : (
                      <p className="text-xs text-muted-foreground">{formula}</p>
                 )}

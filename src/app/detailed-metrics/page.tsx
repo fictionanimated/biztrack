@@ -13,8 +13,6 @@ import { SalesMetrics } from "@/components/detailed-metrics/sales-metrics";
 import { MarketingMetrics } from "@/components/detailed-metrics/marketing-metrics";
 import { ProjectMetrics } from "@/components/detailed-metrics/project-metrics";
 import { OrderMetrics } from "@/components/detailed-metrics/order-metrics";
-import { IncomeSourceFilter } from "@/components/detailed-metrics/income-source-filter";
-import type { IncomeSource } from "@/lib/data/incomes-data";
 
 export default function DetailedMetricsPage() {
     const router = useRouter();
@@ -22,8 +20,6 @@ export default function DetailedMetricsPage() {
     const searchParams = useSearchParams();
 
     const [date, setDate] = useState<DateRange | undefined>(undefined);
-    const [incomeSources, setIncomeSources] = useState<string[]>([]);
-    const [selectedSources, setSelectedSources] = useState<string[]>([]);
 
     useEffect(() => {
         const fromParam = searchParams.get('from');
@@ -39,29 +35,7 @@ export default function DetailedMetricsPage() {
              const from = new Date(today.getFullYear(), today.getMonth(), 1);
              setDate({ from, to: today });
         }
-        
-        const sourcesParam = searchParams.get('sources');
-        if (sourcesParam) {
-            setSelectedSources(sourcesParam.split(','));
-        } else {
-            setSelectedSources([]);
-        }
-
     }, [searchParams]);
-
-    useEffect(() => {
-        async function fetchSources() {
-            try {
-                const res = await fetch('/api/incomes');
-                if (!res.ok) throw new Error('Failed to fetch income sources');
-                const data: IncomeSource[] = await res.json();
-                setIncomeSources(data.map(s => s.name));
-            } catch (e) {
-                console.error("Error fetching income sources:", e);
-            }
-        }
-        fetchSources();
-    }, []);
 
     const createQueryString = useCallback(
         (paramsToUpdate: Record<string, string | null>) => {
@@ -78,23 +52,17 @@ export default function DetailedMetricsPage() {
         [searchParams]
     );
     
-    const updateUrl = (newDate: DateRange | undefined, newSources: string[]) => {
+    const updateUrl = (newDate: DateRange | undefined) => {
         router.push(`${pathname}?${createQueryString({
             from: newDate?.from ? format(newDate.from, 'yyyy-MM-dd') : null,
             to: newDate?.to ? format(newDate.to, 'yyyy-MM-dd') : null,
-            sources: newSources.join(','),
         })}`, { scroll: false });
     };
 
     const handleSetDate = (newDate: DateRange | undefined) => {
         setDate(newDate);
-        updateUrl(newDate, selectedSources);
+        updateUrl(newDate);
     };
-    
-    const handleSetSources = (newSources: string[]) => {
-        setSelectedSources(newSources);
-        updateUrl(date, newSources);
-    }
 
     const previousPeriodLabel = (() => {
         if (!date?.from || !date?.to) return "previous period";
@@ -114,17 +82,12 @@ export default function DetailedMetricsPage() {
                     Detailed Metrics
                 </h1>
                 <div className="ml-auto flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-                    <IncomeSourceFilter
-                        availableSources={incomeSources}
-                        selectedSources={selectedSources}
-                        setSelectedSources={handleSetSources}
-                    />
                     <DateFilter date={date} setDate={handleSetDate} />
                 </div>
             </div>
 
             <div className="space-y-6">
-                <FinancialMetrics previousPeriodLabel={previousPeriodLabel} />
+                <FinancialMetrics />
                 <OrderMetrics />
                 <ClientMetrics />
                 <GrowthMetrics previousPeriodLabel={previousPeriodLabel} />
