@@ -1,8 +1,8 @@
+
 "use client";
 
 import { useState, lazy, Suspense, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import { format, subDays, differenceInDays } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, ArrowUp, ArrowDown, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,10 +13,11 @@ import { type GrowthMetricData } from "@/lib/services/analyticsService";
 const GrowthMetricsChart = lazy(() => import("@/components/detailed-metrics/growth-metrics-chart"));
 
 interface GrowthMetricsProps {
+    date: DateRange | undefined;
     previousPeriodLabel: string;
 }
 
-export function GrowthMetrics({ previousPeriodLabel }: GrowthMetricsProps) {
+export function GrowthMetrics({ date, previousPeriodLabel }: GrowthMetricsProps) {
   const [showChart, setShowChart] = useState(false);
   const [activeMetrics, setActiveMetrics] = useState({
     revenueGrowth: true,
@@ -29,21 +30,21 @@ export function GrowthMetrics({ previousPeriodLabel }: GrowthMetricsProps) {
   
   const [isLoading, setIsLoading] = useState(true);
   const [growthMetricsData, setGrowthMetricsData] = useState<GrowthMetricData | null>(null);
-  const searchParams = useSearchParams();
 
   const handleMetricToggle = (metric: string) => {
     setActiveMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
   };
   
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
-  
   useEffect(() => {
     async function fetchData() {
-        if (!from || !to) return;
+        if (!date?.from || !date?.to) return;
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/analytics/growth?from=${from}&to=${to}`);
+            const query = new URLSearchParams({
+                from: date.from.toISOString(),
+                to: date.to.toISOString()
+            });
+            const res = await fetch(`/api/analytics/growth?${query.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch growth metrics');
             const data = await res.json();
             setGrowthMetricsData(data);
@@ -55,7 +56,7 @@ export function GrowthMetrics({ previousPeriodLabel }: GrowthMetricsProps) {
         }
     }
     fetchData();
-  }, [from, to]);
+  }, [date]);
   
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />

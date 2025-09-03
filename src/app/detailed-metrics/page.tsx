@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useCallback, useEffect, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { format, subDays, differenceInDays } from 'date-fns';
 import type { DateRange } from "react-day-picker";
@@ -13,7 +13,6 @@ import { SalesMetrics } from "@/components/detailed-metrics/sales-metrics";
 import { MarketingMetrics } from "@/components/detailed-metrics/marketing-metrics";
 import { ProjectMetrics } from "@/components/detailed-metrics/project-metrics";
 import { OrderMetrics } from "@/components/detailed-metrics/order-metrics";
-import { Skeleton } from "@/components/ui/skeleton";
 
 
 export default function DetailedMetricsPage() {
@@ -90,13 +89,13 @@ export default function DetailedMetricsPage() {
             </div>
 
             <div className="space-y-6">
-                <FinancialMetrics />
-                <OrderMetrics />
-                <ClientMetrics />
-                <GrowthMetrics previousPeriodLabel={previousPeriodLabel} />
-                <SalesMetrics />
-                <MarketingMetrics />
-                <ProjectMetrics />
+                <FinancialMetrics date={date} />
+                <OrderMetrics date={date} />
+                <ClientMetrics date={date} />
+                <GrowthMetrics date={date} previousPeriodLabel={previousPeriodLabel} />
+                <SalesMetrics date={date} />
+                <MarketingMetrics date={date} />
+                <ProjectMetrics date={date} />
             </div>
         </main>
     );

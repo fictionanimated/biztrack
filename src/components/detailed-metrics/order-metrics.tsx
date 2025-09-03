@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, lazy, Suspense, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import type { DateRange } from "react-day-picker";
 import { format, subDays, differenceInDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShoppingCart, ArrowUp, ArrowDown, EyeOff, BarChart, Loader2 } from "lucide-react";
@@ -25,21 +25,21 @@ const calculateGrowth = (current: number, previous: number) => {
     return ((current - previous) / previous) * 100;
 };
 
-export function OrderMetrics() {
+export function OrderMetrics({ date }: { date: DateRange | undefined }) {
   const [showChart, setShowChart] = useState(false);
-  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [analyticsData, setAnalyticsData] = useState<OrderCountAnalytics | null>(null);
 
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
-
   useEffect(() => {
     async function fetchData() {
-        if (!from || !to) return;
+        if (!date?.from || !date?.to) return;
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/analytics/order-count?from=${from}&to=${to}`);
+            const query = new URLSearchParams({
+                from: date.from.toISOString(),
+                to: date.to.toISOString()
+            });
+            const res = await fetch(`/api/analytics/order-count?${query.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch order count');
             const data = await res.json();
             setAnalyticsData(data);
@@ -51,7 +51,7 @@ export function OrderMetrics() {
         }
     }
     fetchData();
-  }, [from, to]);
+  }, [date]);
   
   const dynamicMetrics = useMemo(() => {
       if (!analyticsData) return {
@@ -83,11 +83,9 @@ export function OrderMetrics() {
   }, [analyticsData]);
 
   const previousPeriodDateRange = (() => {
-    if (!from || !to) return "previous period";
-    const fromDate = new Date(from.replace(/-/g, '/'));
-    const toDate = new Date(to.replace(/-/g, '/'));
-    const duration = differenceInDays(toDate, fromDate);
-    const prevTo = subDays(fromDate, 1);
+    if (!date?.from || !date?.to) return "previous period";
+    const duration = differenceInDays(date.to, date.from);
+    const prevTo = subDays(date.from, 1);
     const prevFrom = subDays(prevTo, duration);
     return `from ${format(prevFrom, 'MMM d')} - ${format(prevTo, 'MMM d, yyyy')}`;
   })();

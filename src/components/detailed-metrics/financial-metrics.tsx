@@ -2,23 +2,25 @@
 "use client";
 
 import * as React from "react";
-import { useState, lazy, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, lazy, Suspense, useEffect } from "react";
+import type { DateRange } from "react-day-picker";
+import { format, subDays, differenceInDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, ArrowUp, ArrowDown, BarChart, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { FinancialMetricData } from "@/lib/services/analyticsService";
-
+import { useSearchParams } from "next/navigation";
 
 const FinancialValueChart = lazy(() => import("@/components/detailed-metrics/financial-value-chart"));
 const FinancialPercentageChart = lazy(() => import("@/components/detailed-metrics/financial-percentage-chart"));
 
 const formatCurrency = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export function FinancialMetrics() {
+export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
   const [showChart, setShowChart] = useState(false);
+  const searchParams = useSearchParams();
   const [activePercentageMetrics, setActivePercentageMetrics] = useState({
     profitMargin: true,
     grossMargin: true,
@@ -26,20 +28,22 @@ export function FinancialMetrics() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [financialMetricsData, setFinancialMetricsData] = useState<FinancialMetricData | null>(null);
-  const searchParams = useSearchParams();
 
   const handlePercentageMetricToggle = (metric: string) => {
     setActivePercentageMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
   };
   
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
-
-  React.useEffect(() => {
+  useEffect(() => {
     async function fetchData() {
-        if (!from || !to) return;
+        if (!date?.from || !date?.to) {
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
-        const query = new URLSearchParams({ from, to });
+        const query = new URLSearchParams({ 
+            from: date.from.toISOString(), 
+            to: date.to.toISOString() 
+        });
 
         try {
             const res = await fetch(`/api/analytics/financials?${query.toString()}`);
@@ -54,11 +58,21 @@ export function FinancialMetrics() {
         }
     }
     fetchData();
-  }, [from, to]);
+  }, [date]);
+
+  const previousPeriodLabel = React.useMemo(() => {
+    if (!date?.from || !date?.to) return "previous period";
+    const from = date.from;
+    const to = date.to;
+    const duration = differenceInDays(to, from);
+    const prevTo = subDays(from, 1);
+    const prevFrom = subDays(prevTo, duration);
+    return `from ${format(prevFrom, 'MMM d')} to ${format(prevTo, 'MMM d, yyyy')}`;
+  }, [date]);
   
   const renderMetricCard = (
       name: string,
-      metricData: { value: number; change: number; previousValue: number; },
+      metricData: { value: number; change: number; previousValue: number; } | undefined,
       formula: string,
       { isPercentage = false, invertColor = false } = {}
   ) => {
@@ -96,9 +110,15 @@ export function FinancialMetrics() {
             </div>
             <div className="mt-2 pt-2 border-t space-y-1">
                 {previousValue != null ? (
-                    <p className="text-xs text-muted-foreground">
-                        vs. {isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue)} in previous period
-                    </p>
+                    <>
+                        <p className="text-xs text-muted-foreground">
+                            vs. {isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {previousPeriodLabel}
+                        </p>
+                        <p className="text-xs text-muted-foreground pt-1">{formula}</p>
+                    </>
                 ) : (
                      <p className="text-xs text-muted-foreground">{formula}</p>
                 )}
@@ -123,7 +143,7 @@ export function FinancialMetrics() {
        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({length: 8}).map((_, i) => <Skeleton key={i} className="h-[180px] w-full" />)}
        </div>
-    )
+    );
   }
 
   if (!financialMetricsData) {
@@ -148,7 +168,7 @@ export function FinancialMetrics() {
         <CardTitle className="flex items-center gap-2">
           <DollarSign className="h-6 w-6 text-primary" />
           <span>Financial Metrics</span>
-        </CardTitle>
+        </Title>
         <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)} disabled>
             {showChart ? <EyeOff className="mr-2 h-4 w-4" /> : <BarChart className="mr-2 h-4 w-4" />}
             {showChart ? "Hide Graphs" : "Show Graphs"}

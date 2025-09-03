@@ -1,7 +1,8 @@
+
 "use client";
 
 import { useState, lazy, Suspense, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import type { DateRange } from "react-day-picker";
 import { format, subDays, differenceInDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, ArrowUp, ArrowDown, BarChart, EyeOff } from "lucide-react";
@@ -12,7 +13,7 @@ import type { ClientMetricData } from "@/lib/services/analyticsService";
 
 const ClientMetricsChart = lazy(() => import("@/components/detailed-metrics/client-metrics-chart"));
 
-export function ClientMetrics() {
+export function ClientMetrics({ date }: { date: DateRange | undefined }) {
   const [showChart, setShowChart] = useState(false);
   const [activeMetrics, setActiveMetrics] = useState({
     totalClients: true,
@@ -23,31 +24,29 @@ export function ClientMetrics() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [clientMetricsData, setClientMetricsData] = useState<ClientMetricData | null>(null);
-  const searchParams = useSearchParams();
 
   const handleMetricToggle = (metric: keyof typeof activeMetrics) => {
     setActiveMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
   };
   
-  const from = searchParams.get('from');
-  const to = searchParams.get('to');
-  
   const previousPeriodLabel = (() => {
-    if (!from || !to) return "previous period";
-    const fromDate = new Date(from.replace(/-/g, '/'));
-    const toDate = new Date(to.replace(/-/g, '/'));
-    const duration = differenceInDays(toDate, fromDate);
-    const prevTo = subDays(fromDate, 1);
+    if (!date?.from || !date?.to) return "previous period";
+    const duration = differenceInDays(date.to, date.from);
+    const prevTo = subDays(date.from, 1);
     const prevFrom = subDays(prevTo, duration);
     return `from ${format(prevFrom, 'MMM d')} - ${format(prevTo, 'MMM d, yyyy')}`;
   })();
 
   useEffect(() => {
     async function fetchData() {
-        if (!from || !to) return;
+        if (!date?.from || !date?.to) return;
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/analytics/client-metrics?from=${from}&to=${to}`);
+            const query = new URLSearchParams({
+                from: date.from.toISOString(),
+                to: date.to.toISOString()
+            });
+            const res = await fetch(`/api/analytics/client-metrics?${query.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch client metrics');
             const data = await res.json();
             setClientMetricsData(data);
@@ -59,7 +58,7 @@ export function ClientMetrics() {
         }
     }
     fetchData();
-  }, [from, to]);
+  }, [date]);
   
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />

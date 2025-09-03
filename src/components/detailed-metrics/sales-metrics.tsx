@@ -1,6 +1,8 @@
+
 "use client";
 
 import { useState, lazy, Suspense } from "react";
+import type { DateRange } from "react-day-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, ArrowUp, ArrowDown, EyeOff, BarChart } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,7 +16,7 @@ const salesMetrics = [
     { name: "Win rate", value: "65%", formula: "(Deals Closed / Total Opportunities)x100", change: "+5.0%", changeType: "increase" as const },
 ];
 
-export function SalesMetrics() {
+export function SalesMetrics({ date }: { date: DateRange | undefined }) {
   const [showChart, setShowChart] = useState(false);
   const [activeMetrics, setActiveMetrics] = useState({
     leadConversionRate: true,
