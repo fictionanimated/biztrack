@@ -3,7 +3,7 @@
 "use client";
 
 import { useState, memo, useEffect, lazy, Suspense, useMemo, useCallback } from "react";
-import { format, subDays, differenceInDays, startOfWeek, startOfMonth, getQuarter, getYear, parseISO, startOfQuarter, startOfYear } from "date-fns";
+import { format, subDays, differenceInDays, startOfWeek, startOfMonth, getQuarter, getYear, parseISO, startOfQuarter, startOfYear, differenceInMonths } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Loader2, Database } from "lucide-react";
@@ -190,17 +190,19 @@ const MemoizedExpensesDashboard = () => {
     const totalExpensesChange = prevTotalExpenses > 0 ? ((totalExpenses - prevTotalExpenses) / prevTotalExpenses) * 100 : (totalExpenses > 0 ? 100 : 0);
     
     let daysInPeriod = 1;
+    let monthsInPeriod = 1;
     let previousPeriodDescription = `vs. previous period`;
 
     if (date?.from && date?.to) {
         daysInPeriod = differenceInDays(date.to, date.from) + 1;
+        monthsInPeriod = differenceInMonths(date.to, date.from) + 1;
         previousPeriodDescription = `vs. previous ${daysInPeriod} days`;
     } else if (filteredExpenses.length > 0) {
-        // Handle "All Time"
         const dates = filteredExpenses.map(e => parseISO(e.date).getTime());
         const firstDate = new Date(Math.min(...dates));
         const lastDate = new Date(Math.max(...dates));
         daysInPeriod = differenceInDays(lastDate, firstDate) + 1;
+        monthsInPeriod = differenceInMonths(lastDate, firstDate) + 1;
         previousPeriodDescription = `from ${format(firstDate, "MMM d, yyyy")}`;
     }
 
@@ -208,6 +210,11 @@ const MemoizedExpensesDashboard = () => {
     const prevDaysInPeriod = date?.from && date?.to ? differenceInDays(subDays(date.from, 1), subDays(subDays(date.from, 1), daysInPeriod - 1)) + 1 : 1;
     const prevAvgDailyBurn = prevTotalExpenses / (prevDaysInPeriod > 0 ? prevDaysInPeriod : 1);
     const avgDailyBurnChange = prevAvgDailyBurn > 0 ? ((avgDailyBurn - prevAvgDailyBurn) / prevAvgDailyBurn) * 100 : (avgDailyBurn > 0 ? 100 : 0);
+    
+    const avgMonthlyExpense = totalExpenses / (monthsInPeriod > 0 ? monthsInPeriod : 1);
+    const prevMonthsInPeriod = date?.from && date?.to ? differenceInMonths(subDays(date.from, 1), subDays(subDays(date.from, 1), daysInPeriod-1)) + 1 : 1;
+    const prevAvgMonthlyExpense = prevTotalExpenses / (prevMonthsInPeriod > 0 ? prevMonthsInPeriod : 1);
+    const avgMonthlyExpenseChange = prevAvgMonthlyExpense > 0 ? ((avgMonthlyExpense - prevAvgMonthlyExpense) / prevAvgMonthlyExpense) * 100 : (avgMonthlyExpense > 0 ? 100 : 0);
 
     const categoryTotals = filteredExpenses.reduce((acc, { category, amount }) => {
         acc[category] = (acc[category] || 0) + amount;
@@ -216,22 +223,15 @@ const MemoizedExpensesDashboard = () => {
 
     const topSpendingCategory = Object.entries(categoryTotals).sort(([, a], [, b]) => b - a)[0] || ["N/A", 0];
 
-    const largestSingleExpense = [...filteredExpenses].sort((a, b) => b.amount - a.amount)[0] || { type: 'N/A', amount: 0 };
-    
-    const totalRecurringCost = filteredExpenses.filter(e => e.recurring).reduce((acc, exp) => acc + exp.amount, 0);
-    const fixedCostRatio = totalExpenses > 0 ? (totalRecurringCost / totalExpenses) * 100 : 0;
-
     return {
         totalExpenses,
         totalExpensesChange: totalExpensesChange ? { value: totalExpensesChange.toFixed(1), type: totalExpensesChange >= 0 ? 'increase' : 'decrease' } : null,
         avgDailyBurn,
         avgDailyBurnChange: avgDailyBurnChange && date?.from ? { value: avgDailyBurnChange.toFixed(1), type: avgDailyBurnChange >= 0 ? 'increase' : 'decrease' } : null,
+        avgMonthlyExpense,
+        avgMonthlyExpenseChange: avgMonthlyExpenseChange && date?.from ? { value: avgMonthlyExpenseChange.toFixed(1), type: avgMonthlyExpenseChange >= 0 ? 'increase' : 'decrease' } : null,
         previousPeriodDescription,
         topSpendingCategory: { name: topSpendingCategory[0], amount: topSpendingCategory[1] },
-        largestSingleExpense: { type: largestSingleExpense.type, amount: largestSingleExpense.amount },
-        momExpenseGrowth: totalExpensesChange ? { value: totalExpensesChange.toFixed(1), type: totalExpensesChange >= 0 ? 'increase' : 'decrease' } : null,
-        totalRecurringCost,
-        fixedCostRatio: { value: fixedCostRatio.toFixed(1) + '%' }
     };
   }, [filteredExpenses, previousPeriodExpenses, date]);
 

@@ -11,12 +11,10 @@ interface ExpensesKpiCardsProps {
     totalExpensesChange: { value: string; type: "increase" | "decrease" } | null;
     avgDailyBurn: number;
     avgDailyBurnChange: { value: string; type: "increase" | "decrease" } | null;
+    avgMonthlyExpense: number;
+    avgMonthlyExpenseChange: { value: string; type: "increase" | "decrease" } | null;
     previousPeriodDescription: string;
     topSpendingCategory: { name: string; amount: number };
-    largestSingleExpense: { type: string; amount: number };
-    momExpenseGrowth: { value: string; type: "increase" | "decrease" } | null;
-    totalRecurringCost: number;
-    fixedCostRatio: { value: string };
 }
 
 export function ExpensesKpiCards({
@@ -24,16 +22,14 @@ export function ExpensesKpiCards({
     totalExpensesChange,
     avgDailyBurn,
     avgDailyBurnChange,
+    avgMonthlyExpense,
+    avgMonthlyExpenseChange,
     previousPeriodDescription,
     topSpendingCategory,
-    largestSingleExpense,
-    momExpenseGrowth,
-    totalRecurringCost,
-    fixedCostRatio,
 }: ExpensesKpiCardsProps) {
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="lg:col-span-1">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
                 <CardHeader>
                     <CardTitle>Total Expenses</CardTitle>
                     <CardDescription>Total for the selected period.</CardDescription>
@@ -54,7 +50,7 @@ export function ExpensesKpiCards({
                     )}
                 </CardContent>
             </Card>
-            <Card className="lg:col-span-1">
+            <Card>
                 <CardHeader>
                     <CardTitle>Avg. Daily Burn</CardTitle>
                     <CardDescription>Average daily cost to run the business.</CardDescription>
@@ -75,7 +71,28 @@ export function ExpensesKpiCards({
                     )}
                 </CardContent>
             </Card>
-            <Card className="lg:col-span-1">
+             <Card>
+                <CardHeader>
+                    <CardTitle>Avg. Monthly Expense</CardTitle>
+                    <CardDescription>Average monthly cost in period.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-4xl font-bold">${avgMonthlyExpense.toFixed(2)}</p>
+                     {avgMonthlyExpenseChange && (
+                        <div className="text-xs text-muted-foreground mt-1 flex items-center">
+                            <span className={cn(
+                                "flex items-center gap-1 font-medium",
+                                avgMonthlyExpenseChange.type === 'increase' ? 'text-red-600' : 'text-green-600'
+                            )}>
+                                {avgMonthlyExpenseChange.type === 'increase' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                                {avgMonthlyExpenseChange.value}%
+                            </span>
+                            <span className="ml-1">{previousPeriodDescription}</span>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+            <Card>
                  <CardHeader>
                     <CardTitle>Top Spending Category</CardTitle>
                     <CardDescription>{topSpendingCategory.name}</CardDescription>
