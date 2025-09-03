@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useState, lazy, Suspense, useEffect } from "react";
+import { useState, lazy, Suspense, useEffect, useMemo } from "react";
 import type { DateRange } from "react-day-picker";
 import { format, subDays, differenceInDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +59,7 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
     fetchData();
   }, [date]);
 
-  const previousPeriodLabel = React.useMemo(() => {
+  const previousPeriodLabel = useMemo(() => {
     if (!date?.from || !date?.to) return "previous period";
     const from = date.from;
     const to = date.to;
@@ -68,74 +68,17 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
     const prevFrom = subDays(prevTo, duration);
     return `from ${format(prevFrom, 'MMM d')} to ${format(prevTo, 'MMM d, yyyy')}`;
   }, [date]);
-  
-  const renderMetricCard = (
-      name: string,
-      metricData: { value: number; change: number; previousValue: number; } | undefined,
-      formula: string,
-      { isPercentage = false, invertColor = false } = {}
-  ) => {
-    if (!metricData) {
-        return (
-            <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between min-h-[160px]">
-                <p className="text-sm font-medium text-muted-foreground">{name}</p>
-                <p className="text-2xl font-bold mt-1 text-muted-foreground">--</p>
-                 <div className="mt-2 pt-2 border-t space-y-1">
-                    <p className="text-xs text-muted-foreground">{formula}</p>
-                </div>
-            </div>
-        );
-    }
-    const { value, change, previousValue } = metricData;
-    const isPositive = invertColor ? change < 0 : change >= 0;
-    const displayValue = isPercentage ? `${value.toFixed(1)}%` : formatCurrency(value);
 
-    return (
-        <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between min-h-[160px]">
-            <div>
-                <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-muted-foreground">{name}</p>
-                     {change != null && (
-                        <span className={cn(
-                            "flex items-center gap-1 text-xs font-semibold",
-                            isPositive ? "text-green-600" : "text-red-600"
-                        )}>
-                            {change >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                            {`${Math.abs(change).toFixed(1)}%`}
-                        </span>
-                    )}
-                </div>
-                <p className="text-2xl font-bold mt-1">{displayValue}</p>
-            </div>
-            <div className="mt-2 pt-2 border-t space-y-1">
-                {previousValue != null ? (
-                    <>
-                        <p className="text-xs text-muted-foreground">
-                            vs. {isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                            {previousPeriodLabel}
-                        </p>
-                        <p className="text-xs text-muted-foreground pt-1">{formula}</p>
-                    </>
-                ) : (
-                     <p className="text-xs text-muted-foreground">{formula}</p>
-                )}
-            </div>
-        </div>
-    );
-  };
-  
-  const metricsToShow = [
-    { name: "Total Revenue", data: financialMetricsData?.totalRevenue, formula: "Sum of all income from services" },
-    { name: "Total Expenses", data: financialMetricsData?.totalExpenses, formula: "Sum of all business expenses", options: { invertColor: true } },
-    { name: "Net Profit", data: financialMetricsData?.netProfit, formula: "Total Revenue - Total Expenses" },
-    { name: "Profit Margin (%)", data: financialMetricsData?.profitMargin, formula: "((Revenue - Expenses) / Revenue) * 100", options: { isPercentage: true } },
-    { name: "Gross Margin (%)", data: financialMetricsData?.grossMargin, formula: "((Revenue - Salary) / Revenue) * 100", options: { isPercentage: true } },
-    { name: "Client Acquisition Cost (CAC)", data: financialMetricsData?.cac, formula: "Marketing Costs / New Clients", options: { invertColor: true } },
-    { name: "Customer Lifetime Value (CLTV)", data: financialMetricsData?.cltv, formula: "AOV × Repeat Purchase Rate × Avg. Lifespan" },
-    { name: "Average Order Value (AOV)", data: financialMetricsData?.aov, formula: "Total Revenue / Number of Orders" },
-  ];
+  const metricsToShow = financialMetricsData ? [
+    { name: "Total Revenue", data: financialMetricsData.totalRevenue, formula: "Sum of all income from services" },
+    { name: "Total Expenses", data: financialMetricsData.totalExpenses, formula: "Sum of all business expenses", options: { invertColor: true } },
+    { name: "Net Profit", data: financialMetricsData.netProfit, formula: "Total Revenue - Total Expenses" },
+    { name: "Profit Margin (%)", data: financialMetricsData.profitMargin, formula: "((Revenue - Expenses) / Revenue) * 100", options: { isPercentage: true } },
+    { name: "Gross Margin (%)", data: financialMetricsData.grossMargin, formula: "((Revenue - Salary) / Revenue) * 100", options: { isPercentage: true } },
+    { name: "Client Acquisition Cost (CAC)", data: financialMetricsData.cac, formula: "Marketing Costs / New Clients", options: { invertColor: true } },
+    { name: "Customer Lifetime Value (CLTV)", data: financialMetricsData.cltv, formula: "AOV × Repeat Purchase Rate × Avg. Lifespan" },
+    { name: "Average Order Value (AOV)", data: financialMetricsData.aov, formula: "Total Revenue / Number of Orders" },
+  ] : [];
   
   if (isLoading) {
     return (
@@ -175,10 +118,65 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {metricsToShow.map((metric) => renderMetricCard(metric.name, metric.data, metric.formula, metric.options))}
+          {metricsToShow.map((metric) => {
+            const { name, data: metricData, formula, options } = metric;
+            const isPercentage = options?.isPercentage || false;
+            const invertColor = options?.invertColor || false;
+            
+            if (!metricData) {
+                return (
+                    <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between min-h-[160px]">
+                        <p className="text-sm font-medium text-muted-foreground">{name}</p>
+                        <p className="text-2xl font-bold mt-1 text-muted-foreground">--</p>
+                        <div className="mt-2 pt-2 border-t space-y-1">
+                            <p className="text-xs text-muted-foreground">{formula}</p>
+                        </div>
+                    </div>
+                );
+            }
+            
+            const { value, change, previousValue } = metricData;
+            const isPositive = invertColor ? change < 0 : change >= 0;
+            const displayValue = isPercentage ? `${value.toFixed(1)}%` : formatCurrency(value);
+
+            return (
+                <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between min-h-[160px]">
+                    <div>
+                        <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-muted-foreground">{name}</p>
+                            {change != null && (
+                                <span className={cn(
+                                    "flex items-center gap-1 text-xs font-semibold",
+                                    isPositive ? "text-green-600" : "text-red-600"
+                                )}>
+                                    {change >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                                    {`${Math.abs(change).toFixed(1)}%`}
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-2xl font-bold mt-1">{displayValue}</p>
+                    </div>
+                    <div className="mt-2 pt-2 border-t space-y-1">
+                        {previousValue != null ? (
+                            <>
+                                <p className="text-xs text-muted-foreground">
+                                    vs. {isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {previousPeriodLabel}
+                                </p>
+                                <p className="text-xs text-muted-foreground pt-1">{formula}</p>
+                            </>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">{formula}</p>
+                        )}
+                    </div>
+                </div>
+            )
+          })}
         </div>
       </CardContent>
-       {showChart && (
+      {showChart && (
         <CardContent className="space-y-6">
              <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
                 <FinancialValueChart data={financialMetricsData.timeSeries} />
