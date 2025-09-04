@@ -1,4 +1,5 @@
 
+
 /**
  * @fileoverview Service for fetching and processing analytics data.
  */
@@ -388,6 +389,48 @@ export async function getSourceAnalytics(sourceId: string, fromDate?: string, to
         timeSeries,
         totals: { ...totals, ctr: totals.ctr },
         previousTotals: { ...previousTotals, ctr: previousTotals.ctr }
+    };
+}
+
+export async function getTotalRevenue(from: string, to: string) {
+    const fromDate = parseISO(from);
+    const toDate = parseISO(to);
+    
+    const ordersCol = await getOrdersCollection();
+    
+    const calculateRevenueForPeriod = async (start: Date, end: Date) => {
+        const revenueRes = await ordersCol.aggregate([
+            { $match: { date: { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') }, status: 'Completed' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]).toArray();
+        return revenueRes[0]?.total || 0;
+    };
+    
+    const durationInDays = differenceInDays(toDate, fromDate);
+    
+    const P2_to = toDate;
+    const P2_from = fromDate;
+    const P1_to = subDays(P2_from, 1);
+    const P1_from = subDays(P1_to, durationInDays);
+    const P0_to = subDays(P1_from, 1);
+    const P0_from = subDays(P0_to, durationInDays);
+    
+    const [currentPeriodRevenue, previousPeriodRevenue, periodBeforePreviousRevenue] = await Promise.all([
+        calculateRevenueForPeriod(P2_from, P2_to),
+        calculateRevenueForPeriod(P1_from, P1_to),
+        calculateRevenueForPeriod(P0_from, P0_to)
+    ]);
+    
+    const calculateChange = (currentVal: number, prevVal: number) => {
+        if (prevVal === 0) return currentVal > 0 ? 100 : 0;
+        return ((currentVal - prevVal) / prevVal) * 100;
+    };
+
+    return {
+        value: currentPeriodRevenue,
+        change: calculateChange(currentPeriodRevenue, previousPeriodRevenue),
+        previousValue: previousPeriodRevenue,
+        previousPeriodChange: calculateChange(previousPeriodRevenue, periodBeforePreviousRevenue)
     };
 }
 

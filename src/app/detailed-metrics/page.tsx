@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
@@ -12,6 +11,7 @@ import { SalesMetrics } from "@/components/detailed-metrics/sales-metrics";
 import { MarketingMetrics } from "@/components/detailed-metrics/marketing-metrics";
 import { ProjectMetrics } from "@/components/detailed-metrics/project-metrics";
 import { OrderMetrics } from "@/components/detailed-metrics/order-metrics";
+import { FinancialMetrics } from "@/components/detailed-metrics/financial-metrics";
 
 
 export default function DetailedMetricsPage() {
@@ -88,6 +88,7 @@ export default function DetailedMetricsPage() {
             </div>
 
             <div className="space-y-6">
+                <FinancialMetrics date={date} />
                 <OrderMetrics date={date} />
                 <ClientMetrics date={date} />
                 <GrowthMetrics date={date} previousPeriodLabel={previousPeriodLabel} />
