@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
@@ -12,6 +13,8 @@ import { MarketingMetrics } from "@/components/detailed-metrics/marketing-metric
 import { ProjectMetrics } from "@/components/detailed-metrics/project-metrics";
 import { OrderMetrics } from "@/components/detailed-metrics/order-metrics";
 import { FinancialMetrics } from "@/components/detailed-metrics/financial-metrics";
+import IncomeSourceFilter from "@/components/detailed-metrics/income-source-filter";
+import type { IncomeSource } from "@/lib/data/incomes-data";
 
 
 export default function DetailedMetricsPage() {
@@ -20,6 +23,9 @@ export default function DetailedMetricsPage() {
     const searchParams = useSearchParams();
 
     const [date, setDate] = useState<DateRange | undefined>(undefined);
+    const [incomeSources, setIncomeSources] = useState<string[]>([]);
+    const [selectedSources, setSelectedSources] = useState<string[]>([]);
+    const [isSourcesLoading, setIsSourcesLoading] = useState(true);
 
     useEffect(() => {
         const fromParam = searchParams.get('from');
@@ -35,6 +41,23 @@ export default function DetailedMetricsPage() {
              const from = new Date(today.getFullYear(), today.getMonth(), 1);
              setDate({ from, to: today });
         }
+        
+        async function fetchSources() {
+            setIsSourcesLoading(true);
+            try {
+                const res = await fetch('/api/incomes');
+                if (!res.ok) throw new Error('Failed to fetch income sources');
+                const data: IncomeSource[] = await res.json();
+                const sourceNames = data.map(s => s.name);
+                setIncomeSources(sourceNames);
+                setSelectedSources(sourceNames); // Initially select all
+            } catch (error) {
+                console.error("Error fetching income sources:", error);
+            } finally {
+                setIsSourcesLoading(false);
+            }
+        }
+        fetchSources();
 
     }, [searchParams]);
 
@@ -83,6 +106,12 @@ export default function DetailedMetricsPage() {
                     Detailed Metrics
                 </h1>
                 <div className="ml-auto flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+                    <IncomeSourceFilter 
+                        sources={incomeSources}
+                        selectedSources={selectedSources}
+                        onSelectionChange={setSelectedSources}
+                        isLoading={isSourcesLoading}
+                    />
                     <DateFilter date={date} setDate={handleSetDate} />
                 </div>
             </div>
