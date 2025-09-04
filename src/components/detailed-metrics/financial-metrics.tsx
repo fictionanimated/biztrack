@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 
 const otherFinancialMetrics = [
     { name: "Customer Lifetime Value (CLTV)", value: "$1,000", formula: "AOV × Repeat Purchase Rate × Avg. Lifespan", change: 5, previousPeriodChange: 8, previousValue: "$950", changeType: "increase" as const },
-    { name: "Average Order Value (AOV)", value: "$100", formula: "Total Revenue / Number of Orders", change: 12, previousPeriodChange: 2, previousValue: "$88", changeType: "increase" as const },
 ];
 
 const formatCurrency = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -74,6 +73,7 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
             { name: "Profit Margin (%)", data: metrics.profitMargin, formula: "((Revenue - Expenses) / Revenue) * 100", isPercentage: true },
             { name: "Gross Margin (%)", data: metrics.grossMargin, formula: "((Revenue - Salary) / Revenue) * 100", isPercentage: true },
             { name: "Client Acquisition Cost (CAC)", data: metrics.cac, formula: "Marketing Costs / New Clients", invertColor: true },
+            { name: "Average Order Value (AOV)", data: metrics.aov, formula: "Total Revenue / Number of Orders" },
         ];
     }, [metrics]);
 
@@ -88,7 +88,8 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
         const isPrevPositive = invertColor ? prevChangeType === "decrease" : prevChangeType === "increase";
         
         let displayValue: string, displayPreviousValue: string;
-        if (name === "Client Acquisition Cost (CAC)") {
+        
+        if (name === "Client Acquisition Cost (CAC)" || name === "Average Order Value (AOV)") {
              displayValue = formatCurrency(value);
              displayPreviousValue = formatCurrency(previousValue);
         } else if (isPercentage) {
@@ -114,12 +115,10 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
                     <p className="text-2xl font-bold mt-1">{displayValue}</p>
                 </div>
                 <div className="mt-2 pt-2 border-t space-y-1 text-xs">
-                     <div className="flex items-center text-xs">
-                        <span className={cn("flex items-center gap-1 font-semibold", isPrevPositive ? "text-green-600" : "text-red-600")}>
-                            {prevChangeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                            {`${Math.abs(previousPeriodChange).toFixed(1)}%`}
-                        </span>
-                    </div>
+                     <p className={cn("flex items-center gap-1 font-semibold", isPrevPositive ? "text-green-600" : "text-red-600")}>
+                        {prevChangeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                        {`${Math.abs(previousPeriodChange).toFixed(1)}%`}
+                    </p>
                     <p className="text-muted-foreground">from {displayPreviousValue} ({previousPeriodLabel})</p>
                     <p className="text-muted-foreground pt-1">{formula}</p>
                 </div>

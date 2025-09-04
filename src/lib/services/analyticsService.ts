@@ -136,6 +136,7 @@ export interface FinancialMetricData {
     profitMargin: FinancialMetric;
     grossMargin: FinancialMetric;
     cac: FinancialMetric;
+    aov: FinancialMetric;
 }
 
 
@@ -719,6 +720,8 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             { $group: { _id: null, total: { $sum: '$amount' } } }
         ]).toArray();
         
+        const totalOrdersPromise = ordersCol.countDocuments({ date: { $gte: startStr, $lte: endStr }, status: 'Completed' });
+
         const expensesPromise = expensesCol.aggregate([
             { $match: { date: { $gte: startStr, $lte: endStr } } },
             { $group: { _id: null, total: { $sum: '$amount' } } }
@@ -737,8 +740,8 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
         const newClientsPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
 
 
-        const [revenueRes, expensesRes, salaryExpensesRes, marketingExpensesRes, newClientsCount] = await Promise.all([
-            revenuePromise, expensesPromise, salaryExpensesPromise, marketingExpensesPromise, newClientsPromise
+        const [revenueRes, totalOrders, expensesRes, salaryExpensesRes, marketingExpensesRes, newClientsCount] = await Promise.all([
+            revenuePromise, totalOrdersPromise, expensesPromise, salaryExpensesPromise, marketingExpensesPromise, newClientsPromise
         ]);
         
         const totalRevenue = revenueRes[0]?.total || 0;
@@ -750,6 +753,7 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
         const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
         const grossMargin = totalRevenue > 0 ? ((totalRevenue - salaryExpenses) / totalRevenue) * 100 : 0;
         const cac = newClientsCount > 0 ? marketingExpenses / newClientsCount : 0;
+        const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
         
         return {
             totalRevenue,
@@ -757,7 +761,8 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             netProfit,
             profitMargin,
             grossMargin,
-            cac
+            cac,
+            aov
         };
     };
 
@@ -809,6 +814,12 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             previousPeriodChange: calculateChangePercentage(metricsP1.cac, metricsP0.cac),
             previousValue: metricsP1.cac,
         },
+        aov: {
+            value: metricsP2.aov,
+            change: calculateChangePercentage(metricsP2.aov, metricsP1.aov),
+            previousPeriodChange: calculateChangePercentage(metricsP1.aov, metricsP0.aov),
+            previousValue: metricsP1.aov,
+        }
     };
 }
 
