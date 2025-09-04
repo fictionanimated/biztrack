@@ -25,7 +25,12 @@ const calculateGrowth = (current: number, previous: number) => {
     return ((current - previous) / previous) * 100;
 };
 
-export function OrderMetrics({ date }: { date: DateRange | undefined }) {
+interface OrderMetricsProps {
+    date: DateRange | undefined;
+    selectedSources: string[];
+}
+
+export function OrderMetrics({ date, selectedSources }: OrderMetricsProps) {
   const [showChart, setShowChart] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [analyticsData, setAnalyticsData] = useState<OrderCountAnalytics | null>(null);
@@ -37,7 +42,8 @@ export function OrderMetrics({ date }: { date: DateRange | undefined }) {
         try {
             const query = new URLSearchParams({
                 from: date.from.toISOString(),
-                to: date.to.toISOString()
+                to: date.to.toISOString(),
+                sources: selectedSources.join(','),
             });
             const res = await fetch(`/api/analytics/order-count?${query.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch order count');
@@ -51,7 +57,7 @@ export function OrderMetrics({ date }: { date: DateRange | undefined }) {
         }
     }
     fetchData();
-  }, [date]);
+  }, [date, selectedSources]);
   
   const dynamicMetrics = useMemo(() => {
       if (!analyticsData) return {

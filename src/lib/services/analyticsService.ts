@@ -636,7 +636,7 @@ export async function getClientMetrics(from: string, to: string): Promise<Client
     };
 }
 
-export async function getOrderCountAnalytics(from: string, to: string): Promise<OrderCountAnalytics> {
+export async function getOrderCountAnalytics(from: string, to: string, sources?: string[]): Promise<OrderCountAnalytics> {
     const fromDate = parseISO(from);
     const toDate = parseISO(to);
 
@@ -649,6 +649,8 @@ export async function getOrderCountAnalytics(from: string, to: string): Promise<
     const p1_from = subDays(p1_to, durationInDays);
     const p0_to = subDays(p1_from, 1);
     const p0_from = subDays(p0_to, durationInDays);
+    
+    const sourceFilter = sources ? { source: { $in: sources } } : {};
 
     const getPeriodStats = async (start: Date, end: Date): Promise<PeriodOrderStats> => {
         const startStr = format(start, 'yyyy-MM-dd');
@@ -659,7 +661,8 @@ export async function getOrderCountAnalytics(from: string, to: string): Promise<
 
         const ordersInPeriod = await ordersCol.find({
             date: { $gte: startStr, $lte: endStr },
-            status: 'Completed'
+            status: 'Completed',
+            ...sourceFilter
         }).toArray();
 
         if (ordersInPeriod.length === 0) {

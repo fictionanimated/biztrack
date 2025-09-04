@@ -119,7 +119,7 @@ export default function DetailedMetricsPage() {
 
             <div className="space-y-6">
                 <FinancialMetrics date={date} selectedSources={selectedSources} />
-                <OrderMetrics date={date} />
+                <OrderMetrics date={date} selectedSources={selectedSources} />
                 <ClientMetrics date={date} />
                 <GrowthMetrics date={date} previousPeriodLabel={previousPeriodLabel} />
                 <SalesMetrics date={date} />
