@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, lazy, Suspense, useEffect, useMemo } from 'react';
@@ -12,9 +13,9 @@ import { format, subDays, differenceInDays } from 'date-fns';
 import type { FinancialMetricData } from '@/lib/services/analyticsService';
 
 const otherFinancialMetrics = [
-    { name: "Client Acquisition Cost (CAC)", value: "$100", formula: "Marketing Costs / New Clients", change: "-10", changeType: "decrease" as const, previousValue: "$110" },
-    { name: "Customer Lifetime Value (CLTV)", value: "$1,000", formula: "AOV × Repeat Purchase Rate × Avg. Lifespan", change: "+5", changeType: "increase" as const, previousValue: "$950" },
-    { name: "Average Order Value (AOV)", value: "$100", formula: "Total Revenue / Number of Orders", change: "+12", changeType: "increase" as const, previousValue: "$88" },
+    { name: "Client Acquisition Cost (CAC)", value: "$100", formula: "Marketing Costs / New Clients", change: -10, previousValue: "$110", changeType: "decrease" as const },
+    { name: "Customer Lifetime Value (CLTV)", value: "$1,000", formula: "AOV × Repeat Purchase Rate × Avg. Lifespan", change: 5, previousValue: "$950", changeType: "increase" as const },
+    { name: "Average Order Value (AOV)", value: "$100", formula: "Total Revenue / Number of Orders", change: 12, previousValue: "$88", changeType: "increase" as const },
 ];
 
 const formatCurrency = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -26,12 +27,20 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
 
     const previousPeriodLabel = useMemo(() => {
         if (!date?.from || !date?.to) return "previous period";
-        const from = date.from;
-        const to = date.to;
-        const duration = differenceInDays(to, from);
-        const prevTo = subDays(from, 1);
+        const duration = differenceInDays(date.to, date.from);
+        const prevTo = subDays(date.from, 1);
         const prevFrom = subDays(prevTo, duration);
-        return `from ${format(prevFrom, 'MMM d')} - ${format(prevTo, 'MMM d, yyyy')}`;
+        return `from ${format(prevFrom, 'MMM d')} to ${format(prevTo, 'MMM d')}`;
+    }, [date]);
+    
+    const periodBeforePreviousLabel = useMemo(() => {
+        if (!date?.from || !date?.to) return "period before";
+        const duration = differenceInDays(date.to, date.from);
+        const prevTo = subDays(date.from, 1);
+        const prevFrom = subDays(prevTo, duration);
+        const p0_to = subDays(prevFrom, 1);
+        const p0_from = subDays(p0_to, duration);
+        return `from ${format(p0_from, 'MMM d')} to ${format(p0_to, 'MMM d')}`;
     }, [date]);
 
     useEffect(() => {
@@ -60,43 +69,52 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
     const metricsToShow = useMemo(() => {
         if (!metrics) return [];
         return [
-            { name: "Total Revenue", value: formatCurrency(metrics.totalRevenue.value), change: metrics.totalRevenue.change, previousValue: formatCurrency(metrics.totalRevenue.previousValue), formula: "Sum of all order amounts" },
-            { name: "Total Expenses", value: formatCurrency(metrics.totalExpenses.value), change: metrics.totalExpenses.change, previousValue: formatCurrency(metrics.totalExpenses.previousValue), formula: "Sum of all business expenses", invertColor: true },
-            { name: "Net Profit", value: formatCurrency(metrics.netProfit.value), change: metrics.netProfit.change, previousValue: formatCurrency(metrics.netProfit.previousValue), formula: "Total Revenue - Total Expenses" },
-            { name: "Profit Margin (%)", value: `${metrics.profitMargin.value.toFixed(1)}%`, change: metrics.profitMargin.change, previousValue: `${metrics.profitMargin.previousValue.toFixed(1)}%`, formula: "((Revenue - Expenses) / Revenue) * 100" },
-            { name: "Gross Margin (%)", value: `${metrics.grossMargin.value.toFixed(1)}%`, change: metrics.grossMargin.change, previousValue: `${metrics.grossMargin.previousValue.toFixed(1)}%`, formula: "((Revenue - Salary) / Revenue) * 100" },
+            { name: "Total Revenue", data: metrics.totalRevenue, formula: "Sum of all order amounts" },
+            { name: "Total Expenses", data: metrics.totalExpenses, formula: "Sum of all business expenses", invertColor: true },
+            { name: "Net Profit", data: metrics.netProfit, formula: "Total Revenue - Total Expenses" },
+            { name: "Profit Margin (%)", data: metrics.profitMargin, formula: "((Revenue - Expenses) / Revenue) * 100", isPercentage: true },
+            { name: "Gross Margin (%)", data: metrics.grossMargin, formula: "((Revenue - Salary) / Revenue) * 100", isPercentage: true },
         ];
     }, [metrics]);
 
     const renderMetricCard = (metric: (typeof metricsToShow)[0]) => {
-        const changeType = metric.change >= 0 ? "increase" : "decrease";
-        const isPositive = metric.invertColor ? changeType === "decrease" : changeType === "increase";
+        const { name, data, formula, invertColor, isPercentage } = metric;
+        const { value, change, previousValue, previousPeriodChange } = data;
+
+        const changeType = change >= 0 ? "increase" : "decrease";
+        const isPositive = invertColor ? changeType === "decrease" : changeType === "increase";
+        
+        const prevChangeType = previousPeriodChange >= 0 ? "increase" : "decrease";
+        const isPrevPositive = invertColor ? prevChangeType === "decrease" : prevChangeType === "increase";
+
+        const displayValue = isPercentage ? `${value.toFixed(1)}%` : formatCurrency(value);
+        const displayPrevValue = isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue);
 
         return (
-            <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
+            <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
                 <div>
                     <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-muted-foreground">{metric.name}</p>
-                        {metric.change != null && (
+                        <p className="text-sm font-medium text-muted-foreground">{name}</p>
+                        {change != null && (
                             <span className={cn("flex items-center gap-1 text-xs font-semibold", isPositive ? "text-green-600" : "text-red-600")}>
                                 (
                                 {changeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                                {`${Math.abs(metric.change).toFixed(1)}%`}
+                                {`${Math.abs(change).toFixed(1)}%`}
                                 )
                             </span>
                         )}
                     </div>
-                    <p className="text-2xl font-bold mt-1">{metric.value}</p>
+                    <p className="text-2xl font-bold mt-1">{displayValue}</p>
                 </div>
                 <div className="mt-2 pt-2 border-t space-y-1 text-xs">
-                    {metric.change != null && (
-                         <div className={cn("flex items-center gap-1 font-semibold", isPositive ? "text-green-600" : "text-red-600")}>
-                             {changeType === 'increase' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                             {metric.change.toFixed(1)}%
-                             <p className="text-muted-foreground font-normal ml-1"> from {metric.previousValue} ({previousPeriodLabel})</p>
+                    {previousPeriodChange != null && (
+                         <div className={cn("flex items-center gap-1 font-semibold", isPrevPositive ? "text-green-600" : "text-red-600")}>
+                             {prevChangeType === 'increase' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                             {Math.abs(previousPeriodChange).toFixed(1)}%
+                             <p className="text-muted-foreground font-normal ml-1"> from {displayPrevValue} ({previousPeriodLabel})</p>
                          </div>
                     )}
-                    <p className="text-muted-foreground pt-1">{metric.formula}</p>
+                    <p className="text-muted-foreground pt-1">{formula}</p>
                 </div>
             </div>
         );

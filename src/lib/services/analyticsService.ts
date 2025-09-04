@@ -126,6 +126,7 @@ export interface FinancialMetric {
     value: number;
     change: number;
     previousValue: number;
+    previousPeriodChange: number;
 }
 
 export interface FinancialMetricData {
@@ -414,24 +415,46 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
 
         return { totalRevenue, totalExpenses, netProfit, profitMargin, grossMargin };
     };
-
+    
     const durationDays = differenceInDays(toDate, fromDate);
-    const prevToDate = subDays(fromDate, 1);
-    const prevFromDate = subDays(prevToDate, durationDays);
+    const p2_from = fromDate;
+    const p2_to = toDate;
+    const p1_to = subDays(p2_from, 1);
+    const p1_from = subDays(p1_to, durationDays);
+    const p0_to = subDays(p1_from, 1);
+    const p0_from = subDays(p0_to, durationDays);
 
-    const [currentMetrics, prevMetrics] = await Promise.all([
-        calculateMetricsForPeriod(fromDate, toDate),
-        calculateMetricsForPeriod(prevFromDate, prevToDate)
+    const [p2_metrics, p1_metrics, p0_metrics] = await Promise.all([
+        calculateMetricsForPeriod(p2_from, p2_to),
+        calculateMetricsForPeriod(p1_from, p1_to),
+        calculateMetricsForPeriod(p0_from, p0_to)
     ]);
     
     const calculateChange = (current: number, prev: number) => prev === 0 ? (current !== 0 ? 100 : 0) : ((current - prev) / prev) * 100;
+    
+    const createMetric = (current: number, previous: number, periodBeforePrevious: number): FinancialMetric => ({
+        value: current,
+        change: calculateChange(current, previous),
+        previousValue: previous,
+        previousPeriodChange: calculateChange(previous, periodBeforePrevious)
+    });
 
     return {
-        totalRevenue: { value: currentMetrics.totalRevenue, change: calculateChange(currentMetrics.totalRevenue, prevMetrics.totalRevenue), previousValue: prevMetrics.totalRevenue },
-        totalExpenses: { value: currentMetrics.totalExpenses, change: calculateChange(currentMetrics.totalExpenses, prevMetrics.totalExpenses), previousValue: prevMetrics.totalExpenses },
-        netProfit: { value: currentMetrics.netProfit, change: calculateChange(currentMetrics.netProfit, prevMetrics.netProfit), previousValue: prevMetrics.netProfit },
-        profitMargin: { value: currentMetrics.profitMargin, change: currentMetrics.profitMargin - prevMetrics.profitMargin, previousValue: prevMetrics.profitMargin },
-        grossMargin: { value: currentMetrics.grossMargin, change: currentMetrics.grossMargin - prevMetrics.grossMargin, previousValue: prevMetrics.grossMargin },
+        totalRevenue: createMetric(p2_metrics.totalRevenue, p1_metrics.totalRevenue, p0_metrics.totalRevenue),
+        totalExpenses: createMetric(p2_metrics.totalExpenses, p1_metrics.totalExpenses, p0_metrics.totalExpenses),
+        netProfit: createMetric(p2_metrics.netProfit, p1_metrics.netProfit, p0_metrics.netProfit),
+        profitMargin: {
+            value: p2_metrics.profitMargin,
+            change: p2_metrics.profitMargin - p1_metrics.profitMargin,
+            previousValue: p1_metrics.profitMargin,
+            previousPeriodChange: p1_metrics.profitMargin - p0_metrics.profitMargin,
+        },
+        grossMargin: {
+            value: p2_metrics.grossMargin,
+            change: p2_metrics.grossMargin - p1_metrics.grossMargin,
+            previousValue: p1_metrics.grossMargin,
+            previousPeriodChange: p1_metrics.grossMargin - p0_metrics.grossMargin
+        },
         timeSeries: [], // Placeholder
     };
 }
@@ -839,3 +862,5 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
+
+```
