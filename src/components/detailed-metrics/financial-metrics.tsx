@@ -79,7 +79,7 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
 
     const renderMetricCard = (metric: (typeof metricsToShow)[0]) => {
         const { name, data, formula, invertColor, isPercentage } = metric;
-        const { value, change, previousPeriodChange } = data;
+        const { value, change, previousPeriodChange, previousValue } = data;
 
         const currentChangeType = change >= 0 ? "increase" : "decrease";
         const isCurrentPositive = invertColor ? currentChangeType === "decrease" : currentChangeType === "increase";
@@ -88,6 +88,7 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
         const isPrevPositive = invertColor ? prevChangeType === "decrease" : prevChangeType === "increase";
 
         const displayValue = isPercentage ? `${value.toFixed(1)}%` : formatCurrency(value);
+        const displayPreviousValue = isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue);
 
         return (
             <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
@@ -109,8 +110,8 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
                             {prevChangeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                             {`${Math.abs(previousPeriodChange).toFixed(1)}%`}
                         </span>
-                        <span className="ml-1 text-muted-foreground">vs. prior period</span>
                     </div>
+                    <p className="text-muted-foreground">from {displayPreviousValue} ({previousPeriodLabel})</p>
                     <p className="text-muted-foreground pt-1">{formula}</p>
                 </div>
             </div>
@@ -155,8 +156,8 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
                                         {prevChangeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                                         {`${Math.abs(metric.previousPeriodChange).toFixed(1)}%`}
                                     </span>
-                                    <span className="ml-1 text-muted-foreground">vs. prior period</span>
                                 </div>
+                                <p className="text-muted-foreground">from {metric.previousValue} (from Jul 19 - Jul 28, 2025)</p>
                                 <p className="text-muted-foreground pt-1">{metric.formula}</p>
                             </div>
                         </div>

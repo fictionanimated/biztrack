@@ -126,6 +126,7 @@ export interface FinancialMetric {
     value: number;
     change: number;
     previousPeriodChange: number;
+    previousValue: number;
 }
 
 export interface FinancialMetricData {
@@ -753,26 +754,31 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             value: metricsP2.totalRevenue,
             change: calculateChangePercentage(metricsP2.totalRevenue, metricsP1.totalRevenue),
             previousPeriodChange: calculateChangePercentage(metricsP1.totalRevenue, metricsP0.totalRevenue),
+            previousValue: metricsP1.totalRevenue,
         },
         totalExpenses: {
             value: metricsP2.totalExpenses,
             change: calculateChangePercentage(metricsP2.totalExpenses, metricsP1.totalExpenses),
             previousPeriodChange: calculateChangePercentage(metricsP1.totalExpenses, metricsP0.totalExpenses),
+            previousValue: metricsP1.totalExpenses,
         },
         netProfit: {
             value: metricsP2.netProfit,
             change: calculateChangePercentage(metricsP2.netProfit, metricsP1.netProfit),
             previousPeriodChange: calculateChangePercentage(metricsP1.netProfit, metricsP0.netProfit),
+            previousValue: metricsP1.netProfit,
         },
         profitMargin: {
             value: metricsP2.profitMargin,
             change: metricsP2.profitMargin - metricsP1.profitMargin, // For percentages, absolute change is often more meaningful
             previousPeriodChange: metricsP1.profitMargin - metricsP0.profitMargin,
+            previousValue: metricsP1.profitMargin,
         },
         grossMargin: {
             value: metricsP2.grossMargin,
             change: metricsP2.grossMargin - metricsP1.grossMargin,
             previousPeriodChange: metricsP1.grossMargin - metricsP0.grossMargin,
+            previousValue: metricsP1.grossMargin,
         },
     };
 }
