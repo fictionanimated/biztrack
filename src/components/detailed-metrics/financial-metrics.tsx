@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, subDays, differenceInDays } from 'date-fns';
+import type { FinancialMetricData } from '@/lib/services/analyticsService';
+import { useToast } from '@/hooks/use-toast';
 
 const otherFinancialMetrics = [
     { name: "Client Acquisition Cost (CAC)", value: "$100", formula: "Marketing Costs / New Clients", change: -10, previousPeriodChange: -5, previousValue: "$110", changeType: "decrease" as const },
@@ -18,35 +20,43 @@ const otherFinancialMetrics = [
 
 const formatCurrency = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-interface FinancialMetric {
-    value: number;
-    change: number;
-    previousPeriodChange: number;
-    previousValue: number;
-}
-
-interface FinancialMetricData {
-    totalRevenue: FinancialMetric;
-    totalExpenses: FinancialMetric;
-    netProfit: FinancialMetric;
-    profitMargin: FinancialMetric;
-    grossMargin: FinancialMetric;
-}
-
-// Dummy data to replace the backend call
-const getDummyFinancialMetrics = (): FinancialMetricData => ({
-    totalRevenue: { value: 125000, change: 12.5, previousPeriodChange: 8.1, previousValue: 111111 },
-    totalExpenses: { value: 75000, change: 8.2, previousPeriodChange: 10.5, previousValue: 69316 },
-    netProfit: { value: 50000, change: 19.6, previousPeriodChange: 6.2, previousValue: 41800 },
-    profitMargin: { value: 40, change: 5.5, previousPeriodChange: -1.3, previousValue: 37.6 },
-    grossMargin: { value: 60, change: 2.1, previousPeriodChange: 3.5, previousValue: 58.7 },
-});
-
-
 export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
     const [showChart, setShowChart] = useState(false);
-    const [isLoading, setIsLoading] = useState(false); // Set to false as we are using dummy data
-    const [metrics, setMetrics] = useState<FinancialMetricData | null>(getDummyFinancialMetrics());
+    const [isLoading, setIsLoading] = useState(true);
+    const [metrics, setMetrics] = useState<FinancialMetricData | null>(null);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        async function fetchData() {
+            if (!date?.from || !date?.to) return;
+            setIsLoading(true);
+            try {
+                const query = new URLSearchParams({
+                    from: date.from.toISOString(),
+                    to: date.to.toISOString()
+                });
+                const res = await fetch(`/api/analytics/financial-metrics?${query.toString()}`);
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || 'Failed to fetch financial metrics');
+                }
+                const data: FinancialMetricData = await res.json();
+                setMetrics(data);
+            } catch (e) {
+                console.error("Error fetching financial metrics:", e);
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: (e as Error).message || "Could not load financial metrics.",
+                });
+                setMetrics(null);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        fetchData();
+    }, [date, toast]);
+    
 
     const previousPeriodLabel = useMemo(() => {
         if (!date?.from || !date?.to) return "previous period";
@@ -69,7 +79,7 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
 
     const renderMetricCard = (metric: (typeof metricsToShow)[0]) => {
         const { name, data, formula, invertColor, isPercentage } = metric;
-        const { value, change, previousValue, previousPeriodChange } = data;
+        const { value, change, previousPeriodChange } = data;
 
         const currentChangeType = change >= 0 ? "increase" : "decrease";
         const isCurrentPositive = invertColor ? currentChangeType === "decrease" : currentChangeType === "increase";
@@ -99,7 +109,7 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
                             {prevChangeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                             {`${Math.abs(previousPeriodChange).toFixed(1)}%`}
                         </span>
-                        <span className="ml-1 text-muted-foreground">vs. previous period</span>
+                        <span className="ml-1 text-muted-foreground">vs. prior period</span>
                     </div>
                     <p className="text-muted-foreground pt-1">{formula}</p>
                 </div>
@@ -114,6 +124,10 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
                     {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[180px] w-full" />)}
                 </div>
             )
+        }
+        
+        if (!metrics) {
+            return <p className="text-muted-foreground">Could not load financial data for the selected period.</p>
         }
 
         return (
@@ -141,7 +155,7 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
                                         {prevChangeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                                         {`${Math.abs(metric.previousPeriodChange).toFixed(1)}%`}
                                     </span>
-                                    <span className="ml-1 text-muted-foreground">vs. previous period</span>
+                                    <span className="ml-1 text-muted-foreground">vs. prior period</span>
                                 </div>
                                 <p className="text-muted-foreground pt-1">{metric.formula}</p>
                             </div>

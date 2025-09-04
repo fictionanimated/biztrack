@@ -125,7 +125,7 @@ export interface FinancialMetricTimeSeries {
 export interface FinancialMetric {
     value: number;
     change: number;
-    previousValue: number;
+    previousPeriodChange: number;
 }
 
 export interface FinancialMetricData {
@@ -134,7 +134,6 @@ export interface FinancialMetricData {
     netProfit: FinancialMetric;
     profitMargin: FinancialMetric;
     grossMargin: FinancialMetric;
-    timeSeries: FinancialMetricTimeSeries[]; // Placeholder
 }
 
 
@@ -690,6 +689,93 @@ export async function getOrderCountAnalytics(from: string, to: string): Promise<
     };
 }
 
+export async function getFinancialMetrics(from: string, to: string): Promise<FinancialMetricData> {
+    const fromDate = parseISO(from);
+    const toDate = parseISO(to);
+    
+    const durationInDays = differenceInDays(toDate, fromDate);
+    if (durationInDays < 0) throw new Error("Invalid date range for financial metrics.");
+
+    // Define three periods: P2 (current), P1 (previous), P0 (before previous)
+    const P2_to = toDate;
+    const P2_from = fromDate;
+    const P1_to = subDays(P2_from, 1);
+    const P1_from = subDays(P1_to, durationInDays);
+    const P0_to = subDays(P1_from, 1);
+    const P0_from = subDays(P0_to, durationInDays);
+
+    const ordersCol = await getOrdersCollection();
+    const expensesCol = await getExpensesCollection();
+    
+    const calculateMetricsForPeriod = async (start: Date, end: Date) => {
+        const startStr = format(start, 'yyyy-MM-dd');
+        const endStr = format(end, 'yyyy-MM-dd');
+        
+        const revenuePromise = ordersCol.aggregate([
+            { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]).toArray();
+        
+        const expensesPromise = expensesCol.aggregate([
+            { $match: { date: { $gte: startStr, $lte: endStr } } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]).toArray();
+
+        const [revenueRes, expensesRes] = await Promise.all([revenuePromise, expensesPromise]);
+        
+        const totalRevenue = revenueRes[0]?.total || 0;
+        const totalExpenses = expensesRes[0]?.total || 0;
+        const netProfit = totalRevenue - totalExpenses;
+        const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+        
+        return {
+            totalRevenue,
+            totalExpenses,
+            netProfit,
+            profitMargin,
+            grossMargin: profitMargin, // Assuming Gross Margin is the same as Profit Margin for simplicity
+        };
+    };
+
+    const [metricsP2, metricsP1, metricsP0] = await Promise.all([
+        calculateMetricsForPeriod(P2_from, P2_to),
+        calculateMetricsForPeriod(P1_from, P1_to),
+        calculateMetricsForPeriod(P0_from, P0_to)
+    ]);
+    
+    const calculateChangePercentage = (current: number, previous: number) => {
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return ((current - previous) / previous) * 100;
+    };
+    
+    return {
+        totalRevenue: {
+            value: metricsP2.totalRevenue,
+            change: calculateChangePercentage(metricsP2.totalRevenue, metricsP1.totalRevenue),
+            previousPeriodChange: calculateChangePercentage(metricsP1.totalRevenue, metricsP0.totalRevenue),
+        },
+        totalExpenses: {
+            value: metricsP2.totalExpenses,
+            change: calculateChangePercentage(metricsP2.totalExpenses, metricsP1.totalExpenses),
+            previousPeriodChange: calculateChangePercentage(metricsP1.totalExpenses, metricsP0.totalExpenses),
+        },
+        netProfit: {
+            value: metricsP2.netProfit,
+            change: calculateChangePercentage(metricsP2.netProfit, metricsP1.netProfit),
+            previousPeriodChange: calculateChangePercentage(metricsP1.netProfit, metricsP0.netProfit),
+        },
+        profitMargin: {
+            value: metricsP2.profitMargin,
+            change: metricsP2.profitMargin - metricsP1.profitMargin, // For percentages, absolute change is often more meaningful
+            previousPeriodChange: metricsP1.profitMargin - metricsP0.profitMargin,
+        },
+        grossMargin: {
+            value: metricsP2.grossMargin,
+            change: metricsP2.grossMargin - metricsP1.grossMargin,
+            previousPeriodChange: metricsP1.grossMargin - metricsP0.grossMargin,
+        },
+    };
+}
 
 export async function getYearlyStats(year: number): Promise<SingleYearData> {
     const ordersCol = await getOrdersCollection();

@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getFinancialMetrics } from '@/lib/services/analyticsService';
 
 const querySchema = z.object({
   from: z.string().optional(),
@@ -11,16 +12,22 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const query = Object.fromEntries(searchParams.entries());
-    // We still parse to ensure the request is valid, but we won't use the values.
-    querySchema.parse(query);
+    const { from, to } = querySchema.parse(query);
 
-    // Return an empty success response as the component now uses dummy data.
-    return NextResponse.json({ message: "Financial metrics are now handled on the client." });
+    if (!from || !to) {
+        return NextResponse.json({ error: 'A "from" and "to" date range is required.' }, { status: 400 });
+    }
+
+    const financialData = await getFinancialMetrics(from, to);
+
+    return NextResponse.json(financialData);
+
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid query parameters', details: error.errors }, { status: 400 });
     }
     console.error('API GET Error for financial metrics route:', error);
-    return NextResponse.json({ error: 'An error occurred on the financial metrics route' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+    return NextResponse.json({ error: 'Failed to fetch financial metrics', details: errorMessage }, { status: 500 });
   }
 }
