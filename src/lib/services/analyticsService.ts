@@ -126,7 +126,6 @@ export interface FinancialMetric {
     value: number;
     change: number;
     previousValue: number;
-    previousPeriodChange: number;
 }
 
 export interface FinancialMetricData {
@@ -135,10 +134,7 @@ export interface FinancialMetricData {
     netProfit: FinancialMetric;
     profitMargin: FinancialMetric;
     grossMargin: FinancialMetric;
-    cac: FinancialMetric;
-    cltv: FinancialMetric;
-    aov: FinancialMetric;
-    timeSeries: FinancialMetricTimeSeries[];
+    timeSeries: FinancialMetricTimeSeries[]; // Placeholder
 }
 
 
@@ -392,47 +388,54 @@ export async function getSourceAnalytics(sourceId: string, fromDate?: string, to
     };
 }
 
-export async function getTotalRevenue(from: string, to: string) {
+export async function getFinancialMetrics(from: string, to: string): Promise<FinancialMetricData> {
     const fromDate = parseISO(from);
     const toDate = parseISO(to);
-    
-    const ordersCol = await getOrdersCollection();
-    
-    const calculateRevenueForPeriod = async (start: Date, end: Date) => {
-        const revenueRes = await ordersCol.aggregate([
-            { $match: { date: { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') }, status: 'Completed' } },
-            { $group: { _id: null, total: { $sum: '$amount' } } }
-        ]).toArray();
-        return revenueRes[0]?.total || 0;
-    };
-    
-    const durationInDays = differenceInDays(toDate, fromDate);
-    
-    const P2_to = toDate;
-    const P2_from = fromDate;
-    const P1_to = subDays(P2_from, 1);
-    const P1_from = subDays(P1_to, durationInDays);
-    const P0_to = subDays(P1_from, 1);
-    const P0_from = subDays(P0_to, durationInDays);
-    
-    const [currentPeriodRevenue, previousPeriodRevenue, periodBeforePreviousRevenue] = await Promise.all([
-        calculateRevenueForPeriod(P2_from, P2_to),
-        calculateRevenueForPeriod(P1_from, P1_to),
-        calculateRevenueForPeriod(P0_from, P0_to)
-    ]);
-    
-    const calculateChange = (currentVal: number, prevVal: number) => {
-        if (prevVal === 0) return currentVal > 0 ? 100 : 0;
-        return ((currentVal - prevVal) / prevVal) * 100;
+
+    const calculateMetricsForPeriod = async (start: Date, end: Date) => {
+        const startStr = format(start, 'yyyy-MM-dd');
+        const endStr = format(end, 'yyyy-MM-dd');
+        
+        const ordersCol = await getOrdersCollection();
+        const expensesCol = await getExpensesCollection();
+
+        const revenueRes = await ordersCol.aggregate([{ $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]).toArray();
+        const totalRevenue = revenueRes[0]?.total || 0;
+        
+        const expensesRes = await expensesCol.aggregate([{ $match: { date: { $gte: startStr, $lte: endStr } } }, { $group: { _id: null, total: { $sum: '$amount' } } }]).toArray();
+        const totalExpenses = expensesRes[0]?.total || 0;
+
+        const salaryExpensesRes = await expensesCol.aggregate([{ $match: { date: { $gte: startStr, $lte: endStr }, category: 'Salary' } }, { $group: { _id: null, total: { $sum: '$amount' } } }]).toArray();
+        const salaryExpenses = salaryExpensesRes[0]?.total || 0;
+
+        const netProfit = totalRevenue - totalExpenses;
+        const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+        const grossMargin = totalRevenue > 0 ? ((totalRevenue - salaryExpenses) / totalRevenue) * 100 : 0;
+
+        return { totalRevenue, totalExpenses, netProfit, profitMargin, grossMargin };
     };
 
+    const durationDays = differenceInDays(toDate, fromDate);
+    const prevToDate = subDays(fromDate, 1);
+    const prevFromDate = subDays(prevToDate, durationDays);
+
+    const [currentMetrics, prevMetrics] = await Promise.all([
+        calculateMetricsForPeriod(fromDate, toDate),
+        calculateMetricsForPeriod(prevFromDate, prevToDate)
+    ]);
+    
+    const calculateChange = (current: number, prev: number) => prev === 0 ? (current !== 0 ? 100 : 0) : ((current - prev) / prev) * 100;
+
     return {
-        value: currentPeriodRevenue,
-        change: calculateChange(currentPeriodRevenue, previousPeriodRevenue),
-        previousValue: previousPeriodRevenue,
-        previousPeriodChange: calculateChange(previousPeriodRevenue, periodBeforePreviousRevenue)
+        totalRevenue: { value: currentMetrics.totalRevenue, change: calculateChange(currentMetrics.totalRevenue, prevMetrics.totalRevenue), previousValue: prevMetrics.totalRevenue },
+        totalExpenses: { value: currentMetrics.totalExpenses, change: calculateChange(currentMetrics.totalExpenses, prevMetrics.totalExpenses), previousValue: prevMetrics.totalExpenses },
+        netProfit: { value: currentMetrics.netProfit, change: calculateChange(currentMetrics.netProfit, prevMetrics.netProfit), previousValue: prevMetrics.netProfit },
+        profitMargin: { value: currentMetrics.profitMargin, change: currentMetrics.profitMargin - prevMetrics.profitMargin, previousValue: prevMetrics.profitMargin },
+        grossMargin: { value: currentMetrics.grossMargin, change: currentMetrics.grossMargin - prevMetrics.grossMargin, previousValue: prevMetrics.grossMargin },
+        timeSeries: [], // Placeholder
     };
 }
+
 
 export async function getGrowthMetrics(from: string, to: string): Promise<GrowthMetricData> {
     const fromDate = parseISO(from);
