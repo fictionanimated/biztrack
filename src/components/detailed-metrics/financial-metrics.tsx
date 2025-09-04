@@ -33,16 +33,6 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
         return `from ${format(prevFrom, 'MMM d')} to ${format(prevTo, 'MMM d')}`;
     }, [date]);
     
-    const periodBeforePreviousLabel = useMemo(() => {
-        if (!date?.from || !date?.to) return "period before";
-        const duration = differenceInDays(date.to, date.from);
-        const prevTo = subDays(date.from, 1);
-        const prevFrom = subDays(prevTo, duration);
-        const p0_to = subDays(prevFrom, 1);
-        const p0_from = subDays(p0_to, duration);
-        return `from ${format(p0_from, 'MMM d')} to ${format(p0_to, 'MMM d')}`;
-    }, [date]);
-
     useEffect(() => {
         async function fetchMetrics() {
             if (!date?.from || !date?.to) return;
@@ -108,10 +98,11 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
                 </div>
                 <div className="mt-2 pt-2 border-t space-y-1 text-xs">
                     {previousPeriodChange != null && (
-                         <div className={cn("flex items-center gap-1 font-semibold", isPrevPositive ? "text-green-600" : "text-red-600")}>
-                             {prevChangeType === 'increase' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                             {Math.abs(previousPeriodChange).toFixed(1)}%
-                             <p className="text-muted-foreground font-normal ml-1"> from {displayPrevValue} ({previousPeriodLabel})</p>
+                         <div className="flex items-center gap-1">
+                            <span className={cn("font-semibold", isPrevPositive ? "text-green-600" : "text-red-600")}>
+                             {prevChangeType === 'increase' ? <ArrowUp className="h-3 w-3 inline" /> : <ArrowDown className="h-3 w-3 inline" />} {Math.abs(previousPeriodChange).toFixed(1)}%
+                            </span>
+                             <p className="text-muted-foreground font-normal ml-1"> from previous period</p>
                          </div>
                     )}
                     <p className="text-muted-foreground pt-1">{formula}</p>
