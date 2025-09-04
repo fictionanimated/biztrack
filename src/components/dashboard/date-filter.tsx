@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, differenceInDays, differenceInWeeks, differenceInMonths } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 
@@ -27,8 +27,30 @@ export function DateFilter({
 }: DateFilterProps) {
   const [isOpen, setIsOpen] = React.useState(false);
 
+  const renderDuration = () => {
+    if (date?.from && date.to) {
+      const days = differenceInDays(date.to, date.from) + 1;
+      const weeks = differenceInWeeks(date.to, date.from);
+      const months = differenceInMonths(date.to, date.from);
+
+      const parts = [];
+      if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+      if (weeks > 0) parts.push(`${weeks} week${weeks > 1 ? 's' : ''}`);
+      if (months > 0) parts.push(`${months} month${months > 1 ? 's' : ''}`);
+
+      if (parts.length > 0) {
+        return (
+            <p className="text-xs text-muted-foreground mt-1 text-center">
+                {parts.join(' | ')}
+            </p>
+        );
+      }
+    }
+    return null;
+  };
+
   return (
-    <div className={cn("grid gap-2", className)}>
+    <div className={cn("grid gap-1", className)}>
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -77,6 +99,7 @@ export function DateFilter({
           </div>
         </PopoverContent>
       </Popover>
+      {renderDuration()}
     </div>
   );
 }
