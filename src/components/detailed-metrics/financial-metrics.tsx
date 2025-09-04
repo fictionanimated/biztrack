@@ -11,9 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format, subDays, differenceInDays } from 'date-fns';
 
 const otherFinancialMetrics = [
-    { name: "Client Acquisition Cost (CAC)", value: "$100", formula: "Marketing Costs / New Clients", change: -10, previousValue: "$110", changeType: "decrease" as const },
-    { name: "Customer Lifetime Value (CLTV)", value: "$1,000", formula: "AOV × Repeat Purchase Rate × Avg. Lifespan", change: 5, previousValue: "$950", changeType: "increase" as const },
-    { name: "Average Order Value (AOV)", value: "$100", formula: "Total Revenue / Number of Orders", change: 12, previousValue: "$88", changeType: "increase" as const },
+    { name: "Client Acquisition Cost (CAC)", value: "$100", formula: "Marketing Costs / New Clients", change: -10, previousPeriodChange: -5, previousValue: "$110", changeType: "decrease" as const },
+    { name: "Customer Lifetime Value (CLTV)", value: "$1,000", formula: "AOV × Repeat Purchase Rate × Avg. Lifespan", change: 5, previousPeriodChange: 8, previousValue: "$950", changeType: "increase" as const },
+    { name: "Average Order Value (AOV)", value: "$100", formula: "Total Revenue / Number of Orders", change: 12, previousPeriodChange: 2, previousValue: "$88", changeType: "increase" as const },
 ];
 
 const formatCurrency = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -21,6 +21,7 @@ const formatCurrency = (value: number) => `$${value.toLocaleString('en-US', { mi
 interface FinancialMetric {
     value: number;
     change: number;
+    previousPeriodChange: number;
     previousValue: number;
 }
 
@@ -34,11 +35,11 @@ interface FinancialMetricData {
 
 // Dummy data to replace the backend call
 const getDummyFinancialMetrics = (): FinancialMetricData => ({
-    totalRevenue: { value: 125000, change: 12.5, previousValue: 111111 },
-    totalExpenses: { value: 75000, change: 8.2, previousValue: 69316 },
-    netProfit: { value: 50000, change: 19.6, previousValue: 41800 },
-    profitMargin: { value: 40, change: 5.5, previousValue: 37.6 },
-    grossMargin: { value: 60, change: 2.1, previousValue: 58.7 },
+    totalRevenue: { value: 125000, change: 12.5, previousPeriodChange: 8.1, previousValue: 111111 },
+    totalExpenses: { value: 75000, change: 8.2, previousPeriodChange: 10.5, previousValue: 69316 },
+    netProfit: { value: 50000, change: 19.6, previousPeriodChange: 6.2, previousValue: 41800 },
+    profitMargin: { value: 40, change: 5.5, previousPeriodChange: -1.3, previousValue: 37.6 },
+    grossMargin: { value: 60, change: 2.1, previousPeriodChange: 3.5, previousValue: 58.7 },
 });
 
 
@@ -68,13 +69,15 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
 
     const renderMetricCard = (metric: (typeof metricsToShow)[0]) => {
         const { name, data, formula, invertColor, isPercentage } = metric;
-        const { value, change, previousValue } = data;
+        const { value, change, previousValue, previousPeriodChange } = data;
 
-        const changeType = change >= 0 ? "increase" : "decrease";
-        const isPositive = invertColor ? changeType === "decrease" : changeType === "increase";
+        const currentChangeType = change >= 0 ? "increase" : "decrease";
+        const isCurrentPositive = invertColor ? currentChangeType === "decrease" : currentChangeType === "increase";
+
+        const prevChangeType = previousPeriodChange >= 0 ? "increase" : "decrease";
+        const isPrevPositive = invertColor ? prevChangeType === "decrease" : prevChangeType === "increase";
 
         const displayValue = isPercentage ? `${value.toFixed(1)}%` : formatCurrency(value);
-        const displayPrevValue = isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue);
 
         return (
             <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
@@ -82,18 +85,22 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
                     <div className="flex items-center justify-between">
                         <p className="text-sm font-medium text-muted-foreground">{name}</p>
                         {change != null && (
-                            <span className={cn("flex items-center gap-1 text-xs font-semibold", isPositive ? "text-green-600" : "text-red-600")}>
-                                (
-                                {changeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                            <span className={cn("flex items-center gap-1 text-xs font-semibold", isCurrentPositive ? "text-green-600" : "text-red-600")}>
+                                {currentChangeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                                 {`${Math.abs(change).toFixed(1)}%`}
-                                )
                             </span>
                         )}
                     </div>
                     <p className="text-2xl font-bold mt-1">{displayValue}</p>
                 </div>
                 <div className="mt-2 pt-2 border-t space-y-1 text-xs">
-                     <p className="text-muted-foreground">vs. {displayPrevValue} ({previousPeriodLabel})</p>
+                     <div className="flex items-center text-xs">
+                        <span className={cn("flex items-center gap-1 font-semibold", isPrevPositive ? "text-green-600" : "text-red-600")}>
+                            {prevChangeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                            {`${Math.abs(previousPeriodChange).toFixed(1)}%`}
+                        </span>
+                        <span className="ml-1 text-muted-foreground">vs. previous period</span>
+                    </div>
                     <p className="text-muted-foreground pt-1">{formula}</p>
                 </div>
             </div>
@@ -113,23 +120,29 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {metricsToShow.map(renderMetricCard)}
                 {otherFinancialMetrics.map((metric) => {
-                    const isPositive = metric.changeType === "increase";
+                    const isCurrentPositive = metric.changeType === "increase";
+                    const prevChangeType = metric.previousPeriodChange >= 0 ? "increase" : "decrease";
+                    const isPrevPositive = prevChangeType === "increase";
                     return (
                         <div key={metric.name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between opacity-50">
                             <div>
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm font-medium text-muted-foreground">{metric.name}</p>
-                                    <span className={cn("flex items-center gap-1 text-xs font-semibold", isPositive ? "text-green-600" : "text-red-600")}>
-                                        (
-                                        {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                                    <span className={cn("flex items-center gap-1 text-xs font-semibold", isCurrentPositive ? "text-green-600" : "text-red-600")}>
+                                        {isCurrentPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                                         {metric.change}%
-                                        )
                                     </span>
                                 </div>
                                 <p className="text-2xl font-bold mt-1">{metric.value}</p>
                             </div>
                             <div className="mt-2 pt-2 border-t space-y-1 text-xs">
-                                <p className="text-muted-foreground">vs. {metric.previousValue} ({previousPeriodLabel})</p>
+                                <div className="flex items-center text-xs">
+                                    <span className={cn("flex items-center gap-1 font-semibold", isPrevPositive ? "text-green-600" : "text-red-600")}>
+                                        {prevChangeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                                        {`${Math.abs(metric.previousPeriodChange).toFixed(1)}%`}
+                                    </span>
+                                    <span className="ml-1 text-muted-foreground">vs. previous period</span>
+                                </div>
                                 <p className="text-muted-foreground pt-1">{metric.formula}</p>
                             </div>
                         </div>
