@@ -13,7 +13,6 @@ import type { FinancialMetricData } from '@/lib/services/analyticsService';
 import { useToast } from '@/hooks/use-toast';
 
 const otherFinancialMetrics = [
-    { name: "Client Acquisition Cost (CAC)", value: "$100", formula: "Marketing Costs / New Clients", change: -10, previousPeriodChange: -5, previousValue: "$110", changeType: "decrease" as const },
     { name: "Customer Lifetime Value (CLTV)", value: "$1,000", formula: "AOV × Repeat Purchase Rate × Avg. Lifespan", change: 5, previousPeriodChange: 8, previousValue: "$950", changeType: "increase" as const },
     { name: "Average Order Value (AOV)", value: "$100", formula: "Total Revenue / Number of Orders", change: 12, previousPeriodChange: 2, previousValue: "$88", changeType: "increase" as const },
 ];
@@ -74,6 +73,7 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
             { name: "Net Profit", data: metrics.netProfit, formula: "Total Revenue - Total Expenses" },
             { name: "Profit Margin (%)", data: metrics.profitMargin, formula: "((Revenue - Expenses) / Revenue) * 100", isPercentage: true },
             { name: "Gross Margin (%)", data: metrics.grossMargin, formula: "((Revenue - Salary) / Revenue) * 100", isPercentage: true },
+            { name: "Client Acquisition Cost (CAC)", data: metrics.cac, formula: "Marketing Costs / New Clients", invertColor: true },
         ];
     }, [metrics]);
 
@@ -86,9 +86,18 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
 
         const prevChangeType = previousPeriodChange >= 0 ? "increase" : "decrease";
         const isPrevPositive = invertColor ? prevChangeType === "decrease" : prevChangeType === "increase";
-
-        const displayValue = isPercentage ? `${value.toFixed(1)}%` : formatCurrency(value);
-        const displayPreviousValue = isPercentage ? `${previousValue.toFixed(1)}%` : formatCurrency(previousValue);
+        
+        let displayValue: string, displayPreviousValue: string;
+        if (name === "Client Acquisition Cost (CAC)") {
+             displayValue = formatCurrency(value);
+             displayPreviousValue = formatCurrency(previousValue);
+        } else if (isPercentage) {
+            displayValue = `${value.toFixed(1)}%`;
+            displayPreviousValue = `${previousValue.toFixed(1)}%`;
+        } else {
+            displayValue = formatCurrency(value);
+            displayPreviousValue = formatCurrency(previousValue);
+        }
 
         return (
             <div key={name} className="rounded-lg border bg-background/50 p-4 flex flex-col justify-between">
@@ -157,7 +166,7 @@ export function FinancialMetrics({ date }: { date: DateRange | undefined }) {
                                         {`${Math.abs(metric.previousPeriodChange).toFixed(1)}%`}
                                     </span>
                                 </div>
-                                <p className="text-muted-foreground">from {metric.previousValue} (from Jul 19 - Jul 28, 2025)</p>
+                                <p className="text-muted-foreground">from {metric.previousValue} ({previousPeriodLabel})</p>
                                 <p className="text-muted-foreground pt-1">{metric.formula}</p>
                             </div>
                         </div>

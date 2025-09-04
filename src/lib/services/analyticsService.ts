@@ -135,6 +135,7 @@ export interface FinancialMetricData {
     netProfit: FinancialMetric;
     profitMargin: FinancialMetric;
     grossMargin: FinancialMetric;
+    cac: FinancialMetric;
 }
 
 
@@ -707,6 +708,7 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
 
     const ordersCol = await getOrdersCollection();
     const expensesCol = await getExpensesCollection();
+    const clientsCol = await getClientsCollection();
     
     const calculateMetricsForPeriod = async (start: Date, end: Date) => {
         const startStr = format(start, 'yyyy-MM-dd');
@@ -726,15 +728,28 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Salary' } },
             { $group: { _id: null, total: { $sum: '$amount' } } }
         ]).toArray();
+        
+        const marketingExpensesPromise = expensesCol.aggregate([
+            { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Marketing' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]).toArray();
+        
+        const newClientsPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
 
-        const [revenueRes, expensesRes, salaryExpensesRes] = await Promise.all([revenuePromise, expensesPromise, salaryExpensesPromise]);
+
+        const [revenueRes, expensesRes, salaryExpensesRes, marketingExpensesRes, newClientsCount] = await Promise.all([
+            revenuePromise, expensesPromise, salaryExpensesPromise, marketingExpensesPromise, newClientsPromise
+        ]);
         
         const totalRevenue = revenueRes[0]?.total || 0;
         const totalExpenses = expensesRes[0]?.total || 0;
         const salaryExpenses = salaryExpensesRes[0]?.total || 0;
+        const marketingExpenses = marketingExpensesRes[0]?.total || 0;
+        
         const netProfit = totalRevenue - totalExpenses;
         const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
         const grossMargin = totalRevenue > 0 ? ((totalRevenue - salaryExpenses) / totalRevenue) * 100 : 0;
+        const cac = newClientsCount > 0 ? marketingExpenses / newClientsCount : 0;
         
         return {
             totalRevenue,
@@ -742,6 +757,7 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             netProfit,
             profitMargin,
             grossMargin,
+            cac
         };
     };
 
@@ -786,6 +802,12 @@ export async function getFinancialMetrics(from: string, to: string): Promise<Fin
             change: metricsP2.grossMargin - metricsP1.grossMargin,
             previousPeriodChange: metricsP1.grossMargin - metricsP0.grossMargin,
             previousValue: metricsP1.grossMargin,
+        },
+        cac: {
+            value: metricsP2.cac,
+            change: calculateChangePercentage(metricsP2.cac, metricsP1.cac),
+            previousPeriodChange: calculateChangePercentage(metricsP1.cac, metricsP0.cac),
+            previousValue: metricsP1.cac,
         },
     };
 }
