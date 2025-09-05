@@ -140,6 +140,13 @@ export interface FinancialMetricData {
     cltv: FinancialMetric;
 }
 
+export interface ConversionMetricData {
+    leadConversionRate: {
+        value: number;
+        change: number;
+    }
+}
+
 
 export interface ClientMetricData {
     totalClients: { value: number; change: number };
@@ -500,7 +507,7 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
     ]);
     
     const P2_topSourcePrevPeriodRevenue = P2_metrics.topSource.source !== 'N/A' 
-        ? (await ordersCol.aggregate([ { $match: { source: P2_metrics.topSource.source, date: { $gte: format(P1_from, 'yyyy-MM-dd'), $lte: format(P1_to, 'yyyy-MM-dd') }, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray())[0]?.total || 0
+        ? (await ordersCol.aggregate([ { $match: { source: P2_metrics.topSource.source, date: { $gte: format(P1_from, 'yyyy-MM-dd'), $lte: format(P1_to, 'yyyy-MM-dd') }, status: 'Completed', ...sourceFilter } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray())[0]?.total || 0
         : 0;
 
     return {
@@ -546,31 +553,26 @@ export async function getClientMetrics(from: string, to: string, sources?: strin
             ]).toArray(),
             clientsCol.aggregate([
                  { $match: sourceFilter },
-                { $lookup: { from: 'orders', localField: 'username', foreignField: 'clientUsername', as: 'clientOrders' } },
-                { $addFields: { clientOrders: { $filter: { input: "$clientOrders", as: "order", cond: { $ne: ["$$order.status", "Cancelled"] } } } } },
-                { $match: { 'clientOrders.1': { $exists: true } } },
-                { $addFields: {
-                    firstOrderDate: { $min: '$clientOrders.date' },
-                    lastOrderDate: { $max: '$clientOrders.date' },
-                }},
-                { $match: { lastOrderDate: { $gte: startStr, $lte: endStr } } },
-                { $project: {
-                    lifespanDays: {
-                        $cond: {
-                             if: { $and: [{ $ne: ['$firstOrderDate', null] }, { $ne: ['$lastOrderDate', null] }, { $ne: ['$firstOrderDate', '$lastOrderDate'] }] },
-                             then: {
-                                $divide: [
-                                    { $subtract: [
-                                        { $dateFromString: { dateString: '$lastOrderDate' } },
-                                        { $dateFromString: { dateString: '$firstOrderDate' } }
-                                    ]},
-                                    1000 * 60 * 60 * 24
-                                ]
-                             },
-                             else: 0
-                        }
+                {
+                    $lookup: {
+                        from: 'orders',
+                        let: { client_username: '$username' },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: { $eq: ['$clientUsername', '$$client_username'] },
+                                    ...sourceFilter, // Filter orders by source here
+                                    status: { $ne: 'Cancelled' }
+                                }
+                            }
+                        ],
+                        as: 'clientOrders'
                     }
-                }},
+                },
+                { $match: { 'clientOrders.1': { $exists: true } } },
+                { $addFields: { firstOrderDate: { $min: '$clientOrders.date' }, lastOrderDate: { $max: '$clientOrders.date' } } },
+                { $match: { lastOrderDate: { $gte: startStr, $lte: endStr } } },
+                { $project: { lifespanDays: { $cond: { if: { $and: [{ $ne: ['$firstOrderDate', null] }, { $ne: ['$lastOrderDate', null] }, { $ne: ['$firstOrderDate', '$lastOrderDate'] }] }, then: { $divide: [ { $subtract: [ { $dateFromString: { dateString: '$lastOrderDate' } }, { $dateFromString: { dateString: '$firstOrderDate' } } ]}, 1000 * 60 * 60 * 24 ] }, else: 0 } } } }
             ]).toArray(),
         ]);
         
@@ -973,4 +975,61 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
     }
 
     return data;
+}
+
+export async function getConversionMetrics(from: string, to: string, sources?: string[]): Promise<ConversionMetricData> {
+    const fromDate = parseISO(from);
+    const toDate = parseISO(to);
+    
+    const durationInDays = differenceInDays(toDate, fromDate);
+    if (durationInDays < 0) throw new Error("Invalid date range for conversion metrics.");
+
+    const prevToDate = subDays(fromDate, 1);
+    const prevFromDate = subDays(prevToDate, durationInDays);
+
+    const getMetricsForPeriod = async (start: Date, end: Date) => {
+        const startStr = format(start, 'yyyy-MM-dd');
+        const endStr = format(end, 'yyyy-MM-dd');
+
+        const sourceFilter = sources ? { name: { $in: sources } } : {};
+        const orderSourceFilter = sources ? { source: { $in: sources } } : {};
+        
+        const ordersCol = await getOrdersCollection();
+        const incomesCol = await getIncomesCollection();
+
+        const totalOrdersPromise = ordersCol.countDocuments({
+            date: { $gte: startStr, $lte: endStr },
+            status: 'Completed',
+            ...orderSourceFilter
+        });
+        
+        const incomesInPeriod = await incomesCol.find(sourceFilter).toArray();
+
+        let totalMessages = 0;
+        incomesInPeriod.forEach(source => {
+            (source.dataPoints || []).forEach(dp => {
+                const dpDate = parseISO(dp.date);
+                if (dpDate >= start && dpDate <= end) {
+                    totalMessages += dp.messages;
+                }
+            });
+        });
+
+        const totalOrders = await totalOrdersPromise;
+        const leadConversionRate = totalMessages > 0 ? (totalOrders / totalMessages) * 100 : 0;
+
+        return { totalOrders, totalMessages, leadConversionRate };
+    };
+
+    const [currentMetrics, prevMetrics] = await Promise.all([
+        getMetricsForPeriod(fromDate, toDate),
+        getMetricsForPeriod(prevFromDate, prevToDate)
+    ]);
+    
+    return {
+        leadConversionRate: {
+            value: currentMetrics.leadConversionRate,
+            change: currentMetrics.leadConversionRate - prevMetrics.leadConversionRate,
+        }
+    };
 }
