@@ -1,9 +1,10 @@
 
+
 /**
  * @fileoverview Service for fetching and processing analytics data.
  */
 import { ObjectId } from 'mongodb';
-import { format, subDays, eachDayOfInterval, differenceInDays, parseISO, sub, startOfMonth, endOfMonth, eachMonthOfInterval, startOfYear, endOfYear, getMonth, getYear, differenceInMonths } from 'date-fns';
+import { format, subDays, eachDayOfInterval, differenceInDays, parseISO, sub, startOfMonth, endOfMonth, eachMonthOfInterval, startOfYear, endOfYear, getMonth, getYear, differenceInMonths, startOfWeek } from 'date-fns';
 import clientPromise from '@/lib/mongodb';
 import { type Competitor } from '@/lib/data/incomes-data';
 import type { IncomeSource } from '@/lib/data/incomes-data';
@@ -677,7 +678,7 @@ export async function getOrderCountAnalytics(from: string, to: string, sources?:
         const clientUsernamesInPeriod = [...new Set(ordersInPeriod.map(o => o.clientUsername))];
 
         const clientsFromDB = await clientsCol.find(
-            { username: { $in: clientUsernamesInPeriod } },
+            { username: { $in: clientUsernamesInPeriod }, ...sourceFilter },
             { projection: { username: 1, clientSince: 1 } }
         ).toArray();
         
@@ -957,3 +958,4 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
+
