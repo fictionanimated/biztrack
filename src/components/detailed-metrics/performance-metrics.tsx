@@ -17,18 +17,20 @@ const formatValue = (value: number, type: 'number' | 'currency' | 'percentage') 
 }
 
 const dummyMetrics = [
-    { name: "Impressions", value: 1250000, change: 12.5, previousValue: 1100000, type: 'number', formula: "Total views of your gigs/profiles" },
-    { name: "Clicks", value: 75000, change: 8.2, previousValue: 69316, type: 'number', formula: "Total clicks on your gigs/profiles" },
-    { name: "Messages", value: 1200, change: -5.1, previousValue: 1264, type: 'number', formula: "Total initial messages from new clients" },
-    { name: "Click-Through Rate (CTR)", value: 6.0, change: -3.8, previousValue: 6.3, type: 'percentage', formula: "(Clicks / Impressions) * 100" },
+    { name: "Impressions", value: 1250000, change: 12.5, previousValue: 1100000, previousPeriodChange: 10.2, type: 'number', formula: "Total views of your gigs/profiles" },
+    { name: "Clicks", value: 75000, change: 8.2, previousValue: 69316, previousPeriodChange: 7.5, type: 'number', formula: "Total clicks on your gigs/profiles" },
+    { name: "Messages", value: 1200, change: -5.1, previousValue: 1264, previousPeriodChange: -2.0, type: 'number', formula: "Total initial messages from new clients" },
+    { name: "Click-Through Rate (CTR)", value: 6.0, change: -3.8, previousValue: 6.3, previousPeriodChange: -0.5, type: 'percentage', formula: "(Clicks / Impressions) * 100" },
 ];
 
 export function PerformanceMetrics() {
   const [showChart, setShowChart] = useState(false);
 
   const renderMetricCard = (metric: (typeof dummyMetrics)[0]) => {
-      const { name, value, change, previousValue, type, formula } = metric;
-      const isPositive = change >= 0;
+      const { name, value, change, previousValue, previousPeriodChange, type, formula } = metric;
+      
+      const isCurrentPositive = change >= 0;
+      const isPrevPositive = previousPeriodChange >= 0;
 
       const displayValue = formatValue(value, type as any);
       const displayPreviousValue = formatValue(previousValue, type as any);
@@ -39,8 +41,8 @@ export function PerformanceMetrics() {
                   <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-muted-foreground">{name}</p>
                       {change != null && (
-                          <span className={cn("flex items-center gap-1 text-xs font-semibold", isPositive ? "text-green-600" : "text-red-600")}>
-                              {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                          <span className={cn("flex items-center gap-1 text-xs font-semibold", isCurrentPositive ? "text-green-600" : "text-red-600")}>
+                              {isCurrentPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                               {`${Math.abs(change).toFixed(1)}%`}
                           </span>
                       )}
@@ -48,7 +50,11 @@ export function PerformanceMetrics() {
                   <p className="text-2xl font-bold mt-1">{displayValue}</p>
               </div>
               <div className="mt-2 pt-2 border-t space-y-1 text-xs">
-                   <p className="text-muted-foreground">vs {displayPreviousValue} (previous period)</p>
+                   <p className={cn("flex items-center gap-1 font-semibold", isPrevPositive ? "text-green-600" : "text-red-600")}>
+                        {isPrevPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                        {`${Math.abs(previousPeriodChange).toFixed(1)}%`}
+                    </p>
+                   <p className="text-muted-foreground">from {displayPreviousValue} (previous period)</p>
                    <p className="text-muted-foreground pt-1">{formula}</p>
               </div>
           </div>
@@ -85,4 +91,3 @@ export function PerformanceMetrics() {
       </Card>
   );
 }
-
