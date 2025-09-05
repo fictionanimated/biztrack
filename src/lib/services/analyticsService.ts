@@ -221,7 +221,7 @@ async function processAnalytics(
         return ordersCollection.aggregate([
             { $match: { 
                 source: source.name,
-                ...(gigNames.length > 0 && { gig: { $in: gigNames } }),
+                ...(gigNames.length > 0 && gigNames[0] && { gig: { $in: gigNames } }),
                 date: { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') },
                 status: { $ne: 'Cancelled' }
             }},
@@ -621,7 +621,7 @@ export async function getClientMetrics(from: string, to: string, sources?: strin
                             {
                                 $match: {
                                     $expr: { $eq: ['$clientUsername', '$$client_username'] },
-                                    ...sourceFilter,
+                                    ...sourceFilter, // Also filter orders by source inside lookup
                                     status: { $ne: 'Cancelled' }
                                 }
                             }
