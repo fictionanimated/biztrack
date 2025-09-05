@@ -4,7 +4,6 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,58 +34,51 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { IncomeSource } from "@/lib/data/incomes-data";
-
-const addDataFormSchema = z.object({
-    date: z.date({ required_error: "A date is required." }),
-    messages: z.coerce.number().int().min(0, { message: "Number of messages must be a non-negative number." }),
-});
-type AddDataFormValues = z.infer<typeof addDataFormSchema>;
+import { addMessageDataSchema, type AddMessageDataFormValues } from "@/lib/data/messages-data";
 
 interface AddSourceDataDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     source: IncomeSource | null;
-    onDataAdded: (updatedSource: IncomeSource) => void;
+    onDataAdded: () => void;
 }
 
 export function AddSourceDataDialog({ open, onOpenChange, source, onDataAdded }: AddSourceDataDialogProps) {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    const form = useForm<AddDataFormValues>({
-        resolver: zodResolver(addDataFormSchema),
+    const form = useForm<AddMessageDataFormValues>({
+        resolver: zodResolver(addMessageDataSchema),
         defaultValues: {
             date: new Date(),
             messages: 0,
+            sourceId: source?.id || "",
         },
     });
 
-    const selectedDate = form.watch("date");
-
     useEffect(() => {
-        if (source && selectedDate) {
-            const dateString = format(selectedDate, "yyyy-MM-dd");
-            const existingData = source.dataPoints?.find(dp => dp.date === dateString);
-            form.setValue("messages", existingData?.messages || 0);
+        if (source) {
+            form.setValue("sourceId", source.id);
         }
-    }, [selectedDate, source, form]);
+    }, [source, form]);
 
-    async function onSubmit(values: AddDataFormValues) {
+
+    async function onSubmit(values: AddMessageDataFormValues) {
         if (!source) return;
         setIsSubmitting(true);
         try {
-            const response = await fetch(`/api/incomes/${source.id}/data`, {
+            const response = await fetch(`/api/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(values),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to add data to source');
+                 const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to add data to source');
             }
 
-            const { source: updatedSource } = await response.json();
-            onDataAdded(updatedSource);
+            onDataAdded();
             toast({ title: "Data Saved", description: `Message data for ${format(values.date, "PPP")} has been saved.` });
             onOpenChange(false);
         } catch (error) {

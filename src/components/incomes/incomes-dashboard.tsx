@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import type { IncomeSource, Gig, SourceDataPoint } from "@/lib/data/incomes-data";
+import type { IncomeSource, Gig } from "@/lib/data/incomes-data";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IncomeSourceAccordion } from "./income-source-accordion";
 import { AddSourceDialog } from "./dialogs/add-source-dialog";
@@ -120,10 +120,6 @@ export function IncomesDashboard() {
             return source;
         })
     );
-  };
-
-  const handleSourceDataAdded = (updatedSource: IncomeSource) => {
-    setIncomeSources(prev => prev.map(s => s.id === updatedSource.id ? updatedSource : s));
   };
   
   const handleGigDataAdded = (updatedSourceWithGig: IncomeSource) => {
@@ -258,7 +254,9 @@ export function IncomesDashboard() {
             open={isAddDataDialogOpen}
             onOpenChange={setIsAddDataDialogOpen}
             source={updatingSource}
-            onDataAdded={handleSourceDataAdded}
+            onDataAdded={() => {
+                // No need to update state here as messages are separate
+            }}
         />
       )}
 

@@ -38,21 +38,8 @@ const calculateMetricsForPeriod = (source: IncomeSource, periodFrom?: Date, peri
     const clicks = aggregatedAnalyticsData.reduce((acc, curr) => acc + curr.clicks, 0);
     const orders = 0; // This will be calculated from the Orders collection now.
     const revenue = 0; // This will be calculated from the Orders collection now.
-
-    const messagesMap = new Map<string, { messages: number }>();
-    (source.dataPoints ?? [])
-        .filter(dp => isDateInRange(new Date(dp.date.replace(/-/g, '/'))))
-        .forEach(dp => {
-            const existing = messagesMap.get(dp.date) || { messages: 0 };
-            messagesMap.set(dp.date, {
-                messages: existing.messages + dp.messages,
-            });
-        });
-    const aggregatedMessagesData = Array.from(messagesMap.entries())
-        .map(([date, data]) => ({ date, ...data }))
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    const sourceMessages = aggregatedMessagesData.reduce((acc, curr) => acc + curr.messages, 0);
+    const sourceMessages = 0; // This will now come from the messages collection.
+    const aggregatedMessagesData: any[] = [];
     
     return { impressions, clicks, orders, revenue, sourceMessages, aggregatedAnalytics: aggregatedAnalyticsData, aggregatedMessages: aggregatedMessagesData };
 };

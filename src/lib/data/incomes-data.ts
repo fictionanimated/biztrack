@@ -33,17 +33,11 @@ export interface Gig {
   }[];
 }
 
-export interface SourceDataPoint {
-  date: string;
-  messages: number;
-}
-
 export interface IncomeSource {
   _id?: ObjectId; // From MongoDB
   id: string; // String version of _id or a separate unique ID
   name: string;
   gigs: Gig[];
-  dataPoints?: SourceDataPoint[];
 }
 
 const generateAnalytics = (startDate: Date, days: number, baseImpressions: number, baseClicks: number) => {
@@ -60,17 +54,6 @@ const generateAnalytics = (startDate: Date, days: number, baseImpressions: numbe
     });
 };
 
-const generateMessages = (startDate: Date, days: number, baseMessages: number) => {
-    return Array.from({ length: days }, (_, i) => {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i);
-        return {
-            date: format(date, "yyyy-MM-dd"),
-            messages: Math.max(0, baseMessages + Math.floor(Math.random() * 10 - 5)),
-        };
-    });
-};
-
 // This initial data will only be used if the database is empty.
 export const initialIncomeSources: Omit<IncomeSource, '_id' | 'id'>[] = [
   {
@@ -80,18 +63,15 @@ export const initialIncomeSources: Omit<IncomeSource, '_id' | 'id'>[] = [
       { id: "g2", name: "Startup Landing Page", date: "2023-01-25", messages: 52, analytics: generateAnalytics(new Date("2024-04-01"), 60, 300, 20) },
       { id: "g3", name: "E-commerce Site for 'ShopEasy'", date: "2023-02-05", messages: 210, analytics: generateAnalytics(new Date("2024-04-01"), 60, 800, 60) },
     ],
-    dataPoints: generateMessages(new Date("2024-04-01"), 60, 15),
   },
   {
     name: "Consulting",
     gigs: [{ id: "g4", name: "Q1 Strategy Session", date: "2023-01-20", messages: 30, analytics: generateAnalytics(new Date("2024-04-01"), 60, 150, 10) }],
-    dataPoints: generateMessages(new Date("2024-04-01"), 60, 5),
   },
   {
     name: "Logo Design",
     gigs: [
       { id: "g5", name: "Brand Identity for 'Innovate'", date: "2023-02-01", messages: 15, analytics: generateAnalytics(new Date("2024-04-01"), 60, 200, 15) },
     ],
-    dataPoints: [],
   },
 ];

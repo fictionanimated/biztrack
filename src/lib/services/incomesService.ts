@@ -8,7 +8,7 @@ import { ObjectId } from 'mongodb';
 import { randomBytes } from 'crypto';
 
 import clientPromise from '@/lib/mongodb';
-import type { IncomeSource, Gig, SourceDataPoint } from '@/lib/data/incomes-data';
+import type { IncomeSource, Gig } from '@/lib/data/incomes-data';
 import { initialIncomeSources, formSchema } from '@/lib/data/incomes-data';
 
 const addGigFormSchema = z.object({
@@ -29,12 +29,6 @@ const addGigDataFormSchema = z.object({
     clicks: z.coerce.number().int().min(0),
 });
 type AddGigDataFormValues = z.infer<typeof addGigDataFormSchema>;
-
-const addSourceDataFormSchema = z.object({
-    date: z.date({ required_error: "A date is required." }),
-    messages: z.coerce.number().int().min(0, { message: "Number of messages must be a non-negative number." }),
-});
-type AddSourceDataFormValues = z.infer<typeof addSourceDataFormSchema>;
 
 
 async function getIncomesCollection() {
@@ -88,7 +82,6 @@ export async function addIncomeSource(sourceData: z.infer<typeof formSchema>): P
       date: format(new Date(gig.date), 'yyyy-MM-dd'),
       analytics: [],
     })),
-    dataPoints: [],
   };
 
   const result = await incomesCollection.insertOne(newSource);
@@ -320,46 +313,4 @@ export async function addAnalyticsToGig(sourceId: string, gigId: string, analyti
 
     const updatedSource = await incomesCollection.findOne({ _id: new ObjectId(sourceId) });
     return updatedSource?.gigs.find(g => g.id === gigId) || null;
-}
-
-/**
- * Adds or updates a general data point for an income source on a specific date.
- * @param sourceId The ID of the income source.
- * @param dataPoint The data point (date and messages).
- * @returns The updated income source.
- */
-export async function addDataToSource(sourceId: string, dataPoint: AddSourceDataFormValues): Promise<IncomeSource | null> {
-    const incomesCollection = await getIncomesCollection();
-    const _id = new ObjectId(sourceId);
-    const dateString = format(dataPoint.date, "yyyy-MM-dd");
-
-    const newDataPoint = {
-        date: dateString,
-        messages: dataPoint.messages,
-    };
-    
-    // First, try to update an existing entry for this date
-    const updateResult = await incomesCollection.updateOne(
-        { _id, "dataPoints.date": dateString },
-        { $set: { "dataPoints.$.messages": dataPoint.messages } }
-    );
-    
-    // If no document was updated, it means no entry for this date exists, so we add it
-    if (updateResult.matchedCount === 0) {
-        await incomesCollection.updateOne(
-            { _id },
-            { $push: { dataPoints: newDataPoint } }
-        );
-    }
-
-    const updatedSource = await incomesCollection.findOne({ _id });
-    
-    if (!updatedSource) {
-        return null;
-    }
-    
-    return {
-        ...updatedSource,
-        id: updatedSource._id.toString(),
-    } as IncomeSource;
 }

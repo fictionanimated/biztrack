@@ -44,6 +44,12 @@ async function getBusinessNotesCollection() {
     return client.db("biztrack-pro").collection<Omit<BusinessNote, 'id' | 'date'>>('businessNotes');
 }
 
+async function getMessagesCollection() {
+    const client = await clientPromise;
+    return client.db("biztrack-pro").collection('messages');
+}
+
+
 // Interfaces for Analytics Data
 export interface TimeSeriesDataPoint {
     date: string;
@@ -181,6 +187,7 @@ async function processAnalytics(
 ) {
     const incomesCollection = await getIncomesCollection();
     const ordersCollection = await getOrdersCollection();
+    const messagesCollection = await getMessagesCollection();
 
     const { from, to } = dateRange;
     const duration = to.getTime() - from.getTime();
@@ -240,16 +247,36 @@ async function processAnalytics(
                 }
             });
         });
-        (source.dataPoints || []).forEach(dp => {
-             if (dataMap.has(dp.date)) {
-                dataMap.get(dp.date)!.messages += dp.messages;
-            }
-        });
         return dataMap;
     };
 
     const currentSourceMap = aggregateSourceData(dateArray);
     const prevSourceMap = aggregateSourceData(prevDateArray);
+
+    const getMessagesForPeriod = async (start: Date, end: Date) => {
+        return messagesCollection.aggregate([
+             { $match: { 
+                sourceId: source._id.toString(),
+                date: { $gte: format(start, 'yyyy-MM-dd'), $lte: format(end, 'yyyy-MM-dd') }
+            }},
+            { $group: {
+                _id: "$date",
+                messages: { $sum: '$messages' }
+            }}
+        ]).toArray();
+    };
+
+    const [currentMessages, previousMessages] = await Promise.all([
+        getMessagesForPeriod(from, to),
+        getMessagesForPeriod(prevFrom, prevTo)
+    ]);
+
+    currentMessages.forEach(msg => {
+        if(currentSourceMap.has(msg._id)) currentSourceMap.get(msg._id)!.messages = msg.messages;
+    });
+     previousMessages.forEach(msg => {
+        if(prevSourceMap.has(msg._id)) prevSourceMap.get(msg._id)!.messages = msg.messages;
+    });
 
     // Combine all data into a time series
     const timeSeries = dateArray.map((date, i) => {
@@ -315,19 +342,34 @@ async function processAnalytics(
 }
 
 // Function to get the full date range of data for a source
-async function getFullDateRange(sourceName: string) {
+async function getFullDateRange(sourceName: string, sourceId: string) {
     const ordersCollection = await getOrdersCollection();
     const incomesCollection = await getIncomesCollection();
+    const messagesCollection = await getMessagesCollection();
 
-    const orderDateRange = await ordersCollection.aggregate([
+    const orderDateRangePromise = ordersCollection.aggregate([
         { $match: { source: sourceName } },
         { $group: { _id: null, minDate: { $min: "$date" }, maxDate: { $max: "$date" } } }
     ]).toArray();
+    
+    const messageDateRangePromise = messagesCollection.aggregate([
+        { $match: { sourceId: sourceId } },
+        { $group: { _id: null, minDate: { $min: "$date" }, maxDate: { $max: "$date" } } }
+    ]).toArray();
 
-    const source = await incomesCollection.findOne({ name: sourceName });
+    const sourcePromise = incomesCollection.findOne({ name: sourceName });
+
+    const [orderDateRange, messageDateRange, source] = await Promise.all([orderDateRangePromise, messageDateRangePromise, sourcePromise]);
+
     let analyticsDates = source?.gigs.flatMap(g => g.analytics?.map(a => a.date) || []) || [];
-    let dataPointDates = source?.dataPoints?.map(dp => dp.date) || [];
-    const allDates = [...(orderDateRange[0]?.minDate ? [orderDateRange[0].minDate] : []), ...(orderDateRange[0]?.maxDate ? [orderDateRange[0].maxDate] : []), ...analyticsDates, ...dataPointDates].filter(Boolean);
+    
+    const allDates = [
+        orderDateRange[0]?.minDate,
+        orderDateRange[0]?.maxDate,
+        messageDateRange[0]?.minDate,
+        messageDateRange[0]?.maxDate,
+        ...analyticsDates
+    ].filter(Boolean);
 
     if (allDates.length === 0) return null;
 
@@ -372,7 +414,7 @@ export async function getSourceAnalytics(sourceId: string, fromDate?: string, to
     if (fromDate && toDate) {
         dateRange = { from: new Date(fromDate.replace(/-/g, '/')), to: new Date(toDate.replace(/-/g, '/')) };
     } else {
-        const fullRange = await getFullDateRange(sourceDoc.name);
+        const fullRange = await getFullDateRange(sourceDoc.name, sourceId);
         if (!fullRange) {
              return {
                 sourceId,
@@ -898,18 +940,21 @@ export async function getMarketingMetrics(from: string, to: string, sources: str
         const sourceFilter = { source: { $in: sources } };
 
         const expensesCol = await getExpensesCollection();
-        const incomesCol = await getIncomesCollection();
+        const messagesCol = await getMessagesCollection();
         const ordersCol = await getOrdersCollection();
+        const incomesCol = await getIncomesCollection();
 
+        // Get source IDs from names
+        const incomeSourceDocs = await incomesCol.find({ name: { $in: sources } }).project({ _id: 1 }).toArray();
+        const sourceIds = incomeSourceDocs.map(s => s._id.toString());
+        
         const marketingExpensesPromise = expensesCol.aggregate([
             { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Marketing' } },
             { $group: { _id: null, total: { $sum: '$amount' } } }
         ]).toArray();
 
-        const messagesPromise = incomesCol.aggregate([
-            { $match: { name: { $in: sources } } },
-            { $unwind: "$dataPoints" },
-            { $match: { "dataPoints.date": { $gte: startStr, $lte: endStr } } },
+        const messagesPromise = messagesCol.aggregate([
+            { $match: { sourceId: { $in: sourceIds }, date: { $gte: startStr, $lte: endStr } } },
             { $group: { _id: null, total: { $sum: '$messages' } } }
         ]).toArray();
 
