@@ -392,7 +392,7 @@ export async function getSourceAnalytics(sourceId: string, fromDate?: string, to
     };
 }
 
-export async function getGrowthMetrics(from: string, to: string): Promise<GrowthMetricData> {
+export async function getGrowthMetrics(from: string, to: string, sources?: string[]): Promise<GrowthMetricData> {
     const fromDate = parseISO(from);
     const toDate = parseISO(to);
     
@@ -415,21 +415,23 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
         return ((currentVal - prevVal) / prevVal) * 100;
     }
 
+    const sourceFilter = sources ? { source: { $in: sources } } : {};
+    
     const calcMonthMetrics = async (start: Date, end: Date) => {
         const startStr = format(start, 'yyyy-MM-dd');
         const endStr = format(end, 'yyyy-MM-dd');
 
-        const revenueRes = await ordersCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const revenueRes = await ordersCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed', ...sourceFilter } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
         const expensesRes = await expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr } } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const ordersInPeriod = await ordersCol.find({ date: { $gte: startStr, $lte: endStr }, status: 'Completed' }).toArray();
+        const ordersInPeriod = await ordersCol.find({ date: { $gte: startStr, $lte: endStr }, status: 'Completed', ...sourceFilter }).toArray();
         
         const revenue = revenueRes[0]?.total || 0;
         return {
             revenue: revenue,
             netProfit: revenue - (expensesRes[0]?.total || 0),
             aov: ordersInPeriod.length > 0 ? revenue / ordersInPeriod.length : 0,
-            newClients: await clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } }),
-            clientsAtStart: await clientsCol.countDocuments({ clientSince: { $lt: startStr } }),
+            newClients: await clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr }, ...sourceFilter }),
+            clientsAtStart: await clientsCol.countDocuments({ clientSince: { $lt: startStr }, ...sourceFilter }),
         };
     };
 
@@ -464,14 +466,14 @@ export async function getGrowthMetrics(from: string, to: string): Promise<Growth
         const startStr = format(start, 'yyyy-MM-dd');
         const endStr = format(end, 'yyyy-MM-dd');
 
-        const revenuePromise = ordersCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const revenuePromise = ordersCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed', ...sourceFilter } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
         const expensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr } } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const ordersInPeriodPromise = ordersCol.find({ date: { $gte: startStr, $lte: endStr }, status: 'Completed' }).toArray();
-        const sourcesPromise = ordersCol.aggregate([{$match: {date: {$gte: startStr, $lte: endStr}, status: 'Completed'}}, {$group: {_id: "$source", revenue: {$sum: "$amount"}}}, {$sort: {revenue: -1}}, {$limit: 1}]).toArray();
+        const ordersInPeriodPromise = ordersCol.find({ date: { $gte: startStr, $lte: endStr }, status: 'Completed', ...sourceFilter }).toArray();
+        const sourcesPromise = ordersCol.aggregate([{$match: {date: {$gte: startStr, $lte: endStr}, status: 'Completed', ...sourceFilter}}, {$group: {_id: "$source", revenue: {$sum: "$amount"}}}, {$sort: {revenue: -1}}, {$limit: 1}]).toArray();
         
-        const newClientsPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr } });
-        const clientsAtStartPromise = clientsCol.countDocuments({ clientSince: { $lt: startStr } });
-        const vipClientsPromise = clientsCol.countDocuments({ isVip: true, clientSince: {$lte: endStr} });
+        const newClientsPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr }, ...sourceFilter });
+        const clientsAtStartPromise = clientsCol.countDocuments({ clientSince: { $lt: startStr }, ...sourceFilter });
+        const vipClientsPromise = clientsCol.countDocuments({ isVip: true, clientSince: {$lte: endStr}, ...sourceFilter });
         
         const [
             revenueRes, expensesRes, ordersInPeriod, topSourceRes, newClients, clientsAtStart, vipClients
@@ -972,4 +974,3 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
-

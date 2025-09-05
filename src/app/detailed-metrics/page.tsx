@@ -104,14 +104,14 @@ export default function DetailedMetricsPage() {
                     Detailed Metrics
                 </h1>
                 <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center ml-auto">
-                    <div className="grid gap-1">
-                      <IncomeSourceFilter 
-                          sources={allIncomeSources}
-                          selectedSources={selectedSources}
-                          onSelectionChange={setSelectedSources}
-                          isLoading={isSourcesLoading}
-                      />
-                       <div className="h-5"></div>
+                     <div className="grid gap-1">
+                        <IncomeSourceFilter 
+                            sources={allIncomeSources}
+                            selectedSources={selectedSources}
+                            onSelectionChange={setSelectedSources}
+                            isLoading={isSourcesLoading}
+                        />
+                        <div className="h-5"></div>
                     </div>
                     <DateFilter date={date} setDate={handleSetDate} />
                 </div>
@@ -121,7 +121,7 @@ export default function DetailedMetricsPage() {
                 <FinancialMetrics date={date} selectedSources={selectedSources} />
                 <OrderMetrics date={date} selectedSources={selectedSources} />
                 <ClientMetrics date={date} selectedSources={selectedSources} />
-                <GrowthMetrics date={date} previousPeriodLabel={previousPeriodLabel} />
+                <GrowthMetrics date={date} selectedSources={selectedSources} previousPeriodLabel={previousPeriodLabel} />
                 <SalesMetrics date={date} />
                 <MarketingMetrics date={date} />
                 <ProjectMetrics date={date} />

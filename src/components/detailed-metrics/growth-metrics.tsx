@@ -14,10 +14,11 @@ const GrowthMetricsChart = lazy(() => import("@/components/detailed-metrics/grow
 
 interface GrowthMetricsProps {
     date: DateRange | undefined;
+    selectedSources: string[];
     previousPeriodLabel: string;
 }
 
-export function GrowthMetrics({ date, previousPeriodLabel }: GrowthMetricsProps) {
+export function GrowthMetrics({ date, selectedSources, previousPeriodLabel }: GrowthMetricsProps) {
   const [showChart, setShowChart] = useState(false);
   const [activeMetrics, setActiveMetrics] = useState({
     revenueGrowth: true,
@@ -42,7 +43,8 @@ export function GrowthMetrics({ date, previousPeriodLabel }: GrowthMetricsProps)
         try {
             const query = new URLSearchParams({
                 from: date.from.toISOString(),
-                to: date.to.toISOString()
+                to: date.to.toISOString(),
+                sources: selectedSources.join(','),
             });
             const res = await fetch(`/api/analytics/growth?${query.toString()}`);
             if (!res.ok) throw new Error('Failed to fetch growth metrics');
@@ -56,7 +58,7 @@ export function GrowthMetrics({ date, previousPeriodLabel }: GrowthMetricsProps)
         }
     }
     fetchData();
-  }, [date]);
+  }, [date, selectedSources]);
   
   if (isLoading) {
     return <Skeleton className="h-64 w-full" />
@@ -72,7 +74,7 @@ export function GrowthMetrics({ date, previousPeriodLabel }: GrowthMetricsProps)
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <p>Could not load growth metrics. Please select a valid date range.</p>
+                <p>Could not load growth metrics. Please select a valid date range and at least one source.</p>
             </CardContent>
         </Card>
     );
