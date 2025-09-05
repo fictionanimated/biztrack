@@ -10,15 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import StatCard from "@/components/dashboard/stat-card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -113,38 +104,55 @@ export default function GigAnalyticsPage() {
       [metric]: !prev[metric],
     }));
   };
+  
+  const calculateChange = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? { change: `+100%`, changeType: "increase" as const } : {};
+      if (current === 0 && previous > 0) return { change: `-100%`, changeType: "decrease" as const };
+      const diff = ((current - previous) / previous) * 100;
+      if (Math.abs(diff) < 0.1) return {};
+      return {
+        change: `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}%`,
+        changeType: diff >= 0 ? "increase" as const : "decrease" as const,
+      };
+  };
 
   const statCards = useMemo(() => {
       if (!analyticsData) return [];
-      const { totals } = analyticsData;
+      const { totals, previousTotals } = analyticsData;
       return [
           {
               icon: "DollarSign", title: "Revenue", value: `$${totals.revenue.toFixed(2)}`,
-              description: `from ${totals.orders} orders`,
+              description: `vs. $${previousTotals.revenue.toFixed(2)} previous period`,
+               ...calculateChange(totals.revenue, previousTotals.revenue)
           },
           {
               icon: "ShoppingCart", title: "Orders", value: totals.orders.toString(),
-              description: "in selected period",
+              description: `vs. ${previousTotals.orders} previous period`,
+               ...calculateChange(totals.orders, previousTotals.orders)
           },
           {
               icon: "Eye", title: "Impressions", value: totals.impressions.toLocaleString(),
-              description: "in selected period",
+              description: `vs. ${previousTotals.impressions.toLocaleString()} previous period`,
+               ...calculateChange(totals.impressions, previousTotals.impressions)
           },
           {
               icon: "MousePointerClick", title: "Clicks", value: totals.clicks.toLocaleString(),
-              description: "in selected period",
+              description: `vs. ${previousTotals.clicks.toLocaleString()} previous period`,
+               ...calculateChange(totals.clicks, previousTotals.clicks)
           },
           {
               icon: "Percent", title: "Click-Through Rate (CTR)", value: `${totals.ctr.toFixed(2)}%`,
-              description: "Clicks / Impressions",
+              description: `vs. ${previousTotals.ctr.toFixed(2)}% previous period`,
+              ...calculateChange(totals.ctr, previousTotals.ctr)
           },
           {
               icon: "TrendingUp", title: "Conversion Rate", value: `${totals.conversionRate.toFixed(2)}%`,
               description: "Orders / Impressions"
           },
           {
-              icon: "MessageSquare", title: "Source Messages", value: totals.messages.toLocaleString(),
-              description: `For entire ${analyticsData.sourceName} source`,
+              icon: "MessageSquare", title: "Messages", value: totals.messages.toLocaleString(),
+              description: `vs. ${previousTotals.messages.toLocaleString()} previous period`,
+               ...calculateChange(totals.messages, previousTotals.messages)
           },
           {
               icon: "ShoppingCart", title: "Total Source Orders", value: analyticsData.sourceTotalOrders?.toLocaleString() ?? 'N/A',
