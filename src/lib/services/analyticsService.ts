@@ -1,5 +1,4 @@
 
-
 /**
  * @fileoverview Service for fetching and processing analytics data.
  */
@@ -139,6 +138,18 @@ export interface FinancialMetricData {
     aov: FinancialMetric;
     cltv: FinancialMetric;
 }
+
+export interface MarketingMetric {
+    value: number;
+    change: number;
+    previousValue: number;
+}
+
+export interface MarketingMetricData {
+    cpl: MarketingMetric;
+    romi: MarketingMetric;
+}
+
 
 export interface ClientMetricData {
     totalClients: { value: number; change: number };
@@ -544,7 +555,7 @@ export async function getClientMetrics(from: string, to: string, sources?: strin
                 { $group: { _id: null, positiveRatings: { $sum: { $cond: [{ $gte: ['$rating', 4] }, 1, 0] } }, totalRatings: { $sum: 1 }, avgRating: { $avg: '$rating' } } }
             ]).toArray(),
             clientsCol.aggregate([
-                 { $match: sourceFilter },
+                { $match: sourceFilter },
                 {
                     $lookup: {
                         from: 'orders',
@@ -553,7 +564,7 @@ export async function getClientMetrics(from: string, to: string, sources?: strin
                             {
                                 $match: {
                                     $expr: { $eq: ['$clientUsername', '$$client_username'] },
-                                    ...sourceFilter, // Filter orders by source here
+                                    ...sourceFilter,
                                     status: { $ne: 'Cancelled' }
                                 }
                             }
@@ -757,7 +768,7 @@ export async function getFinancialMetrics(from: string, to: string, sources?: st
                         {
                             $match: {
                                 $expr: { $eq: ['$clientUsername', '$$client_username'] },
-                                ...sourceFilter, // Filter orders by source here
+                                ...sourceFilter,
                                 status: { $ne: 'Cancelled' }
                             }
                         }
@@ -868,6 +879,86 @@ export async function getFinancialMetrics(from: string, to: string, sources?: st
         }
     };
 }
+
+export async function getMarketingMetrics(from: string, to: string, sources: string[]): Promise<MarketingMetricData> {
+    const fromDate = parseISO(from);
+    const toDate = parseISO(to);
+
+    const durationDays = differenceInDays(toDate, fromDate);
+    if (durationDays < 0) throw new Error("Invalid date range.");
+
+    const P2_to = toDate;
+    const P2_from = fromDate;
+    const P1_to = subDays(P2_from, 1);
+    const P1_from = subDays(P1_to, durationDays);
+
+    const calculateMetricsForPeriod = async (start: Date, end: Date) => {
+        const startStr = format(start, 'yyyy-MM-dd');
+        const endStr = format(end, 'yyyy-MM-dd');
+
+        const sourceFilter = { source: { $in: sources } };
+
+        const expensesCol = await getExpensesCollection();
+        const incomesCol = await getIncomesCollection();
+        const ordersCol = await getOrdersCollection();
+
+        const marketingExpensesPromise = expensesCol.aggregate([
+            { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Marketing' } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]).toArray();
+
+        const messagesPromise = incomesCol.aggregate([
+            { $match: { name: { $in: sources } } },
+            { $unwind: "$dataPoints" },
+            { $match: { "dataPoints.date": { $gte: startStr, $lte: endStr } } },
+            { $group: { _id: null, total: { $sum: '$messages' } } }
+        ]).toArray();
+
+        const revenuePromise = ordersCol.aggregate([
+            { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed', ...sourceFilter } },
+            { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]).toArray();
+
+        const [marketingExpensesRes, messagesRes, revenueRes] = await Promise.all([
+            marketingExpensesPromise,
+            messagesPromise,
+            revenuePromise
+        ]);
+        
+        const marketingExpenses = marketingExpensesRes[0]?.total || 0;
+        const totalMessages = messagesRes[0]?.total || 0;
+        const totalRevenue = revenueRes[0]?.total || 0;
+
+        const cpl = totalMessages > 0 ? marketingExpenses / totalMessages : 0;
+        const romi = marketingExpenses > 0 ? ((totalRevenue - marketingExpenses) / marketingExpenses) * 100 : 0;
+
+        return { cpl, romi };
+    };
+
+    const [metricsP2, metricsP1] = await Promise.all([
+        calculateMetricsForPeriod(P2_from, P2_to),
+        calculateMetricsForPeriod(P1_from, P1_to),
+    ]);
+
+    const calculateChange = (current: number, previous: number) => {
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return ((current - previous) / previous) * 100;
+    };
+    
+    return {
+        cpl: {
+            value: metricsP2.cpl,
+            change: calculateChange(metricsP2.cpl, metricsP1.cpl),
+            previousValue: metricsP1.cpl,
+        },
+        romi: {
+            value: metricsP2.romi,
+            change: calculateChange(metricsP2.romi, metricsP1.romi),
+            previousValue: metricsP1.romi,
+        }
+    };
+}
+
 
 export async function getYearlyStats(year: number): Promise<SingleYearData> {
     const ordersCol = await getOrdersCollection();
