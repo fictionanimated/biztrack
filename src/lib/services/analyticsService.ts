@@ -190,6 +190,22 @@ export interface OrderCountAnalytics {
     periodBeforePreviousOrders: PeriodOrderStats;
 }
 
+export interface ClientMetric {
+    value: number;
+    change: number;
+}
+
+export interface ClientMetricData {
+    totalClients: ClientMetric;
+    newClients: ClientMetric;
+    repeatClients: ClientMetric;
+    repeatPurchaseRate: ClientMetric;
+    retentionRate: ClientMetric;
+    avgLifespan: ClientMetric;
+    medianLifespan: ClientMetric;
+}
+
+
 // Shared data processing function
 async function processAnalytics(
     dateRange: { from: Date; to: Date },
@@ -1158,3 +1174,4 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
+
