@@ -97,7 +97,6 @@ export function ClientMetrics({ date, selectedSources }: ClientMetricsProps) {
     { name: "Client Retention Rate (%)", value: `${clientMetricsData.retentionRate.value.toFixed(1)}%`, formula: "((End Clients - New) / Start Clients) × 100", change: `${clientMetricsData.retentionRate.change.toFixed(1)}%`, changeType: clientMetricsData.retentionRate.change >= 0 ? "increase" : "decrease" as const },
     { name: "Avg. Lifespan of Repeat Customer", value: `${clientMetricsData.avgLifespan.value.toFixed(1)} months`, formula: "Avg. time between first & last order of churned repeat clients", change: `${clientMetricsData.avgLifespan.change.toFixed(1)}%`, changeType: clientMetricsData.avgLifespan.change >= 0 ? "increase" : "decrease" as const },
     { name: "Median Lifespan of Repeat Customer", value: `${clientMetricsData.medianLifespan.value.toFixed(1)} months`, formula: "The 'middle' customer's lifespan, resistant to outliers", change: `${clientMetricsData.medianLifespan.change.toFixed(1)}%`, changeType: clientMetricsData.medianLifespan.change >= 0 ? "increase" : "decrease" as const },
-    { name: "Client Satisfaction (CSAT)", value: `${clientMetricsData.csat.value.toFixed(1)}%`, formula: "(Positive Ratings / Total Ratings) × 100", change: `${clientMetricsData.csat.change.toFixed(1)}%`, changeType: clientMetricsData.csat.change >= 0 ? "increase" : "decrease" as const },
   ];
 
   return (
