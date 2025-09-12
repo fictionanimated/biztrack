@@ -4,7 +4,7 @@
  * @fileoverview Service for fetching and processing analytics data.
  */
 import { ObjectId } from 'mongodb';
-import { format, subDays, eachDayOfInterval, differenceInDays, parseISO, sub, startOfMonth, endOfMonth, eachMonthOfInterval, startOfYear, endOfYear, getMonth, getYear, differenceInMonths, startOfWeek } from 'date-fns';
+import { format, subDays, eachDayOfInterval, differenceInDays, parseISO, sub, startOfMonth, endOfMonth, eachMonthOfInterval, startOfYear, endOfYear, getMonth, getYear, differenceInMonths, startOfWeek, eachWeekOfInterval, getQuarter, startOfQuarter, eachQuarterOfInterval, eachYearOfInterval } from 'date-fns';
 import clientPromise from '@/lib/mongodb';
 import { type Competitor } from '@/lib/data/incomes-data';
 import type { IncomeSource } from '@/lib/data/incomes-data';
@@ -123,7 +123,7 @@ export interface GrowthMetricData {
 }
 
 export interface FinancialMetricTimeSeries {
-    month: string;
+    date: string;
     totalRevenue: number;
     totalExpenses: number;
     netProfit: number;
@@ -150,6 +150,7 @@ export interface FinancialMetricData {
     cac: FinancialMetric;
     aov: FinancialMetric;
     cltv: FinancialMetric;
+    timeSeries: FinancialMetricTimeSeries[];
 }
 
 export interface PerformanceMetric {
@@ -174,17 +175,6 @@ export interface MarketingMetric {
 export interface MarketingMetricData {
     cpl: MarketingMetric;
     romi: MarketingMetric;
-}
-
-export interface ClientMetricData {
-    totalClients: { value: number; change: number };
-    newClients: { value: number; change: number };
-    repeatClients: { value: number; change: number };
-    repeatPurchaseRate: { value: number; change: number };
-    retentionRate: { value: number; change: number };
-    avgLifespan: { value: number; change: number };
-    medianLifespan: { value: number; change: number };
-    csat: { value: number; change: number };
 }
 
 interface PeriodOrderStats {
@@ -620,16 +610,11 @@ export async function getClientMetrics(from: string, to: string, sources?: strin
             ordersInPeriod,
             newClientsInPeriodCount,
             clientsAtStart,
-            csatResults,
             lifespanResults,
         ] = await Promise.all([
             ordersCol.find({ date: { $gte: startStr, $lte: endStr }, ...sourceFilter }).toArray(),
             clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr }, ...sourceFilter }),
             clientsCol.find({ clientSince: { $lt: startStr }, ...sourceFilter }).project({ username: 1 }).toArray(),
-            ordersCol.aggregate([
-                { $match: { date: { $gte: startStr, $lte: endStr }, rating: { $ne: null }, ...sourceFilter } },
-                { $group: { _id: null, positiveRatings: { $sum: { $cond: [{ $gte: ['$rating', 4] }, 1, 0] } }, totalRatings: { $sum: 1 } } }
-            ]).toArray(),
             clientsCol.aggregate([
                 { $match: sourceFilter },
                 {
@@ -667,8 +652,6 @@ export async function getClientMetrics(from: string, to: string, sources?: strin
         const clientsAtStartUsernames = new Set(clientsAtStart.map(c => c.username));
         const retainedClientsCount = Array.from(clientUsernamesInPeriod).filter(username => clientsAtStartUsernames.has(username)).length;
         
-        const csat = (csatResults[0]?.totalRatings > 0) ? (csatResults[0].positiveRatings / csatResults[0].totalRatings) * 100 : 0;
-        
         const allLifespans = lifespanResults.map(r => r.lifespanDays).sort((a,b) => a - b);
         const avgLifespanDays = allLifespans.length > 0 ? allLifespans.reduce((sum, val) => sum + val, 0) / allLifespans.length : 0;
         
@@ -693,7 +676,6 @@ export async function getClientMetrics(from: string, to: string, sources?: strin
             retentionRate,
             avgLifespan: avgLifespanDays / 30.44,
             medianLifespan: medianLifespanDays / 30.44,
-            csat,
         };
     };
 
@@ -716,7 +698,6 @@ export async function getClientMetrics(from: string, to: string, sources?: strin
         retentionRate: { value: currentMetrics.retentionRate, change: currentMetrics.retentionRate - prevMetrics.retentionRate },
         avgLifespan: { value: currentMetrics.avgLifespan, change: calculateChange(currentMetrics.avgLifespan, prevMetrics.avgLifespan) },
         medianLifespan: { value: currentMetrics.medianLifespan, change: calculateChange(currentMetrics.medianLifespan, prevMetrics.medianLifespan) },
-        csat: { value: currentMetrics.csat, change: currentMetrics.csat - prevMetrics.csat },
     };
 }
 
@@ -807,7 +788,6 @@ export async function getFinancialMetrics(from: string, to: string, sources?: st
     const durationInDays = differenceInDays(toDate, fromDate);
     if (durationInDays < 0) throw new Error("Invalid date range for financial metrics.");
 
-    // Define three periods: P2 (current), P1 (previous), P0 (before previous)
     const P2_to = toDate;
     const P2_from = fromDate;
     const P1_to = subDays(P2_from, 1);
@@ -827,33 +807,16 @@ export async function getFinancialMetrics(from: string, to: string, sources?: st
         
         const revenuePromise = ordersCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed', ...sourceFilter } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
         const totalOrdersPromise = ordersCol.countDocuments({ date: { $gte: startStr, $lte: endStr }, status: 'Completed', ...sourceFilter });
-        // Expenses are not filtered by source for now
         const expensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr } } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
         const salaryExpensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Salary' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
         const marketingExpensesPromise = expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, category: 'Marketing' } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
         const newClientsPromise = clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr }, ...sourceFilter });
         
-        // Client Metrics for CLTV
         const ordersInPeriodPromise = ordersCol.find({ date: { $gte: startStr, $lte: endStr }, ...sourceFilter }).toArray();
         
         const lifespanResultsPromise = clientsCol.aggregate([
             { $match: sourceFilter },
-            {
-                $lookup: {
-                    from: 'orders',
-                    let: { client_username: '$username' },
-                    pipeline: [
-                        {
-                            $match: {
-                                $expr: { $eq: ['$clientUsername', '$$client_username'] },
-                                ...sourceFilter, // Also filter orders by source inside lookup
-                                status: { $ne: 'Cancelled' }
-                            }
-                        }
-                    ],
-                    as: 'clientOrders'
-                }
-            },
+            { $lookup: { from: 'orders', let: { client_username: '$username' }, pipeline: [ { $match: { $expr: { $eq: ['$clientUsername', '$$client_username'] }, ...sourceFilter, status: { $ne: 'Cancelled' } } } ], as: 'clientOrders' } },
             { $match: { 'clientOrders.1': { $exists: true } } },
             { $addFields: { firstOrderDate: { $min: '$clientOrders.date' }, lastOrderDate: { $max: '$clientOrders.date' } } },
             { $match: { lastOrderDate: { $gte: startStr, $lte: endStr } } },
@@ -879,22 +842,30 @@ export async function getFinancialMetrics(from: string, to: string, sources?: st
         const cac = newClientsCount > 0 ? marketingExpenses / newClientsCount : 0;
         const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-        // CLTV Calculations
         const clientUsernamesInPeriod = new Set(ordersInPeriod.map(o => o.clientUsername));
         const totalClientsInPeriod = clientUsernamesInPeriod.size;
         const clientOrderCounts = ordersInPeriod.reduce((acc, order) => { acc[order.clientUsername] = (acc[order.clientUsername] || 0) + 1; return acc; }, {} as Record<string, number>);
         const repeatClientsCount = Object.values(clientOrderCounts).filter(count => count > 1).length;
-        const repeatPurchaseRate = totalClientsInPeriod > 0 ? (repeatClientsCount / totalClientsInPeriod) : 0; // As a decimal
+        const repeatPurchaseRate = totalClientsInPeriod > 0 ? (repeatClientsCount / totalClientsInPeriod) : 0;
         const allLifespans = lifespanResults.map(r => r.lifespanDays).sort((a,b) => a - b);
         const avgLifespanDays = allLifespans.length > 0 ? allLifespans.reduce((sum, val) => sum + val, 0) / allLifespans.length : 0;
         const avgLifespanMonths = avgLifespanDays / 30.44;
         const cltv = aov * repeatPurchaseRate * avgLifespanMonths;
 
-        return {
-            totalRevenue, totalExpenses, netProfit, profitMargin, grossMargin, cac, aov, cltv
-        };
+        return { totalRevenue, totalExpenses, netProfit, profitMargin, grossMargin, cac, aov, cltv };
     };
 
+    const timeSeriesIntervals: Date[] = eachDayOfInterval({ start: P2_from, end: P2_to });
+    const timeSeries = await Promise.all(
+        timeSeriesIntervals.map(async (date) => {
+            const metrics = await calculateMetricsForPeriod(date, date);
+            return {
+                date: format(date, 'yyyy-MM-dd'),
+                ...metrics
+            };
+        })
+    );
+    
     const [metricsP2, metricsP1, metricsP0] = await Promise.all([
         calculateMetricsForPeriod(P2_from, P2_to),
         calculateMetricsForPeriod(P1_from, P1_to),
@@ -907,56 +878,18 @@ export async function getFinancialMetrics(from: string, to: string, sources?: st
     };
     
     return {
-        totalRevenue: {
-            value: metricsP2.totalRevenue,
-            change: calculateChangePercentage(metricsP2.totalRevenue, metricsP1.totalRevenue),
-            previousPeriodChange: calculateChangePercentage(metricsP1.totalRevenue, metricsP0.totalRevenue),
-            previousValue: metricsP1.totalRevenue,
-        },
-        totalExpenses: {
-            value: metricsP2.totalExpenses,
-            change: calculateChangePercentage(metricsP2.totalExpenses, metricsP1.totalExpenses),
-            previousPeriodChange: calculateChangePercentage(metricsP1.totalExpenses, metricsP0.totalExpenses),
-            previousValue: metricsP1.totalExpenses,
-        },
-        netProfit: {
-            value: metricsP2.netProfit,
-            change: calculateChangePercentage(metricsP2.netProfit, metricsP1.netProfit),
-            previousPeriodChange: calculateChangePercentage(metricsP1.netProfit, metricsP0.netProfit),
-            previousValue: metricsP1.netProfit,
-        },
-        profitMargin: {
-            value: metricsP2.profitMargin,
-            change: metricsP2.profitMargin - metricsP1.profitMargin, // For percentages, absolute change is often more meaningful
-            previousPeriodChange: metricsP1.profitMargin - metricsP0.profitMargin,
-            previousValue: metricsP1.profitMargin,
-        },
-        grossMargin: {
-            value: metricsP2.grossMargin,
-            change: metricsP2.grossMargin - metricsP1.grossMargin,
-            previousPeriodChange: metricsP1.grossMargin - metricsP0.grossMargin,
-            previousValue: metricsP1.grossMargin,
-        },
-        cac: {
-            value: metricsP2.cac,
-            change: calculateChangePercentage(metricsP2.cac, metricsP1.cac),
-            previousPeriodChange: calculateChangePercentage(metricsP1.cac, metricsP0.cac),
-            previousValue: metricsP1.cac,
-        },
-        aov: {
-            value: metricsP2.aov,
-            change: calculateChangePercentage(metricsP2.aov, metricsP1.aov),
-            previousPeriodChange: calculateChangePercentage(metricsP1.aov, metricsP0.aov),
-            previousValue: metricsP1.aov,
-        },
-        cltv: {
-            value: metricsP2.cltv,
-            change: calculateChangePercentage(metricsP2.cltv, metricsP1.cltv),
-            previousPeriodChange: calculateChangePercentage(metricsP1.cltv, metricsP0.cltv),
-            previousValue: metricsP1.cltv,
-        }
+        totalRevenue: { value: metricsP2.totalRevenue, change: calculateChangePercentage(metricsP2.totalRevenue, metricsP1.totalRevenue), previousPeriodChange: calculateChangePercentage(metricsP1.totalRevenue, metricsP0.totalRevenue), previousValue: metricsP1.totalRevenue },
+        totalExpenses: { value: metricsP2.totalExpenses, change: calculateChangePercentage(metricsP2.totalExpenses, metricsP1.totalExpenses), previousPeriodChange: calculateChangePercentage(metricsP1.totalExpenses, metricsP0.totalExpenses), previousValue: metricsP1.totalExpenses },
+        netProfit: { value: metricsP2.netProfit, change: calculateChangePercentage(metricsP2.netProfit, metricsP1.netProfit), previousPeriodChange: calculateChangePercentage(metricsP1.netProfit, metricsP0.netProfit), previousValue: metricsP1.netProfit },
+        profitMargin: { value: metricsP2.profitMargin, change: metricsP2.profitMargin - metricsP1.profitMargin, previousPeriodChange: metricsP1.profitMargin - metricsP0.profitMargin, previousValue: metricsP1.profitMargin },
+        grossMargin: { value: metricsP2.grossMargin, change: metricsP2.grossMargin - metricsP1.grossMargin, previousPeriodChange: metricsP1.grossMargin - metricsP0.grossMargin, previousValue: metricsP1.grossMargin },
+        cac: { value: metricsP2.cac, change: calculateChangePercentage(metricsP2.cac, metricsP1.cac), previousPeriodChange: calculateChangePercentage(metricsP1.cac, metricsP0.cac), previousValue: metricsP1.cac },
+        aov: { value: metricsP2.aov, change: calculateChangePercentage(metricsP2.aov, metricsP1.aov), previousPeriodChange: calculateChangePercentage(metricsP1.aov, metricsP0.aov), previousValue: metricsP1.aov },
+        cltv: { value: metricsP2.cltv, change: calculateChangePercentage(metricsP2.cltv, metricsP1.cltv), previousPeriodChange: calculateChangePercentage(metricsP1.cltv, metricsP0.cltv), previousValue: metricsP1.cltv },
+        timeSeries,
     };
 }
+
 
 export async function getMarketingMetrics(from: string, to: string, sources: string[]): Promise<MarketingMetricData> {
     const fromDate = parseISO(from);

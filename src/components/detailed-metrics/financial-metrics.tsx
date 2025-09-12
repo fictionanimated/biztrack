@@ -11,6 +11,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format, subDays, differenceInDays } from 'date-fns';
 import type { FinancialMetricData } from '@/lib/services/analyticsService';
 import { useToast } from '@/hooks/use-toast';
+import RevenueAndProfitChart from './financial/revenue-and-profit-chart';
+import CustomerValueChart from './financial/customer-value-chart';
+import MarginsChart from './financial/margins-chart';
+
 
 const formatCurrency = (value: number) => `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -123,7 +127,7 @@ export function FinancialMetrics({ date, selectedSources }: FinancialMetricsProp
                         {prevChangeType === "increase" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
                         {`${Math.abs(previousPeriodChange).toFixed(1)}%`}
                     </p>
-                    <p className="text-muted-foreground">from {displayPreviousValue} ({previousPeriodLabel})</p>
+                    <p className="text-muted-foreground">vs {displayPreviousValue} ({previousPeriodLabel})</p>
                     <p className="text-muted-foreground pt-1">{formula}</p>
                 </div>
             </div>
@@ -157,13 +161,26 @@ export function FinancialMetrics({ date, selectedSources }: FinancialMetricsProp
                     <DollarSign className="h-6 w-6 text-primary" />
                     Financial Metrics
                 </CardTitle>
-                <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)} disabled>
+                <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)}>
                     {showChart ? <EyeOff className="mr-2 h-4 w-4" /> : <BarChart className="mr-2 h-4 w-4" />} {showChart ? "Hide Graph" : "Show Graph"}
                 </Button>
             </CardHeader>
             <CardContent>
                 {renderContent()}
             </CardContent>
+             {showChart && metrics?.timeSeries && (
+                <CardContent className="space-y-6">
+                    <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+                        <RevenueAndProfitChart timeSeries={metrics.timeSeries} />
+                    </Suspense>
+                    <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+                        <CustomerValueChart timeSeries={metrics.timeSeries} />
+                    </Suspense>
+                    <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+                        <MarginsChart timeSeries={metrics.timeSeries} />
+                    </Suspense>
+                </CardContent>
+            )}
         </Card>
     );
 }
