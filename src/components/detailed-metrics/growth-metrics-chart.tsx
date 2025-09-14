@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import type { GrowthMetricTimeSeries } from '@/lib/services/analyticsService';
-import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachQuarterOfInterval, eachYearOfInterval } from "date-fns";
+import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachQuarterOfInterval, eachYearOfInterval, endOfWeek, isSameMonth } from "date-fns";
 
 const chartConfig = {
     revenueGrowth: { label: "Revenue Growth", color: "hsl(var(--chart-1))" },
@@ -120,7 +120,7 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
             dataMap.set(key, existing);
         });
         
-        // Average the growth rates
+        // Average the growth rates and ensure notes are unique
         dataMap.forEach((value, key) => {
              if (value.count > 1) {
                 Object.keys(chartConfig).forEach(metricKey => {
@@ -128,6 +128,16 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
                         value[metricKey] /= value.count;
                     }
                 });
+             }
+             if (value.notes.length > 1) {
+                const uniqueNotes = new Map();
+                value.notes.forEach((note: any) => {
+                    const noteKey = `${note.title}-${note.content}`;
+                    if (!uniqueNotes.has(noteKey)) {
+                        uniqueNotes.set(noteKey, note);
+                    }
+                });
+                value.notes = Array.from(uniqueNotes.values());
              }
         });
 
@@ -144,10 +154,18 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
 
     const tickFormatter = (value: string) => {
         try {
+            const date = parseISO(value);
             switch (chartView) {
-                case 'daily': return format(parseISO(value), 'MMM d');
-                case 'weekly': return `W/C ${format(parseISO(value), 'MMM d')}`;
-                case 'monthly': return format(parseISO(value), 'MMM yyyy');
+                case 'daily': return format(date, 'MMM d');
+                case 'weekly': {
+                    const start = startOfWeek(date, { weekStartsOn: 1 });
+                    const end = endOfWeek(date, { weekStartsOn: 1 });
+                    if (isSameMonth(start, end)) {
+                        return `${format(start, 'MMM d')} - ${format(end, 'd')}`;
+                    }
+                    return `${format(start, 'MMM d')} - ${format(end, 'MMM d')}`;
+                }
+                case 'monthly': return format(date, 'MMM yyyy');
                 case 'quarterly': return value;
                 case 'yearly': return value;
                 default: return value;
