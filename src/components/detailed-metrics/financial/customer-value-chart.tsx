@@ -50,14 +50,18 @@ export default function CustomerValueChart({ timeSeries }: { timeSeries: Financi
                 case 'yearly': key = getYear(itemDate).toString(); break;
             }
 
-            const existing = dataMap.get(key) || { date: key, cac: 0, cltv: 0, aov: 0 };
+            const existing = dataMap.get(key) || { date: key, cac: 0, cltv: 0, aov: 0, totalRevenue: 0, totalOrders: 0 };
             existing.cac += item.cac;
             existing.cltv += item.cltv;
-            existing.aov += item.aov;
+            existing.totalRevenue += item.totalRevenue;
+            existing.totalOrders += (item.aov > 0 ? item.totalRevenue / item.aov : 0); // Reverse calculate orders if not present
             dataMap.set(key, existing);
         });
 
-        const result = Array.from(dataMap.values());
+        const result = Array.from(dataMap.values()).map(item => {
+            const aov = item.totalOrders > 0 ? item.totalRevenue / item.totalOrders : 0;
+            return { ...item, aov };
+        });
         
         return result.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [timeSeries, chartView]);
