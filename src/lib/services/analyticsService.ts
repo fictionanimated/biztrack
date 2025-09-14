@@ -104,7 +104,7 @@ export interface SourceAnalyticsData {
 }
 
 export interface GrowthMetricTimeSeries {
-    month: string;
+    date: string;
     revenueGrowth: number;
     profitGrowth: number;
     clientGrowth: number;
@@ -511,43 +511,40 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
 
     const sourceFilter = sources ? { source: { $in: sources } } : {};
     
-    const calcMonthMetrics = async (start: Date, end: Date) => {
-        const startStr = format(start, 'yyyy-MM-dd');
-        const endStr = format(end, 'yyyy-MM-dd');
+    const calcDateMetrics = async (date: Date) => {
+        const dateStr = format(date, 'yyyy-MM-dd');
 
-        const revenueRes = await ordersCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr }, status: 'Completed', ...sourceFilter } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const expensesRes = await expensesCol.aggregate([ { $match: { date: { $gte: startStr, $lte: endStr } } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
-        const ordersInPeriod = await ordersCol.find({ date: { $gte: startStr, $lte: endStr }, status: 'Completed', ...sourceFilter }).toArray();
+        const revenueRes = await ordersCol.aggregate([ { $match: { date: dateStr, status: 'Completed', ...sourceFilter } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const expensesRes = await expensesCol.aggregate([ { $match: { date: dateStr } }, { $group: { _id: null, total: { $sum: '$amount' } } } ]).toArray();
+        const ordersInDay = await ordersCol.find({ date: dateStr, status: 'Completed', ...sourceFilter }).toArray();
         
         const revenue = revenueRes[0]?.total || 0;
         return {
             revenue: revenue,
             netProfit: revenue - (expensesRes[0]?.total || 0),
-            aov: ordersInPeriod.length > 0 ? revenue / ordersInPeriod.length : 0,
-            newClients: await clientsCol.countDocuments({ clientSince: { $gte: startStr, $lte: endStr }, ...sourceFilter }),
-            clientsAtStart: await clientsCol.countDocuments({ clientSince: { $lt: startStr }, ...sourceFilter }),
+            aov: ordersInDay.length > 0 ? revenue / ordersInDay.length : 0,
+            newClients: await clientsCol.countDocuments({ clientSince: dateStr, ...sourceFilter }),
+            clientsAtStart: await clientsCol.countDocuments({ clientSince: { $lt: dateStr }, ...sourceFilter }),
         };
     };
 
-    // Time Series Calculations
-    const timeSeriesMonths = eachMonthOfInterval({ start: P2_from, end: P2_to });
+    // Time Series Calculations (daily)
+    const timeSeriesDays = eachDayOfInterval({ start: P2_from, end: P2_to });
     const timeSeries: GrowthMetricTimeSeries[] = await Promise.all(
-        timeSeriesMonths.map(async (monthStart) => {
-            const monthEnd = endOfMonth(monthStart);
-            const prevMonthStart = sub(monthStart, { months: 1 });
-            const prevMonthEnd = endOfMonth(prevMonthStart);
+        timeSeriesDays.map(async (day) => {
+            const prevDay = sub(day, { days: 1 });
 
-            const [currentMonthMetrics, prevMonthMetrics] = await Promise.all([
-                calcMonthMetrics(monthStart, monthEnd),
-                calcMonthMetrics(prevMonthStart, prevMonthEnd)
+            const [currentDayMetrics, prevDayMetrics] = await Promise.all([
+                calcDateMetrics(day),
+                calcDateMetrics(prevDay)
             ]);
 
             return {
-                month: format(monthStart, 'MMM'),
-                revenueGrowth: calculateGrowth(currentMonthMetrics.revenue, prevMonthMetrics.revenue),
-                profitGrowth: calculateGrowth(currentMonthMetrics.netProfit, prevMonthMetrics.netProfit),
-                aovGrowth: calculateGrowth(currentMonthMetrics.aov, prevMonthMetrics.aov),
-                clientGrowth: calculateGrowth(currentMonthMetrics.newClients, prevMonthMetrics.newClients),
+                date: format(day, 'yyyy-MM-dd'),
+                revenueGrowth: calculateGrowth(currentDayMetrics.revenue, prevDayMetrics.revenue),
+                profitGrowth: calculateGrowth(currentDayMetrics.netProfit, prevDayMetrics.netProfit),
+                aovGrowth: calculateGrowth(currentDayMetrics.aov, prevDayMetrics.aov),
+                clientGrowth: calculateGrowth(currentDayMetrics.newClients, prevDayMetrics.newClients),
                 highValueClientGrowth: 0, // Placeholder
                 sourceGrowth: 0, // Placeholder
             };

@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import type { GrowthMetricTimeSeries } from '@/lib/services/analyticsService';
-import { format, parse, startOfWeek, startOfMonth, getQuarter, getYear, startOfQuarter, startOfYear, endOfWeek, endOfMonth, endOfQuarter, endOfYear } from "date-fns";
+import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachQuarterOfInterval, eachYearOfInterval } from "date-fns";
 
 const chartConfig = {
     revenueGrowth: { label: "Revenue Growth", color: "hsl(var(--chart-1))" },
@@ -80,7 +80,7 @@ const CustomDot = (props: any) => {
   return null;
 };
 
-type ChartView = 'monthly' | 'quarterly' | 'yearly';
+type ChartView = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle }: GrowthMetricsChartProps) {
     const [chartType, setChartType] = useState<'line' | 'bar'>('line');
@@ -88,21 +88,23 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
 
     const aggregatedData = useMemo(() => {
         if (!data || data.length === 0) return [];
+        
         const dataMap = new Map<string, any>();
         
         data.forEach(item => {
-            const itemDate = parse(item.month, 'MMM', new Date());
-
+            const itemDate = parseISO(item.date);
             if (isNaN(itemDate.getTime())) return;
 
             let key = '';
             switch(chartView) {
-                case 'quarterly': key = `Q${getQuarter(itemDate)} ${getYear(itemDate)}`; break;
+                case 'daily': key = format(itemDate, 'yyyy-MM-dd'); break;
+                case 'weekly': key = format(startOfWeek(itemDate, { weekStartsOn: 1 }), 'yyyy-MM-dd'); break;
+                case 'monthly': key = format(startOfMonth(itemDate), 'yyyy-MM-dd'); break;
+                case 'quarterly': key = `${getYear(itemDate)}-Q${getQuarter(itemDate)}`; break;
                 case 'yearly': key = getYear(itemDate).toString(); break;
-                default: key = item.month; break; // monthly
             }
-
-            const existing = dataMap.get(key) || { month: key, count: 0 };
+            
+            const existing = dataMap.get(key) || { date: key, count: 0 };
             Object.keys(chartConfig).forEach(metricKey => {
                 const itemValue = item[metricKey as keyof GrowthMetricTimeSeries] || 0;
                 existing[metricKey] = (existing[metricKey] || 0) + (typeof itemValue === 'number' ? itemValue : 0);
@@ -111,7 +113,7 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
             dataMap.set(key, existing);
         });
         
-        // Average the growth rates for quarterly/yearly views
+        // Average the growth rates
         dataMap.forEach((value, key) => {
              if (value.count > 1) {
                 Object.keys(chartConfig).forEach(metricKey => {
@@ -124,15 +126,14 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
 
         const result = Array.from(dataMap.values());
         
-        if (chartView === 'monthly') return result;
-        if (chartView === 'yearly') return result.sort((a,b) => a.month.localeCompare(b.month));
-        
-        // Sort quarters correctly
         return result.sort((a, b) => {
-            const [aQ, aY] = a.month.split(' ');
-            const [bQ, bY] = b.month.split(' ');
-            if (aY !== bY) return aY.localeCompare(bY);
-            return aQ.localeCompare(bQ);
+            if (chartView === 'quarterly') {
+                 const [aQ, aY] = a.date.split(' ');
+                 const [bQ, bY] = b.date.split(' ');
+                 if (aY !== bY) return aY.localeCompare(bY);
+                 return aQ.localeCompare(bQ);
+            }
+            return new Date(a.date).getTime() - new Date(b.date).getTime();
         });
 
     }, [data, chartView]);
@@ -140,9 +141,12 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
     const tickFormatter = (value: string) => {
         try {
             switch (chartView) {
+                case 'daily': return format(parseISO(value), 'MMM d');
+                case 'weekly': return `W/C ${format(parseISO(value), 'MMM d')}`;
+                case 'monthly': return format(parseISO(value), 'MMM yyyy');
                 case 'quarterly': return value;
                 case 'yearly': return value;
-                default: return value; // Monthly
+                default: return value;
             }
         } catch (e) {
             return value;
@@ -173,6 +177,8 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
                                 <SelectValue placeholder="Select view" />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="daily">Daily</SelectItem>
+                                <SelectItem value="weekly">Weekly</SelectItem>
                                 <SelectItem value="monthly">Monthly</SelectItem>
                                 <SelectItem value="quarterly">Quarterly</SelectItem>
                                 <SelectItem value="yearly">Yearly</SelectItem>
@@ -204,17 +210,17 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
                     {chartType === 'line' ? (
                         <LineChart data={aggregatedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                             <CartesianGrid vertical={false} />
-                            <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={tickFormatter} />
+                            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={tickFormatter} />
                             <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}%`} />
                             <Tooltip cursor={false} content={<CustomTooltip />} />
                             {Object.keys(activeMetrics).filter(k => activeMetrics[k as keyof typeof activeMetrics]).map(key => (
-                                <Line key={key} dataKey={key} stroke={`var(--color-${key})`} strokeWidth={2} dot={<CustomDot />} />
+                                <Line key={key} dataKey={key} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot={<CustomDot />} />
                             ))}
                         </LineChart>
                     ) : (
                         <BarChart data={aggregatedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                             <CartesianGrid vertical={false} />
-                            <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={tickFormatter} />
+                            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={tickFormatter} />
                             <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => `${value}%`} />
                             <Tooltip cursor={false} content={<CustomTooltip />} />
                             {Object.keys(activeMetrics).filter(k => activeMetrics[k as keyof typeof activeMetrics]).map(key => (
