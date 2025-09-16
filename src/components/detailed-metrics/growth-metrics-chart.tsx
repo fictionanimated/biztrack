@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import type { GrowthMetricTimeSeries } from '@/lib/services/analyticsService';
-import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachQuarterOfInterval, eachYearOfInterval, endOfWeek, isSameMonth, endOfMonth, endOfQuarter, endOfYear, sub } from "date-fns";
+import { format, parseISO, startOfWeek, endOfWeek, isSameMonth, startOfMonth, getQuarter, getYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachQuarterOfInterval, eachYearOfInterval, sub, endOfQuarter, endOfYear } from "date-fns";
+
 
 const chartConfig = {
     revenueGrowth: { label: "Revenue Growth", color: "hsl(var(--chart-1))" },
@@ -142,30 +143,18 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
         });
         
         const finalResult = result.map((item, index) => {
-             let prevItem: typeof item | null = null;
-             if (index > 0) {
-                 prevItem = result[index-1];
-             } else {
-                 const prevDate = sub(parseISO(item.date), {
-                     days: chartView === 'daily' ? 1 : 0,
-                     weeks: chartView === 'weekly' ? 1 : 0,
-                     months: chartView === 'monthly' ? 1 : 0,
-                     quarters: chartView === 'quarterly' ? 1 : 0,
-                     years: chartView === 'yearly' ? 1 : 0
-                 });
-                 const prevDateKey = format(prevDate, 'yyyy-MM-dd');
-                 const prevItemData = dataByDate[prevDateKey];
-                 if(prevItemData) {
-                    prevItem = {
-                        date: prevDateKey,
-                        revenue: prevItemData.totalRevenue,
-                        netProfit: prevItemData.netProfit,
-                        newClients: prevItemData.newClients,
-                        totalOrders: prevItemData.totalOrders,
-                        notes: prevItemData.notes
-                    };
-                 }
-             }
+            let prevItem: typeof item | null = null;
+            const prevItemIndex = result.findIndex(r => r.date === format(sub(parseISO(item.date), {
+                days: chartView === 'daily' ? 1 : 0,
+                weeks: chartView === 'weekly' ? 1 : 0,
+                months: chartView === 'monthly' ? 1 : 0,
+                quarters: chartView === 'quarterly' ? 1 : 0,
+                years: chartView === 'yearly' ? 1 : 0
+            }), 'yyyy-MM-dd'));
+
+            if (prevItemIndex > -1) {
+                prevItem = result[prevItemIndex];
+            }
 
             const calculateGrowth = (current: number, prev: number) => {
                 if (prev === 0) return current > 0 ? 100 : 0;
@@ -294,3 +283,4 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
         </Card>
     );
 }
+
