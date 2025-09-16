@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import type { GrowthMetricTimeSeries } from '@/lib/services/analyticsService';
-import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachQuarterOfInterval, eachYearOfInterval, endOfWeek, isSameMonth } from "date-fns";
+import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachQuarterOfInterval, eachYearOfInterval, endOfWeek, isSameMonth, endOfMonth, endOfQuarter, endOfYear } from "date-fns";
 
 const chartConfig = {
     revenueGrowth: { label: "Revenue Growth", color: "hsl(var(--chart-1))" },
@@ -97,8 +97,10 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
         const dataMap = new Map<string, any>();
         let intervalDates: Date[] = [];
         
+        const firstDataPointDate = parseISO(data[0].date);
+        
         if (data.length > 0) {
-            const firstDate = parseISO(data[0].date);
+            const firstDate = parseISO(data[1]?.date ?? data[0].date);
             const lastDate = parseISO(data[data.length - 1].date);
             const interval = { start: firstDate, end: lastDate };
             
@@ -145,7 +147,35 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
         });
 
         const finalResult = result.map((item, index) => {
-            const prevItem = index > 0 ? result[index - 1] : null;
+            const prevItemIndex = result.findIndex(r => parseISO(r.date).getTime() < parseISO(item.date).getTime());
+            let prevItem: typeof item | null = null;
+            if (prevItemIndex > -1) {
+                const prevDate = sub(parseISO(item.date), {
+                    days: chartView === 'daily' ? 1 : 0,
+                    weeks: chartView === 'weekly' ? 1 : 0,
+                    months: chartView === 'monthly' ? 1 : 0,
+                    quarters: chartView === 'quarterly' ? 1 : 0,
+                    years: chartView === 'yearly' ? 1 : 0,
+                });
+                
+                const prevPeriodDays = eachDayOfInterval({ start: prevDate, end: subDays(parseISO(item.date), 1) });
+                const prevPeriodData = prevPeriodDays.map(d => dataByDate[format(d, 'yyyy-MM-dd')]).filter(Boolean);
+                prevItem = prevPeriodData.reduce((acc, item) => {
+                    acc.revenue += item.totalRevenue;
+                    acc.netProfit += item.netProfit;
+                    acc.totalOrders += item.totalOrders;
+                    return acc;
+                }, { date: '', revenue: 0, netProfit: 0, newClients: 0, totalOrders: 0, notes: [] });
+
+            } else {
+                 const prevPeriodData = data.filter(d => parseISO(d.date) < firstDataPointDate);
+                 prevItem = prevPeriodData.reduce((acc, item) => {
+                    acc.revenue += item.totalRevenue;
+                    acc.netProfit += item.netProfit;
+                    acc.totalOrders += item.totalOrders;
+                    return acc;
+                }, { date: '', revenue: 0, netProfit: 0, newClients: 0, totalOrders: 0, notes: [] });
+            }
 
             const calculateGrowth = (current: number, prev: number) => {
                 if (prev === 0) return current > 0 ? 100 : 0;
@@ -164,17 +194,10 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
                 revenueGrowth: isFinite(revenueGrowth) ? revenueGrowth : 0,
                 profitGrowth: isFinite(profitGrowth) ? profitGrowth : 0,
                 aovGrowth: isFinite(aovGrowth) ? aovGrowth : 0,
-                clientGrowth: item.newClients, // clientGrowth is just the count for the period
+                clientGrowth: item.newClients, 
             };
         });
         
-        // Remove the first item if its data is only for previous period calculation
-        const firstDataPointDate = parseISO(data[0].date);
-        const firstIntervalDate = intervalDates[0];
-        if (firstIntervalDate && firstDataPointDate < firstIntervalDate) {
-            return finalResult.slice(1);
-        }
-
         return finalResult;
     }, [data, chartView]);
 
@@ -283,3 +306,4 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
 }
 
     
+
