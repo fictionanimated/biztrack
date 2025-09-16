@@ -4,7 +4,7 @@
  * @fileoverview Service for fetching and processing analytics data.
  */
 import { ObjectId } from 'mongodb';
-import { format, subDays, eachDayOfInterval, differenceInDays, parseISO, sub, startOfMonth, endOfMonth, eachMonthOfInterval, startOfYear, endOfYear, getMonth, getYear, differenceInMonths, startOfWeek, eachWeekOfInterval, getQuarter, startOfQuarter, eachQuarterOfInterval, eachYearOfInterval } from 'date-fns';
+import { format, subDays, eachDayOfInterval, differenceInDays, parseISO, sub, startOfMonth, endOfMonth, eachMonthOfInterval, startOfYear, endOfYear, getMonth, getYear, differenceInMonths, startOfWeek, eachWeekOfInterval, getQuarter, startOfQuarter, eachQuarterOfInterval, eachYearOfInterval, endOfQuarter } from 'date-fns';
 import clientPromise from '@/lib/mongodb';
 import { type Competitor } from '@/lib/data/incomes-data';
 import type { IncomeSource } from '@/lib/data/incomes-data';
@@ -109,6 +109,7 @@ export interface GrowthMetricTimeSeries {
     totalOrders: number;
     netProfit: number;
     newClients: number;
+    aov: number;
     notes: { title: string; content: string; date: Date }[];
 }
 export interface GrowthMetricData {
@@ -482,8 +483,8 @@ export async function getSourceAnalytics(sourceId: string, fromDate?: string, to
 }
 
 export async function getGrowthMetrics(from: string, to: string, sources?: string[]): Promise<GrowthMetricData> {
-    const fromDate = parseISO(from);
     const toDate = parseISO(to);
+    const fromDate = parseISO(from);
 
     const P2_to = toDate;
     const P2_from = fromDate;
@@ -527,7 +528,7 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
         notesMap.get(dateStr)!.push({ title: note.title as string, content: note.content as string, date: note.date as Date });
     });
 
-    const timeSeries = eachDayOfInterval({ start: fromDate, end: toDate }).map((day) => {
+    const timeSeries = eachDayOfInterval({ start: P1_from, end: P2_to }).map((day) => {
         const dateStr = format(day, 'yyyy-MM-dd');
         
         const dayOrders = allOrders.filter(o => o.date === dateStr);
@@ -535,15 +536,16 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
         const newClientsCount = allNewClients.filter(c => c.clientSince === dateStr).length;
 
         const revenue = dayOrders.reduce((sum, o) => sum + o.amount, 0);
-        const expenses = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
         const totalOrders = dayOrders.length;
+        const aov = totalOrders > 0 ? revenue / totalOrders : 0;
         
         return {
             date: dateStr,
             totalRevenue: revenue,
             totalOrders,
-            netProfit: revenue - expenses,
+            netProfit: revenue - dayExpenses.reduce((sum, e) => sum + e.amount, 0),
             newClients: newClientsCount,
+            aov,
             notes: notesMap.get(dateStr) || [],
         };
     });
@@ -1151,7 +1153,3 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
-
-    
-
-    

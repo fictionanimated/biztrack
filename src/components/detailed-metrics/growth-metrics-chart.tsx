@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import type { GrowthMetricTimeSeries } from '@/lib/services/analyticsService';
-import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachQuarterOfInterval, eachYearOfInterval, endOfWeek, isSameMonth, endOfMonth, endOfQuarter, endOfYear, sub, subDays } from "date-fns";
+import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, eachQuarterOfInterval, eachYearOfInterval, endOfWeek, isSameMonth, endOfMonth, endOfQuarter, endOfYear, sub } from "date-fns";
 
 const chartConfig = {
     revenueGrowth: { label: "Revenue Growth", color: "hsl(var(--chart-1))" },
@@ -91,12 +91,19 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
     const [chartView, setChartView] = useState<ChartView>('monthly');
 
     const aggregatedData = useMemo(() => {
-        if (!data || data.length < 2) return [];
+        if (!data || data.length === 0) return [];
         
-        let intervalDates: Date[] = [];
-        const firstDataPointDate = parseISO(data[1].date);
+        const dataByDate = data.reduce((acc, item) => {
+            acc[item.date] = item;
+            return acc;
+        }, {} as Record<string, typeof data[0]>);
+
+        const firstDataPointDate = parseISO(data[0].date);
         const lastDataPointDate = parseISO(data[data.length - 1].date);
         
+        let intervalDates: Date[] = [];
+        if (firstDataPointDate > lastDataPointDate) return [];
+
         const interval = { start: firstDataPointDate, end: lastDataPointDate };
         
         switch (chartView) {
@@ -107,22 +114,15 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
             case 'yearly': intervalDates = eachYearOfInterval(interval); break;
         }
 
-        const dataByDate = data.reduce((acc, item) => {
-            acc[item.date] = item;
-            return acc;
-        }, {} as Record<string, typeof data[0]>);
-
         const result = intervalDates.map(intervalDate => {
-            let key = '';
             let endOfPeriod: Date;
-
             switch(chartView) {
-                case 'daily': key = format(intervalDate, 'yyyy-MM-dd'); endOfPeriod = intervalDate; break;
-                case 'weekly': key = format(intervalDate, 'yyyy-MM-dd'); endOfPeriod = endOfWeek(intervalDate, { weekStartsOn: 1 }); break;
-                case 'monthly': key = format(intervalDate, 'yyyy-MM-dd'); endOfPeriod = endOfMonth(intervalDate); break;
-                case 'quarterly': key = format(intervalDate, 'yyyy-MM-dd'); endOfPeriod = endOfQuarter(intervalDate); break;
-                case 'yearly': key = format(intervalDate, 'yyyy-MM-dd'); endOfPeriod = endOfYear(intervalDate); break;
-                default: key = format(intervalDate, 'yyyy-MM-dd'); endOfPeriod = intervalDate; break;
+                case 'daily': endOfPeriod = intervalDate; break;
+                case 'weekly': endOfPeriod = endOfWeek(intervalDate, { weekStartsOn: 1 }); break;
+                case 'monthly': endOfPeriod = endOfMonth(intervalDate); break;
+                case 'quarterly': endOfPeriod = endOfQuarter(intervalDate); break;
+                case 'yearly': endOfPeriod = endOfYear(intervalDate); break;
+                default: endOfPeriod = intervalDate; break;
             }
             
             const daysInPeriod = eachDayOfInterval({start: intervalDate, end: endOfPeriod});
@@ -137,34 +137,15 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
                 return acc;
             }, { revenue: 0, netProfit: 0, newClients: 0, totalOrders: 0, notes: [] as any[] });
             
-            return { date: key, ...totals };
+            return { date: format(intervalDate, 'yyyy-MM-dd'), ...totals };
         });
 
         const finalResult = result.map((item, index) => {
-            let prevItem: typeof item;
-            
-            const itemDate = parseISO(item.date);
-            const prevPeriodEndDate = subDays(itemDate, 1);
-            let prevPeriodStartDate: Date;
-
-            switch (chartView) {
-                case 'daily': prevPeriodStartDate = subDays(itemDate, 1); break;
-                case 'weekly': prevPeriodStartDate = startOfWeek(subDays(itemDate, 7), {weekStartsOn: 1}); break;
-                case 'monthly': prevPeriodStartDate = startOfMonth(subDays(itemDate, 15)); break;
-                case 'quarterly': prevPeriodStartDate = startOfQuarter(subDays(itemDate, 90)); break;
-                case 'yearly': prevPeriodStartDate = startOfYear(subDays(itemDate, 365)); break;
-                default: prevPeriodStartDate = subDays(itemDate, 1);
+            if (index === 0) { // Can't calculate growth for the first item
+                return { ...item, revenueGrowth: 0, profitGrowth: 0, aovGrowth: 0, clientGrowth: item.newClients };
             }
 
-            const prevPeriodDays = eachDayOfInterval({ start: prevPeriodStartDate, end: prevPeriodEndDate });
-            const prevPeriodData = prevPeriodDays.map(d => dataByDate[format(d, 'yyyy-MM-dd')]).filter(Boolean);
-            
-            prevItem = prevPeriodData.reduce((acc, currentItem) => {
-                acc.revenue += currentItem.totalRevenue;
-                acc.netProfit += currentItem.netProfit;
-                acc.totalOrders += currentItem.totalOrders;
-                return acc;
-            }, { date: '', revenue: 0, netProfit: 0, newClients: 0, totalOrders: 0, notes: [] });
+            const prevItem = result[index-1];
 
             const calculateGrowth = (current: number, prev: number) => {
                 if (prev === 0) return current > 0 ? 100 : 0;
