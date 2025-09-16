@@ -485,18 +485,18 @@ export async function getSourceAnalytics(sourceId: string, fromDate?: string, to
 export async function getGrowthMetrics(from: string, to: string, sources?: string[]): Promise<GrowthMetricData> {
     const toDate = parseISO(to);
     const fromDate = parseISO(from);
-    
+
     const monthsDiff = differenceInMonths(toDate, fromDate);
 
     const P2_to = toDate;
     const P2_from = fromDate;
-
+    
     // Correctly calculate the start of the previous period by subtracting the number of months.
     const P1_to = sub(P2_from, { days: 1 });
-    const P1_from = sub(P1_to, {months: monthsDiff > 0 ? monthsDiff : 0, days: monthsDiff === 0 ? differenceInDays(P2_to, P2_from) : 0});
-    
+    const P1_from = sub(P1_to, {months: monthsDiff > 0 ? monthsDiff : 0, days: monthsDiff === 0 ? differenceInDays(P2_to, P2_from) + 1 : 0});
+
     const P0_to = sub(P1_from, { days: 1 });
-    const P0_from = sub(P0_to, {months: monthsDiff > 0 ? monthsDiff : 0, days: monthsDiff === 0 ? differenceInDays(P1_to, P1_from) : 0});
+    const P0_from = sub(P0_to, {months: monthsDiff > 0 ? monthsDiff : 0, days: monthsDiff === 0 ? differenceInDays(P1_to, P1_from) + 1 : 0});
     
     const overallStart = P0_from;
     const overallEnd = P2_to;
@@ -1153,4 +1153,3 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
-
