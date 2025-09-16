@@ -120,7 +120,7 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
                 case 'quarterly': key = `${getYear(intervalDate)}-Q${getQuarter(intervalDate)}`; break;
                 case 'yearly': key = getYear(intervalDate).toString(); break;
             }
-            dataMap.set(key, { date: key, revenue: 0, netProfit: 0, aov: 0, newClients: 0, orderCount: 0, notes: [] });
+            dataMap.set(key, { date: key, revenue: 0, netProfit: 0, newClients: 0, totalOrders: 0, notes: [] });
         });
 
         data.forEach(item => {
@@ -140,9 +140,8 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
             if (existing) {
                 existing.revenue += item.revenue;
                 existing.netProfit += item.netProfit;
-                existing.aov += item.aov; // sum daily AOV to be averaged later
                 existing.newClients += item.newClients;
-                if (item.aov > 0) existing.orderCount++; // Count days with orders for AOV calculation
+                existing.totalOrders += item.totalOrders;
                 if (item.note) {
                      existing.notes.push({ ...item.note, date: item.date });
                 }
@@ -157,10 +156,10 @@ export default function GrowthMetricsChart({ data, activeMetrics, onMetricToggle
             item.revenueGrowth = prevItem && prevItem.revenue > 0 ? ((item.revenue - prevItem.revenue) / prevItem.revenue) * 100 : 0;
             item.profitGrowth = prevItem && prevItem.netProfit > 0 ? ((item.netProfit - prevItem.netProfit) / prevItem.netProfit) * 100 : 0;
             
-            const avgAOV = item.orderCount > 0 ? item.aov / item.orderCount : 0;
-            const prevAvgAOV = prevItem && prevItem.orderCount > 0 ? prevItem.aov / prevItem.orderCount : 0;
-            item.aovGrowth = prevAvgAOV > 0 ? ((avgAOV - prevAvgAOV) / prevAvgAOV) * 100 : 0;
-            
+            const currentAOV = item.totalOrders > 0 ? item.revenue / item.totalOrders : 0;
+            const prevAOV = prevItem && prevItem.totalOrders > 0 ? prevItem.revenue / prevItem.totalOrders : 0;
+            item.aovGrowth = prevAOV > 0 ? ((currentAOV - prevAOV) / prevAOV) * 100 : 0;
+
             // Client growth is aggregated count, not a rate here
             item.clientGrowth = item.newClients;
         });

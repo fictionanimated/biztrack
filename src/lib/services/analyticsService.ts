@@ -107,7 +107,7 @@ export interface GrowthMetricTimeSeries {
     date: string;
     revenue: number;
     netProfit: number;
-    aov: number;
+    totalOrders: number;
     newClients: number;
     note?: { title: string; content: string; };
 }
@@ -507,7 +507,7 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
 
     const sourceFilter = sources ? { source: { $in: sources } } : {};
     
-    const [notesForPeriod, allOrders, allExpenses, allClients] = await Promise.all([
+    const [notesForPeriod, allOrders, allExpenses, allNewClients] = await Promise.all([
         businessNotesCol.find({ date: { $gte: P2_from, $lte: P2_to } }).project({ _id: 0, date: 1, title: 1, content: 1 }).toArray(),
         ordersCol.find({ date: { $gte: format(P0_from, 'yyyy-MM-dd'), $lte: format(P2_to, 'yyyy-MM-dd') }, status: 'Completed', ...sourceFilter }).toArray(),
         expensesCol.find({ date: { $gte: format(P0_from, 'yyyy-MM-dd'), $lte: format(P2_to, 'yyyy-MM-dd') } }).toArray(),
@@ -521,17 +521,17 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
         
         const dayOrders = allOrders.filter(o => o.date === dateStr);
         const dayExpenses = allExpenses.filter(e => e.date === dateStr);
-        const newClientsCount = allClients.filter(c => c.clientSince === dateStr).length;
+        const newClientsCount = allNewClients.filter(c => c.clientSince === dateStr).length;
 
         const revenue = dayOrders.reduce((sum, o) => sum + o.amount, 0);
         const expenses = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
-        const aov = dayOrders.length > 0 ? revenue / dayOrders.length : 0;
+        const totalOrders = dayOrders.length;
         
         return {
             date: dateStr,
             revenue,
             netProfit: revenue - expenses,
-            aov,
+            totalOrders,
             newClients: newClientsCount,
             note: notesMap.get(dateStr),
         };
@@ -543,7 +543,7 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
 
         const periodOrders = allOrders.filter(o => o.date >= startStr && o.date <= endStr);
         const periodExpenses = allExpenses.filter(e => e.date >= startStr && e.date <= endStr);
-        const periodNewClients = allClients.filter(c => c.clientSince >= startStr && c.clientSince <= endStr).length;
+        const periodNewClients = allNewClients.filter(c => c.clientSince >= startStr && c.clientSince <= endStr).length;
 
         const revenue = periodOrders.reduce((sum, o) => sum + o.amount, 0);
         const expenses = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
