@@ -105,9 +105,9 @@ export interface SourceAnalyticsData {
 
 export interface GrowthMetricTimeSeries {
     date: string;
-    revenue: number;
-    netProfit: number;
+    totalRevenue: number;
     totalOrders: number;
+    netProfit: number;
     newClients: number;
     note?: { title: string; content: string; };
 }
@@ -484,7 +484,7 @@ export async function getSourceAnalytics(sourceId: string, fromDate?: string, to
 export async function getGrowthMetrics(from: string, to: string, sources?: string[]): Promise<GrowthMetricData> {
     const fromDate = parseISO(from);
     const toDate = parseISO(to);
-    
+
     const durationInDays = differenceInDays(toDate, fromDate);
     if (durationInDays < 0) throw new Error("Invalid date range");
 
@@ -494,6 +494,10 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
     const P1_from = subDays(P1_to, durationInDays);
     const P0_to = subDays(P1_from, 1);
     const P0_from = subDays(P0_to, durationInDays);
+    
+    // Adjust the overall fetch range to include the period needed for the first calculation
+    const overallStart = P1_from;
+    const overallEnd = P2_to;
     
     const ordersCol = await getOrdersCollection();
     const expensesCol = await getExpensesCollection();
@@ -508,10 +512,10 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
     const sourceFilter = sources ? { source: { $in: sources } } : {};
     
     const [notesForPeriod, allOrders, allExpenses, allNewClients] = await Promise.all([
-        businessNotesCol.find({ date: { $gte: P2_from, $lte: P2_to } }).project({ _id: 0, date: 1, title: 1, content: 1 }).toArray(),
-        ordersCol.find({ date: { $gte: format(P0_from, 'yyyy-MM-dd'), $lte: format(P2_to, 'yyyy-MM-dd') }, status: 'Completed', ...sourceFilter }).toArray(),
-        expensesCol.find({ date: { $gte: format(P0_from, 'yyyy-MM-dd'), $lte: format(P2_to, 'yyyy-MM-dd') } }).toArray(),
-        clientsCol.find({ clientSince: { $gte: format(P0_from, 'yyyy-MM-dd'), $lte: format(P2_to, 'yyyy-MM-dd') }, ...sourceFilter }).toArray(),
+        businessNotesCol.find({ date: { $gte: overallStart, $lte: overallEnd } }).project({ _id: 0, date: 1, title: 1, content: 1 }).toArray(),
+        ordersCol.find({ date: { $gte: format(overallStart, 'yyyy-MM-dd'), $lte: format(overallEnd, 'yyyy-MM-dd') }, status: 'Completed', ...sourceFilter }).toArray(),
+        expensesCol.find({ date: { $gte: format(overallStart, 'yyyy-MM-dd'), $lte: format(overallEnd, 'yyyy-MM-dd') } }).toArray(),
+        clientsCol.find({ clientSince: { $gte: format(overallStart, 'yyyy-MM-dd'), $lte: format(overallEnd, 'yyyy-MM-dd') }, ...sourceFilter }).toArray(),
     ]);
     
     const notesMap = new Map(notesForPeriod.map(note => [format(note.date as Date, 'yyyy-MM-dd'), { title: note.title as string, content: note.content as string }]));
@@ -529,9 +533,9 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
         
         return {
             date: dateStr,
-            revenue,
-            netProfit: revenue - expenses,
+            totalRevenue: revenue,
             totalOrders,
+            netProfit: revenue - expenses,
             newClients: newClientsCount,
             note: notesMap.get(dateStr),
         };
@@ -1140,5 +1144,7 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
+
+    
 
     
