@@ -40,6 +40,8 @@ export function PerformanceMetrics({ date, selectedSources }: PerformanceMetrics
     messages: false,
     ctr: false,
   });
+  const [chartView, setChartView] = useState('daily');
+
 
   const handleMetricToggle = (metric: keyof typeof activeMetrics) => {
     setActiveMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
@@ -184,7 +186,13 @@ export function PerformanceMetrics({ date, selectedSources }: PerformanceMetrics
             <CardContent>
                 <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
                     {metrics?.timeSeries ? (
-                        <PerformanceMetricsChart data={metrics.timeSeries} activeMetrics={activeMetrics} onMetricToggle={handleMetricToggle} />
+                        <PerformanceMetricsChart 
+                            data={metrics.timeSeries} 
+                            activeMetrics={activeMetrics} 
+                            onMetricToggle={handleMetricToggle} 
+                            chartView={chartView}
+                            onChartViewChange={setChartView}
+                        />
                     ) : (
                         <p className="text-muted-foreground text-center py-8">No time series data available for the selected period.</p>
                     )}

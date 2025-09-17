@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from 'react';
@@ -9,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '../ui/separator';
 import { BookText } from 'lucide-react';
 import type { PerformanceMetricTimeSeries } from '@/lib/services/analyticsService';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { format, parseISO, startOfWeek, startOfMonth, getQuarter, getYear, startOfYear } from "date-fns";
 
 const chartConfig = {
     impressions: { label: "Impressions", color: "hsl(var(--chart-1))" },
@@ -17,10 +20,14 @@ const chartConfig = {
     ctr: { label: "CTR (%)", color: "hsl(var(--chart-4))" },
 } satisfies ChartConfig;
 
+type ChartView = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
 interface PerformanceMetricsChartProps {
     data: PerformanceMetricTimeSeries[];
     activeMetrics: Record<string, boolean>;
     onMetricToggle: (metric: string) => void;
+    chartView: ChartView;
+    onChartViewChange: (view: ChartView) => void;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -47,12 +54,57 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export default function PerformanceMetricsChart({ data, activeMetrics, onMetricToggle }: PerformanceMetricsChartProps) {
+export default function PerformanceMetricsChart({ data, activeMetrics, onMetricToggle, chartView, onChartViewChange }: PerformanceMetricsChartProps) {
     const yAxisIds = {
         impressions: 'left',
         clicks: 'right',
         messages: 'right',
         ctr: 'percentage',
+    };
+    
+    const aggregatedData = useMemo(() => {
+        if (!data || data.length === 0) return [];
+        const dataMap = new Map<string, any>();
+
+        data.forEach(item => {
+            const itemDate = parseISO(item.date);
+            let key = '';
+
+            switch(chartView) {
+                case 'weekly': key = format(startOfWeek(itemDate, { weekStartsOn: 1 }), 'yyyy-MM-dd'); break;
+                case 'monthly': key = format(startOfMonth(itemDate), 'yyyy-MM-dd'); break;
+                case 'quarterly': key = `${getYear(itemDate)}-Q${getQuarter(itemDate)}`; break;
+                case 'yearly': key = format(startOfYear(itemDate), 'yyyy'); break;
+                default: key = item.date; break;
+            }
+
+            const existing = dataMap.get(key) || { date: key, impressions: 0, clicks: 0, messages: 0 };
+            existing.impressions += item.impressions;
+            existing.clicks += item.clicks;
+            existing.messages += item.messages;
+            dataMap.set(key, existing);
+        });
+
+        const result = Array.from(dataMap.values()).map(item => ({
+            ...item,
+            ctr: item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0,
+        }));
+        
+        return result.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }, [data, chartView]);
+
+    const tickFormatter = (value: string) => {
+        try {
+            switch (chartView) {
+                case 'weekly': return `W/C ${format(parseISO(value), "MMM d")}`;
+                case 'monthly': return format(parseISO(value), "MMM yyyy");
+                case 'quarterly': return value;
+                case 'yearly': return value;
+                default: return format(parseISO(value), "MMM d");
+            }
+        } catch (e) {
+            return value;
+        }
     };
 
     return (
@@ -63,35 +115,50 @@ export default function PerformanceMetricsChart({ data, activeMetrics, onMetricT
                         <CardTitle>Performance Metrics Trend</CardTitle>
                         <CardDescription>Monthly trends for key performance metrics.</CardDescription>
                     </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                        {Object.keys(chartConfig).map((metric) => (
-                            <div key={metric} className="flex items-center gap-2">
-                                <Checkbox
-                                    id={`performance-metric-${metric}`}
-                                    checked={activeMetrics[metric as keyof typeof activeMetrics]}
-                                    onCheckedChange={() => onMetricToggle(metric as keyof typeof activeMetrics)}
-                                    style={{
-                                        '--chart-color': chartConfig[metric as keyof typeof chartConfig].color,
-                                    } as React.CSSProperties}
-                                    className="data-[state=checked]:bg-[var(--chart-color)] data-[state=checked]:border-[var(--chart-color)] border-muted-foreground"
-                                />
-                                <Label htmlFor={`performance-metric-${metric}`} className="capitalize">
-                                    {chartConfig[metric as keyof typeof chartConfig].label}
-                                </Label>
-                            </div>
-                        ))}
+                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        <Select value={chartView} onValueChange={(value) => onChartViewChange(value as ChartView)}>
+                            <SelectTrigger className="w-[120px]">
+                                <SelectValue placeholder="Select view" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="daily">Daily</SelectItem>
+                                <SelectItem value="weekly">Weekly</SelectItem>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                                <SelectItem value="quarterly">Quarterly</SelectItem>
+                                <SelectItem value="yearly">Yearly</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                            {Object.keys(chartConfig).map((metric) => (
+                                <div key={metric} className="flex items-center gap-2">
+                                    <Checkbox
+                                        id={`performance-metric-${metric}`}
+                                        checked={activeMetrics[metric as keyof typeof activeMetrics]}
+                                        onCheckedChange={() => onMetricToggle(metric as keyof typeof activeMetrics)}
+                                        style={{
+                                            '--chart-color': chartConfig[metric as keyof typeof chartConfig].color,
+                                        } as React.CSSProperties}
+                                        className="data-[state=checked]:bg-[var(--chart-color)] data-[state=checked]:border-[var(--chart-color)] border-muted-foreground"
+                                    />
+                                    <Label htmlFor={`performance-metric-${metric}`} className="capitalize">
+                                        {chartConfig[metric as keyof typeof chartConfig].label}
+                                    </Label>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                    <LineChart data={data} margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
+                    <LineChart data={aggregatedData} margin={{ top: 5, right: 40, left: 10, bottom: 5 }}>
                         <CartesianGrid vertical={false} />
                         <XAxis
                             dataKey="date"
                             tickLine={false}
                             axisLine={false}
                             tickMargin={8}
+                            tickFormatter={tickFormatter}
                         />
                         <YAxis
                             yAxisId="left"
