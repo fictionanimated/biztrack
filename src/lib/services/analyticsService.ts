@@ -103,15 +103,6 @@ export interface SourceAnalyticsData {
     previousTotals: Omit<Totals, 'conversionRate'> & {ctr: number};
 }
 
-export interface GrowthMetricTimeSeries {
-    date: string;
-    totalRevenue: number;
-    totalOrders: number;
-    netProfit: number;
-    newClients: number;
-    aov: number;
-    notes: { title: string; content: string; date: Date }[];
-}
 export interface GrowthMetricData {
   revenueGrowth: { value: number; previousValue: number };
   profitGrowth: { value: number; previousValue: number };
@@ -119,7 +110,6 @@ export interface GrowthMetricData {
   aovGrowth: { value: number; previousValue: number };
   vipClientGrowth: { value: number; previousValue: number };
   topSourceGrowth: { value: number; previousValue: number; source: string };
-  timeSeries: GrowthMetricTimeSeries[];
 }
 
 export interface FinancialMetricTimeSeries {
@@ -137,8 +127,8 @@ export interface FinancialMetricTimeSeries {
 export interface FinancialMetric {
     value: number;
     change: number;
-    previousPeriodChange: number;
     previousValue: number;
+    previousPeriodChange: number;
 }
 
 export interface FinancialMetricData {
@@ -476,7 +466,7 @@ export async function getSourceAnalytics(sourceId: string, fromDate?: string, to
         sourceId,
         sourceName: source.name,
         gigs: source.gigs.map(g => ({ id: g.id, name: g.name, date: g.date, messages: messageMap.get(g.id) })),
-        timeSeries,
+        timeSeries: timeSeries,
         totals: { ...totals, ctr: totals.ctr },
         previousTotals: { ...previousTotals, ctr: previousTotals.ctr }
     };
@@ -486,17 +476,16 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
     const toDate = parseISO(to);
     const fromDate = parseISO(from);
 
-    const monthsDiff = differenceInMonths(toDate, fromDate);
+    const monthsDiff = differenceInMonths(toDate, fromDate) || 1;
 
     const P2_to = toDate;
     const P2_from = fromDate;
     
-    // Correctly calculate the start of the previous period by subtracting the number of months.
     const P1_to = sub(P2_from, { days: 1 });
-    const P1_from = sub(P1_to, {months: monthsDiff > 0 ? monthsDiff : 0, days: monthsDiff === 0 ? differenceInDays(P2_to, P2_from) + 1 : 0});
+    const P1_from = sub(P1_to, {months: monthsDiff});
 
     const P0_to = sub(P1_from, { days: 1 });
-    const P0_from = sub(P0_to, {months: monthsDiff > 0 ? monthsDiff : 0, days: monthsDiff === 0 ? differenceInDays(P1_to, P1_from) + 1 : 0});
+    const P0_from = sub(P0_to, {months: monthsDiff});
     
     const overallStart = P0_from;
     const overallEnd = P2_to;
@@ -504,7 +493,6 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
     const ordersCol = await getOrdersCollection();
     const expensesCol = await getExpensesCollection();
     const clientsCol = await getClientsCollection();
-    const businessNotesCol = await getBusinessNotesCollection();
     
     const calculateGrowth = (currentVal: number, prevVal: number) => {
         if (prevVal === 0) return currentVal > 0 ? 100 : 0;
@@ -513,42 +501,11 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
 
     const sourceFilter = sources ? { source: { $in: sources } } : {};
     
-    const [allNotes, allOrders, allExpenses, allNewClients] = await Promise.all([
-        businessNotesCol.find({ date: { $gte: overallStart, $lte: overallEnd } }).project({ _id: 0, date: 1, title: 1, content: 1 }).toArray(),
+    const [allOrders, allExpenses, allNewClients] = await Promise.all([
         ordersCol.find({ date: { $gte: format(overallStart, 'yyyy-MM-dd'), $lte: format(overallEnd, 'yyyy-MM-dd') }, status: 'Completed', ...sourceFilter }).toArray(),
         expensesCol.find({ date: { $gte: format(overallStart, 'yyyy-MM-dd'), $lte: format(overallEnd, 'yyyy-MM-dd') } }).toArray(),
         clientsCol.find({ clientSince: { $gte: format(overallStart, 'yyyy-MM-dd'), $lte: format(overallEnd, 'yyyy-MM-dd') }, ...sourceFilter }).toArray(),
     ]);
-    
-    const notesMap = new Map<string, { title: string; content: string; date: Date }[]>();
-    allNotes.forEach(note => {
-        const dateStr = format(note.date as Date, 'yyyy-MM-dd');
-        if (!notesMap.has(dateStr)) {
-            notesMap.set(dateStr, []);
-        }
-        notesMap.get(dateStr)!.push({ title: note.title as string, content: note.content as string, date: note.date as Date });
-    });
-
-    const timeSeries = eachDayOfInterval({ start: P1_from, end: P2_to }).map((day) => {
-        const dateStr = format(day, 'yyyy-MM-dd');
-        
-        const dayOrders = allOrders.filter(o => o.date === dateStr);
-        const dayExpenses = allExpenses.filter(e => e.date === dateStr);
-        const newClientsCount = allNewClients.filter(c => c.clientSince === dateStr).length;
-
-        const revenue = dayOrders.reduce((sum, o) => sum + o.amount, 0);
-        const totalOrders = dayOrders.length;
-        
-        return {
-            date: dateStr,
-            totalRevenue: revenue,
-            totalOrders,
-            netProfit: revenue - dayExpenses.reduce((sum, e) => sum + e.amount, 0),
-            newClients: newClientsCount,
-            aov: totalOrders > 0 ? revenue / totalOrders : 0,
-            notes: notesMap.get(dateStr) || [],
-        };
-    });
 
     const calcPeriodMetrics = async (start: Date, end: Date) => {
         const startStr = format(start, 'yyyy-MM-dd');
@@ -600,7 +557,6 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
         vipClientGrowth: { value: calculateGrowth(P2_metrics.vipClients, P1_metrics.vipClients), previousValue: calculateGrowth(P1_metrics.vipClients, P0_metrics.vipClients) },
         topSourceGrowth: { value: calculateGrowth(P2_metrics.topSource.revenue, P1_topSourceRevenue), previousValue: 0, source: P2_metrics.topSource.source }, // Simplified prev value
         clientGrowth: { value: P1_metrics.clientsAtStart > 0 ? (P2_metrics.newClients / P1_metrics.clientsAtStart) * 100 : P2_metrics.newClients > 0 ? 100 : 0, previousValue: P0_metrics.clientsAtStart > 0 ? (P1_metrics.newClients / P0_metrics.clientsAtStart) * 100 : P1_metrics.newClients > 0 ? 100 : 0 },
-        timeSeries,
     };
 }
 
@@ -1153,3 +1109,10 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
 
     return data;
 }
+
+
+
+
+    
+
+    

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, lazy, Suspense, useEffect } from "react";
@@ -10,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { type GrowthMetricData } from "@/lib/services/analyticsService";
 
-const GrowthMetricsChart = lazy(() => import("@/components/detailed-metrics/growth-metrics-chart"));
 
 interface GrowthMetricsProps {
     date: DateRange | undefined;
@@ -19,23 +19,9 @@ interface GrowthMetricsProps {
 }
 
 export function GrowthMetrics({ date, selectedSources, previousPeriodLabel }: GrowthMetricsProps) {
-  const [showChart, setShowChart] = useState(false);
-  const [activeMetrics, setActiveMetrics] = useState({
-    revenueGrowth: true,
-    profitGrowth: true,
-    clientGrowth: true,
-    aovGrowth: false,
-    highValueClientGrowth: false,
-    sourceGrowth: false,
-  });
-  
   const [isLoading, setIsLoading] = useState(true);
   const [growthMetricsData, setGrowthMetricsData] = useState<GrowthMetricData | null>(null);
 
-  const handleMetricToggle = (metric: string) => {
-    setActiveMetrics((prev) => ({ ...prev, [metric]: !prev[metric] }));
-  };
-  
   useEffect(() => {
     async function fetchData() {
         if (!date?.from || !date?.to) return;
@@ -96,10 +82,6 @@ export function GrowthMetrics({ date, selectedSources, previousPeriodLabel }: Gr
           <BarChart className="h-6 w-6 text-primary" />
           <span>Growth Metrics</span>
         </CardTitle>
-        <Button variant="outline" size="sm" onClick={() => setShowChart(!showChart)}>
-            {showChart ? <EyeOff className="mr-2 h-4 w-4" /> : <BarChart className="mr-2 h-4 w-4" />}
-            {showChart ? "Hide Graph" : "Show Graph"}
-        </Button>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -141,13 +123,8 @@ export function GrowthMetrics({ date, selectedSources, previousPeriodLabel }: Gr
           })}
         </div>
       </CardContent>
-      {showChart && (
-        <CardContent>
-             <Suspense fallback={<Skeleton className="h-[300px] w-full" />}>
-                <GrowthMetricsChart data={growthMetricsData.timeSeries} activeMetrics={activeMetrics} onMetricToggle={handleMetricToggle} />
-            </Suspense>
-        </CardContent>
-      )}
     </Card>
   );
 }
+
+    
