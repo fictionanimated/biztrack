@@ -145,14 +145,14 @@ export function SourcePerformanceChart({ data, config, activeMetrics, showCompar
                     {Object.keys(activeMetrics).filter(k => activeMetrics[k]).map(key => {
                         const yAxisId = yAxisIds[key as keyof typeof yAxisIds];
                         return (
-                          <Line key={key} yAxisId={yAxisId} dataKey={key} type="natural" stroke={`var(--color-${key})`} strokeWidth={2} dot={false} />
+                          <Line key={key} yAxisId={yAxisId} dataKey={key} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot={false} />
                         );
                     })}
                      {showComparison && Object.keys(activeMetrics).filter(k => activeMetrics[k]).map(key => {
                         const yAxisId = yAxisIds[key as keyof typeof yAxisIds];
                         const prevKey = `prev${key.charAt(0).toUpperCase() + key.slice(1)}`;
                         return (
-                           <Line key={prevKey} yAxisId={yAxisId} dataKey={prevKey} type="natural" stroke={`var(--color-${key})`} strokeWidth={2} dot={false} strokeDasharray="3 3"/>
+                           <Line key={prevKey} yAxisId={yAxisId} dataKey={prevKey} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot={false} strokeDasharray="3 3"/>
                         )
                     })}
                 </LineChart>
