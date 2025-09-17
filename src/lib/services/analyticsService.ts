@@ -155,7 +155,7 @@ export interface PerformanceMetricTimeSeries {
     clicks: number;
     messages: number;
     ctr: number;
-    note?: Pick<BusinessNote, 'title' | 'content'>;
+    note?: Pick<BusinessNote, 'title' | 'content' | 'date'>;
 }
 export interface PerformanceMetricData {
   impressions: PerformanceMetric;
@@ -475,7 +475,7 @@ export async function getSourceAnalytics(sourceId: string, fromDate?: string, to
         sourceId,
         sourceName: source.name,
         gigs: source.gigs.map(g => ({ id: g.id, name: g.name, date: g.date, messages: messageMap.get(g.id) })),
-        timeSeries: timeSeries,
+        timeSeries,
         totals: { ...totals, ctr: totals.ctr },
         previousTotals: { ...previousTotals, ctr: previousTotals.ctr }
     };
@@ -966,13 +966,13 @@ export async function getPerformanceMetrics(from: string, to: string, sources: s
         businessNotesCol.find({ date: { $gte: overallStart, $lte: overallEnd } }).project({ title: 1, content: 1, date: 1 }).toArray(),
     ]);
 
-    const notesByDate: Record<string, { title: string; content: string }[]> = {};
+    const notesByDate: Record<string, { title: string; content: string; date: Date; }[]> = {};
     allNotes.forEach(note => {
         const dateKey = format(note.date, 'yyyy-MM-dd');
         if (!notesByDate[dateKey]) {
             notesByDate[dateKey] = [];
         }
-        notesByDate[dateKey].push({ title: note.title, content: note.content });
+        notesByDate[dateKey].push({ title: note.title, content: note.content, date: note.date });
     });
     
     const calculateMetricsForPeriod = (start: Date, end: Date) => {

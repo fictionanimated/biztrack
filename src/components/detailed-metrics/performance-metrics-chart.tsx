@@ -32,7 +32,8 @@ interface PerformanceMetricsChartProps {
 
 const CustomTooltipWithNotes = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const note = payload[0].payload.note;
+    const notes = payload[0].payload.note ? (Array.isArray(payload[0].payload.note) ? payload[0].payload.note : [payload[0].payload.note]) : [];
+    
     return (
       <div className="z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md max-w-sm">
         <p className="font-medium">{label}</p>
@@ -49,16 +50,21 @@ const CustomTooltipWithNotes = ({ active, payload, label }: any) => {
             </div>
           ) : null
         ))}
-         {note && (
+         {notes && notes.length > 0 && (
           <>
             <Separator className="my-2" />
-            <div className="flex items-start gap-2 text-muted-foreground">
-              <BookText className="size-4 shrink-0 mt-0.5 text-primary" />
-              <div className="flex flex-col">
-                <p className="font-semibold text-foreground">{note.title}</p>
-                <p className="text-xs whitespace-pre-wrap">{note.content}</p>
+            {notes.map((note: any, index: number) => (
+              <div key={index} className="flex flex-col items-start gap-2 text-muted-foreground mt-1">
+                  <div className="flex items-center gap-2">
+                    <BookText className="size-4 shrink-0 text-primary" />
+                    <span className="font-semibold text-foreground">{format(new Date(note.date), "MMM d, yyyy")}</span>
+                  </div>
+                  <div className="pl-6">
+                    <p className="font-semibold text-foreground">{note.title}</p>
+                    <p className="text-xs whitespace-pre-wrap">{note.content}</p>
+                  </div>
               </div>
-            </div>
+            ))}
           </>
         )}
       </div>
@@ -69,7 +75,7 @@ const CustomTooltipWithNotes = ({ active, payload, label }: any) => {
 
 const CustomDotWithNote = (props: any) => {
   const { cx, cy, payload } = props;
-  if (payload.note) {
+  if (payload.note && payload.note.length > 0) {
     return (
       <Dot
         cx={cx}
@@ -108,12 +114,12 @@ export default function PerformanceMetricsChart({ data, activeMetrics, onMetricT
                 default: key = item.date; break;
             }
 
-            const existing = dataMap.get(key) || { date: key, impressions: 0, clicks: 0, messages: 0, notes: [] };
+            const existing = dataMap.get(key) || { date: key, impressions: 0, clicks: 0, messages: 0, note: [] };
             existing.impressions += item.impressions;
             existing.clicks += item.clicks;
             existing.messages += item.messages;
             if (item.note) {
-                existing.notes.push(item.note);
+                existing.note.push(item.note);
             }
             dataMap.set(key, existing);
         });
@@ -121,7 +127,6 @@ export default function PerformanceMetricsChart({ data, activeMetrics, onMetricT
         const result = Array.from(dataMap.values()).map(item => ({
             ...item,
             ctr: item.impressions > 0 ? (item.clicks / item.impressions) * 100 : 0,
-            note: item.notes.length > 0 ? item.notes[0] : undefined, // simplify for dot display
         }));
         
         return result.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
