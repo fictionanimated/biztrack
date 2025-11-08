@@ -19,7 +19,11 @@ type ChartView = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 const calculateGrowth = (current?: number, previous?: number) => {
     if (previous === undefined || previous === null || current === undefined || current === null) return 0;
-    if (previous === 0) return current > 0 ? 100 : 0;
+    // If both are zero, growth is 0%
+    if (previous === 0 && current === 0) return 0;
+    // If previous was zero and current is positive, it's effectively infinite growth, capped at 100% for visualization
+    if (previous === 0) return 100;
+    // Standard growth calculation
     return ((current - previous) / previous) * 100;
 };
 
@@ -28,7 +32,7 @@ export default function GrowthMetricsChart({ timeSeries }: { timeSeries: { curre
     const [chartView, setChartView] = useState<ChartView>('monthly');
 
     const aggregatedData = useMemo(() => {
-        if (!timeSeries || !timeSeries.currentRevenue || !timeSeries.previousRevenue) {
+        if (!timeSeries || !timeSeries.currentRevenue) {
             return [];
         }
 
@@ -47,24 +51,20 @@ export default function GrowthMetricsChart({ timeSeries }: { timeSeries: { curre
                 }
                 map.set(key, (map.get(key) || 0) + item.revenue);
             });
-            return map;
+            return Array.from(map.entries())
+                        .map(([date, revenue]) => ({ date, revenue }))
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         };
 
         const currentAggregated = aggregate(timeSeries.currentRevenue, chartView);
-        const previousAggregated = aggregate(timeSeries.previousRevenue, chartView);
         
-        // Match keys between periods. We assume periods are of the same length and structure.
-        const currentKeys = Array.from(currentAggregated.keys()).sort((a,b) => new Date(a).getTime() - new Date(b).getTime());
-        const previousKeys = Array.from(previousAggregated.keys()).sort((a,b) => new Date(a).getTime() - new Date(b).getTime());
-
-        return currentKeys.map((key, index) => {
-            const currentVal = currentAggregated.get(key) || 0;
-            const prevKey = previousKeys[index]; // Get corresponding key from previous period
-            const prevVal = prevKey ? (previousAggregated.get(prevKey) || 0) : 0;
-            
+        return currentAggregated.map((item, index) => {
+            const previousItem = index > 0 ? currentAggregated[index - 1] : undefined;
             return {
-                date: key,
-                growthRate: calculateGrowth(currentVal, prevVal),
+                date: item.date,
+                revenue: item.revenue,
+                previousRevenue: previousItem?.revenue,
+                growthRate: calculateGrowth(item.revenue, previousItem?.revenue),
             };
         });
 
@@ -94,7 +94,7 @@ export default function GrowthMetricsChart({ timeSeries }: { timeSeries: { curre
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <CardTitle>Revenue Growth Trend</CardTitle>
-                        <CardDescription>Percentage growth of revenue compared to the previous period.</CardDescription>
+                        <CardDescription>Percentage growth of revenue compared to the previous interval.</CardDescription>
                     </div>
                      <div className="flex items-center gap-4">
                          <div className="flex items-center gap-1">
@@ -129,7 +129,13 @@ export default function GrowthMetricsChart({ timeSeries }: { timeSeries: { curre
                         <Tooltip
                             content={
                                 <ChartTooltipContent
-                                    formatter={(value) => [`${(value as number).toFixed(2)}%`, "Growth"]}
+                                    formatter={(value, name, props) => {
+                                        const { payload } = props;
+                                        const revenue = payload?.revenue as number | undefined;
+                                        const prevRevenue = payload?.previousRevenue as number | undefined;
+                                        const details = `(Current: $${revenue?.toFixed(0)}, Prev: $${prevRevenue?.toFixed(0)})`;
+                                        return [`${(value as number).toFixed(2)}% ${details}`, "Growth"];
+                                    }}
                                     indicator="dot"
                                 />
                             }
