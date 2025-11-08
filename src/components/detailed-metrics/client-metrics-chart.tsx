@@ -138,10 +138,10 @@ export default function ClientMetricsChart({ activeMetrics, onMetricToggle }: Cl
                             cursor={false}
                             content={<CustomTooltip />}
                         />
-                        {activeMetrics.totalClients && <Line yAxisId="left" dataKey="totalClients" type="step" stroke="var(--color-totalClients)" strokeWidth={2} dot={<CustomDot />} />}
-                        {activeMetrics.newClients && <Line yAxisId="left" dataKey="newClients" type="step" stroke="var(--color-newClients)" strokeWidth={2} dot={<CustomDot />} />}
-                        {activeMetrics.retentionRate && <Line yAxisId="right" dataKey="retentionRate" type="step" stroke="var(--color-retentionRate)" strokeWidth={2} dot={<CustomDot />} />}
-                        {activeMetrics.csat && <Line yAxisId="right" dataKey="csat" type="step" stroke="var(--color-csat)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.totalClients && <Line yAxisId="left" dataKey="totalClients" stroke="var(--color-totalClients)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.newClients && <Line yAxisId="left" dataKey="newClients" stroke="var(--color-newClients)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.retentionRate && <Line yAxisId="right" dataKey="retentionRate" stroke="var(--color-retentionRate)" strokeWidth={2} dot={<CustomDot />} />}
+                        {activeMetrics.csat && <Line yAxisId="right" dataKey="csat" stroke="var(--color-csat)" strokeWidth={2} dot={<CustomDot />} />}
                     </LineChart>
                 </ChartContainer>
             </CardContent>
