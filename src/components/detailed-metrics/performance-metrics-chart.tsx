@@ -229,7 +229,7 @@ export default function PerformanceMetricsChart({ data, activeMetrics, onMetricT
                             content={<CustomTooltipWithNotes />}
                         />
                         {Object.keys(activeMetrics).filter(k => activeMetrics[k as keyof typeof activeMetrics]).map(key => (
-                           <Line key={key} yAxisId={yAxisIds[key as keyof typeof yAxisIds]} dataKey={key} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot={<CustomDotWithNote />} />
+                           <Line key={key} yAxisId={yAxisIds[key as keyof typeof yAxisIds]} dataKey={key} type="step" stroke={`var(--color-${key})`} strokeWidth={2} dot={<CustomDotWithNote />} />
                         ))}
                     </LineChart>
                 </ChartContainer>
