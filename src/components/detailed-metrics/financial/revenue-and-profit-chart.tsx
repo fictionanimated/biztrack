@@ -143,6 +143,13 @@ export default function RevenueAndProfitChart({ timeSeries }: { timeSeries: Fina
         }
     };
     
+    const yAxisTickFormatter = (value: number) => {
+        if (Math.abs(value) >= 1000) {
+            return `$${(value / 1000).toFixed(value % 1000 !== 0 ? 1 : 0)}k`;
+        }
+        return `$${value}`;
+    };
+
     const Chart = chartType === 'bar' ? BarChart : LineChart;
     const ChartComponent = chartType === 'bar' ? Bar : Line;
 
@@ -191,7 +198,7 @@ export default function RevenueAndProfitChart({ timeSeries }: { timeSeries: Fina
                     <Chart data={aggregatedData}>
                         <CartesianGrid vertical={false} />
                         <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={tickFormatter} />
-                        <YAxis tickFormatter={(value) => `$${value/1000}k`} />
+                        <YAxis tickFormatter={yAxisTickFormatter} />
                         <Tooltip content={<CustomTooltipWithNotes />} />
                         <Legend />
                          {Object.keys(activeMetrics).filter(k => activeMetrics[k as keyof typeof activeMetrics]).map(key => (
