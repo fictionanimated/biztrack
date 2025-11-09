@@ -8,8 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { BarChart2, LineChartIcon } from 'lucide-react';
+import { BarChart2, LineChartIcon, BookText } from 'lucide-react';
 import { format, startOfWeek, startOfMonth, getQuarter, getYear, parseISO } from "date-fns";
+import { type RevenueDataPoint } from '@/lib/services/analyticsService';
+import { Separator } from '../ui/separator';
 
 const chartConfig = {
     growthRate: { label: "Net Profit Growth (%)", color: "hsl(var(--chart-3))" },
@@ -44,6 +46,50 @@ const CustomDotWithNote = (props: any) => {
   return null;
 };
 
+const CustomTooltipWithNotes = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const notes = payload[0].payload.note;
+    return (
+      <div className="z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md max-w-sm">
+        <p className="font-medium">{label}</p>
+         {payload.map((pld: any) => {
+            const { payload: itemPayload } = pld;
+            const netProfit = itemPayload?.value as number | undefined;
+            const prevNetProfit = itemPayload?.previousValue as number | undefined;
+            
+            return (
+                <div key={pld.dataKey} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                        <span className="mr-2 h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: pld.color || pld.stroke || pld.fill }} />
+                        <span>{chartConfig[pld.dataKey as keyof typeof chartConfig]?.label}:</span>
+                    </div>
+                    <span className="ml-4 font-mono font-medium">{`${Number(pld.value).toFixed(2)}%`}</span>
+                </div>
+            )
+         })}
+         <p className="text-xs text-muted-foreground">{`(Current: $${payload[0].payload.value?.toFixed(0)}, Prev: $${payload[0].payload.previousValue?.toFixed(0)})`}</p>
+
+         {notes && notes.length > 0 && (
+          <>
+            <Separator className="my-2" />
+            {notes.map((note: any, index: number) => (
+              <div key={index} className="flex items-start gap-2 text-muted-foreground mt-1">
+                  <BookText className="size-4 shrink-0 mt-0.5 text-primary" />
+                  <div className="flex flex-col">
+                    <p className="font-semibold text-foreground">{note.title}</p>
+                    <p className="text-xs whitespace-pre-wrap">{note.content}</p>
+                  </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    );
+  }
+  return null;
+};
+
+
 export default function NetProfitGrowthChart({ timeSeries }: { timeSeries: {date: string; value: number, note?: any[]}[] }) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('line');
     const [chartView, setChartView] = useState<ChartView>('monthly');
@@ -66,9 +112,10 @@ export default function NetProfitGrowthChart({ timeSeries }: { timeSeries: {date
                     case 'yearly': key = getYear(itemDate).toString(); break;
                     default: key = item.date; break;
                 }
+                
                 const existing = map.get(key) || { value: 0, notes: [] };
                 existing.value += item.value;
-                if (item.note) {
+                 if (item.note) {
                     existing.notes.push(...item.note);
                 }
                 map.set(key, existing);
@@ -84,7 +131,7 @@ export default function NetProfitGrowthChart({ timeSeries }: { timeSeries: {date
             const previousItem = index > 0 ? currentAggregated[index - 1] : { value: undefined };
             return {
                 date: item.date,
-                currentValue: item.value,
+                value: item.value,
                 previousValue: previousItem?.value,
                 growthRate: calculateGrowth(item.value, previousItem?.value),
                 note: item.note,
@@ -149,20 +196,7 @@ export default function NetProfitGrowthChart({ timeSeries }: { timeSeries: {date
                         <CartesianGrid vertical={false} />
                         <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={tickFormatter} />
                         <YAxis tickFormatter={(value) => `${value.toFixed(0)}%`} />
-                        <Tooltip
-                            content={
-                                <ChartTooltipContent
-                                    formatter={(value, name, props) => {
-                                        const { payload } = props;
-                                        const netProfit = payload?.currentValue as number | undefined;
-                                        const prevNetProfit = payload?.previousValue as number | undefined;
-                                        const details = `(Current: $${netProfit?.toFixed(0)}, Prev: $${prevNetProfit?.toFixed(0)})`;
-                                        return [`${(value as number).toFixed(2)}% ${details}`, "Growth"];
-                                    }}
-                                    indicator="dot"
-                                />
-                            }
-                        />
+                        <Tooltip content={<CustomTooltipWithNotes />} />
                         <Legend />
                         <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
                          <ChartComponent 
