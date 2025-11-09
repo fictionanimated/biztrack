@@ -88,7 +88,7 @@ const DailySummaryPageComponent = () => {
             const settingsData = await settingsRes.json();
 
             setTimezone(settingsData.timezone || 'UTC');
-            setSummaries(summariesData.map((s: DailySummary & {date: string}) => ({...s, date: new Date(s.date.replace(/-/g, '/'))})));
+            setSummaries(summariesData.map((s: DailySummary & {date: string}) => ({...s, date: new Date(s.date)})));
             
         } catch (e) {
             console.error(e);
@@ -132,7 +132,7 @@ const DailySummaryPageComponent = () => {
             
             const payload = {
                 ...values,
-                date: format(dateForPayload, 'yyyy-MM-dd')
+                date: format(toZonedTime(dateForPayload, timezone), 'yyyy-MM-dd')
             };
             response = await fetch('/api/daily-summaries', {
                 method: 'POST',
@@ -147,7 +147,7 @@ const DailySummaryPageComponent = () => {
         }
         
         const savedSummary = await response.json();
-        savedSummary.date = new Date(savedSummary.date.replace(/-/g, '/'));
+        savedSummary.date = new Date(savedSummary.date);
 
         if (editingSummary) {
             setSummaries(summaries.map(s => s.id === savedSummary.id ? savedSummary : s));
@@ -209,7 +209,7 @@ const DailySummaryPageComponent = () => {
   }, [editingSummary, selectedDate]);
 
   const sortedSummaries = useMemo(() => {
-    return [...summaries].sort((a, b) => (b.date as Date).getTime() - (a.date as Date).getTime());
+    return [...summaries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [summaries]);
 
   return (

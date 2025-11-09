@@ -90,7 +90,7 @@ const BusinessNotesPageComponent = () => {
       const res = await fetch('/api/business-notes');
       if (!res.ok) throw new Error('Failed to fetch notes from the server.');
       const data = await res.json();
-      setNotes(data.map((note: BusinessNote & {date: string}) => ({...note, date: new Date(note.date.replace(/-/g, '/'))})));
+      setNotes(data.map((note: BusinessNote & {date: string}) => ({...note, date: new Date(note.date)})));
     } catch (e) {
       console.error(e);
       setError('Could not connect to the database or fetch data. Please try again.');
@@ -150,7 +150,7 @@ const BusinessNotesPageComponent = () => {
         }
 
         const savedNote = await response.json();
-        savedNote.date = new Date(savedNote.date.replace(/-/g, '/'));
+        savedNote.date = new Date(savedNote.date);
 
         if (editingNote) {
             setNotes(notes.map(n => n.id === editingNote.id ? savedNote : n));
