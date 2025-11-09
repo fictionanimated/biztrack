@@ -1,15 +1,15 @@
 
+
 "use client";
 
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
-import type { RevenueDataPoint } from '@/lib/services/analyticsService';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { BarChart2, LineChartIcon } from 'lucide-react';
-import { format, startOfWeek, startOfMonth, getQuarter, getYear, parseISO, startOfYear } from "date-fns";
+import { format, startOfWeek, startOfMonth, getQuarter, getYear, parseISO } from "date-fns";
 
 const chartConfig = {
     growthRate: { label: "Revenue Growth (%)", color: "hsl(var(--chart-1))" },
@@ -19,24 +19,21 @@ type ChartView = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 const calculateGrowth = (current?: number, previous?: number) => {
     if (previous === undefined || previous === null || current === undefined || current === null) return 0;
-    // If both are zero, growth is 0%
     if (previous === 0 && current === 0) return 0;
-    // If previous was zero and current is positive, it's effectively infinite growth, capped at 100% for visualization
-    if (previous === 0) return 100;
-    // Standard growth calculation
+    if (previous === 0) return current > 0 ? 100 : -100;
     return ((current - previous) / previous) * 100;
 };
 
-export default function GrowthMetricsChart({ timeSeries }: { timeSeries: { currentRevenue: RevenueDataPoint[], previousRevenue: RevenueDataPoint[] } }) {
+export default function GrowthMetricsChart({ timeSeries }: { timeSeries: {date: string; value: number}[] }) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('bar');
     const [chartView, setChartView] = useState<ChartView>('monthly');
 
     const aggregatedData = useMemo(() => {
-        if (!timeSeries || !timeSeries.currentRevenue) {
+        if (!timeSeries || timeSeries.length === 0) {
             return [];
         }
 
-        const aggregate = (data: RevenueDataPoint[], view: ChartView) => {
+        const aggregate = (data: {date: string; value: number}[], view: ChartView) => {
             const map = new Map<string, number>();
             data.forEach(item => {
                 const itemDate = parseISO(item.date);
@@ -49,22 +46,22 @@ export default function GrowthMetricsChart({ timeSeries }: { timeSeries: { curre
                     case 'yearly': key = getYear(itemDate).toString(); break;
                     default: key = item.date; break;
                 }
-                map.set(key, (map.get(key) || 0) + item.revenue);
+                map.set(key, (map.get(key) || 0) + item.value);
             });
             return Array.from(map.entries())
-                        .map(([date, revenue]) => ({ date, revenue }))
+                        .map(([date, value]) => ({ date, value }))
                         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         };
 
-        const currentAggregated = aggregate(timeSeries.currentRevenue, chartView);
+        const currentAggregated = aggregate(timeSeries, chartView);
         
         return currentAggregated.map((item, index) => {
-            const previousItem = index > 0 ? currentAggregated[index - 1] : undefined;
+            const previousItem = index > 0 ? currentAggregated[index - 1] : { value: undefined };
             return {
                 date: item.date,
-                revenue: item.revenue,
-                previousRevenue: previousItem?.revenue,
-                growthRate: calculateGrowth(item.revenue, previousItem?.revenue),
+                currentValue: item.value,
+                previousValue: previousItem?.value,
+                growthRate: calculateGrowth(item.value, previousItem?.value),
             };
         });
 
@@ -131,8 +128,8 @@ export default function GrowthMetricsChart({ timeSeries }: { timeSeries: { curre
                                 <ChartTooltipContent
                                     formatter={(value, name, props) => {
                                         const { payload } = props;
-                                        const revenue = payload?.revenue as number | undefined;
-                                        const prevRevenue = payload?.previousRevenue as number | undefined;
+                                        const revenue = payload?.currentValue as number | undefined;
+                                        const prevRevenue = payload?.previousValue as number | undefined;
                                         const details = `(Current: $${revenue?.toFixed(0)}, Prev: $${prevRevenue?.toFixed(0)})`;
                                         return [`${(value as number).toFixed(2)}% ${details}`, "Growth"];
                                     }}

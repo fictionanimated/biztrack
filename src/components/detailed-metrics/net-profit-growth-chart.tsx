@@ -1,15 +1,15 @@
 
+
 "use client";
 
 import { useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
-import type { RevenueDataPoint } from '@/lib/services/analyticsService';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { BarChart2, LineChartIcon } from 'lucide-react';
-import { format, startOfWeek, startOfMonth, getQuarter, getYear, parseISO, startOfYear } from "date-fns";
+import { format, startOfWeek, startOfMonth, getQuarter, getYear, parseISO } from "date-fns";
 
 const chartConfig = {
     growthRate: { label: "Net Profit Growth (%)", color: "hsl(var(--chart-3))" },
@@ -19,20 +19,12 @@ type ChartView = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 const calculateGrowth = (current?: number, previous?: number) => {
     if (previous === undefined || previous === null || current === undefined || current === null) return 0;
-    // If previous was zero
-    if (previous === 0) {
-      // and current is also zero, growth is 0%
-      if (current === 0) return 0;
-      // and current is positive, it's infinite growth (show as 100% or a large number)
-      if (current > 0) return 100;
-       // and current is negative, it's infinite negative growth (show as -100%)
-      return -100;
-    }
-    // Standard growth calculation
+    if (previous === 0 && current === 0) return 0;
+    if (previous === 0) return current > 0 ? 100 : -100;
     return ((current - previous) / previous) * 100;
 };
 
-export default function NetProfitGrowthChart({ timeSeries }: { timeSeries: {date: string; netProfit: number}[] }) {
+export default function NetProfitGrowthChart({ timeSeries }: { timeSeries: {date: string; value: number}[] }) {
     const [chartType, setChartType] = useState<'bar' | 'line'>('line');
     const [chartView, setChartView] = useState<ChartView>('monthly');
 
@@ -41,7 +33,7 @@ export default function NetProfitGrowthChart({ timeSeries }: { timeSeries: {date
             return [];
         }
 
-        const aggregate = (data: {date: string; netProfit: number}[], view: ChartView) => {
+        const aggregate = (data: {date: string; value: number}[], view: ChartView) => {
             const map = new Map<string, number>();
             data.forEach(item => {
                 const itemDate = parseISO(item.date);
@@ -54,22 +46,22 @@ export default function NetProfitGrowthChart({ timeSeries }: { timeSeries: {date
                     case 'yearly': key = getYear(itemDate).toString(); break;
                     default: key = item.date; break;
                 }
-                map.set(key, (map.get(key) || 0) + item.netProfit);
+                map.set(key, (map.get(key) || 0) + item.value);
             });
             return Array.from(map.entries())
-                        .map(([date, netProfit]) => ({ date, netProfit }))
+                        .map(([date, value]) => ({ date, value }))
                         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         };
 
         const currentAggregated = aggregate(timeSeries, chartView);
         
         return currentAggregated.map((item, index) => {
-            const previousItem = index > 0 ? currentAggregated[index - 1] : { netProfit: undefined };
+            const previousItem = index > 0 ? currentAggregated[index - 1] : { value: undefined };
             return {
                 date: item.date,
-                netProfit: item.netProfit,
-                previousNetProfit: previousItem?.netProfit,
-                growthRate: calculateGrowth(item.netProfit, previousItem?.netProfit),
+                currentValue: item.value,
+                previousValue: previousItem?.value,
+                growthRate: calculateGrowth(item.value, previousItem?.value),
             };
         });
 
@@ -136,8 +128,8 @@ export default function NetProfitGrowthChart({ timeSeries }: { timeSeries: {date
                                 <ChartTooltipContent
                                     formatter={(value, name, props) => {
                                         const { payload } = props;
-                                        const netProfit = payload?.netProfit as number | undefined;
-                                        const prevNetProfit = payload?.previousNetProfit as number | undefined;
+                                        const netProfit = payload?.currentValue as number | undefined;
+                                        const prevNetProfit = payload?.previousValue as number | undefined;
                                         const details = `(Current: $${netProfit?.toFixed(0)}, Prev: $${prevNetProfit?.toFixed(0)})`;
                                         return [`${(value as number).toFixed(2)}% ${details}`, "Growth"];
                                     }}

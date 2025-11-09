@@ -98,8 +98,8 @@ export function GrowthMetrics({ date, selectedSources, previousPeriodLabel }: Gr
                       {metric.data.value.toFixed(1)}%
                     </p>
                 </div>
-                <div className="mt-2 pt-2 border-t space-y-1">
-                    <div className="flex items-center text-xs">
+                <div className="mt-2 pt-2 border-t space-y-1 text-xs">
+                    <div className="flex items-center">
                          <span className={cn(
                             "flex items-center gap-1 font-semibold",
                             prevIsPositive ? "text-green-600" : "text-red-600"
@@ -109,7 +109,7 @@ export function GrowthMetrics({ date, selectedSources, previousPeriodLabel }: Gr
                         </span>
                         <span className="ml-1 text-muted-foreground">{previousPeriodLabel}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{metric.formula}</p>
+                    <p className="text-muted-foreground pt-1">{metric.formula}</p>
                 </div>
                 </div>
             )
@@ -118,6 +118,7 @@ export function GrowthMetrics({ date, selectedSources, previousPeriodLabel }: Gr
       )
   };
 
+  const currentPeriodTimeSeries = growthMetricsData?.timeSeries?.currentPeriod;
 
   return (
     <Card>
@@ -138,12 +139,12 @@ export function GrowthMetrics({ date, selectedSources, previousPeriodLabel }: Gr
         <CardContent className="space-y-6">
             <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
                 <GrowthMetricsChart
-                    timeSeries={growthMetricsData.timeSeries.currentPeriod.map(d => ({ date: d.date, revenue: d.revenue }))}
+                    timeSeries={currentPeriodTimeSeries ? currentPeriodTimeSeries.map(d => ({ date: d.date, value: d.revenue })) : []}
                 />
             </Suspense>
              <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
                 <NetProfitGrowthChart
-                     timeSeries={growthMetricsData.timeSeries.currentPeriod.map(d => ({ date: d.date, netProfit: d.netProfit }))}
+                     timeSeries={currentPeriodTimeSeries ? currentPeriodTimeSeries.map(d => ({ date: d.date, value: d.netProfit })) : []}
                 />
             </Suspense>
         </CardContent>
