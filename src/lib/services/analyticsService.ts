@@ -110,6 +110,13 @@ export interface RevenueDataPoint {
     note?: Pick<BusinessNote, 'title' | 'content' | 'date'>[];
 }
 
+export interface ClientDataPoint {
+    date: string;
+    newClients: number;
+    clientsAtStart: number;
+    note?: Pick<BusinessNote, 'title' | 'content' | 'date'>[];
+}
+
 export interface GrowthMetricData {
   revenueGrowth: { value: number; previousValue: number };
   profitGrowth: { value: number; previousValue: number };
@@ -117,8 +124,8 @@ export interface GrowthMetricData {
   aovGrowth: { value: number; previousValue: number };
   vipClientGrowth: { value: number; previousValue: number };
   topSourceGrowth: { value: number; previousValue: number; source: string };
-  timeSeries: {
-      currentPeriod: RevenueDataPoint[];
+  timeSeries?: {
+      currentPeriod: (RevenueDataPoint & ClientDataPoint)[];
       previousPeriod: RevenueDataPoint[];
   }
 }
@@ -532,10 +539,10 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
 
     const sourceFilter = sources ? { source: { $in: sources } } : {};
     
-    const [allOrders, allExpenses, allNewClients, allNotes] = await Promise.all([
+    const [allOrders, allExpenses, allClients, allNotes] = await Promise.all([
         ordersCol.find({ date: { $gte: format(overallStart, 'yyyy-MM-dd'), $lte: format(overallEnd, 'yyyy-MM-dd') }, status: 'Completed', ...sourceFilter }).toArray(),
         expensesCol.find({ date: { $gte: format(overallStart, 'yyyy-MM-dd'), $lte: format(overallEnd, 'yyyy-MM-dd') } }).toArray(),
-        clientsCol.find({ clientSince: { $gte: format(overallStart, 'yyyy-MM-dd'), $lte: format(overallEnd, 'yyyy-MM-dd') }, ...sourceFilter }).toArray(),
+        clientsCol.find({ clientSince: { $lte: format(overallEnd, 'yyyy-MM-dd') }, ...sourceFilter }).project({ username: 1, clientSince: 1 }).toArray(),
         businessNotesCol.find({ date: { $gte: P2_from, $lte: P2_to } }).project({ title: 1, content: 1, date: 1 }).toArray(),
     ]);
     
@@ -552,7 +559,7 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
 
         const periodOrders = allOrders.filter(o => o.date >= startStr && o.date <= endStr);
         const periodExpenses = allExpenses.filter(e => e.date >= startStr && e.date <= endStr);
-        const periodNewClients = allNewClients.filter(c => c.clientSince >= startStr && c.clientSince <= endStr).length;
+        const periodNewClients = allClients.filter(c => c.clientSince >= startStr && c.clientSince <= endStr).length;
 
         const revenue = periodOrders.reduce((sum, o) => sum + o.amount, 0);
         const expenses = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -566,7 +573,7 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
         const topSource = Object.entries(sourcesInPeriod).sort((a, b) => b[1] - a[1])[0];
 
         const vipClients = await clientsCol.countDocuments({ isVip: true, clientSince: {$lte: endStr}, ...sourceFilter });
-        const clientsAtStart = await clientsCol.countDocuments({ clientSince: { $lt: startStr }, ...sourceFilter });
+        const clientsAtStart = allClients.filter(c => c.clientSince < startStr).length;
 
         return { 
             revenue, 
@@ -589,7 +596,9 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
         ? allOrders.filter(o => o.source === P1_metrics.topSource.source && o.date >= format(P1_from, 'yyyy-MM-dd') && o.date <= format(P1_to, 'yyyy-MM-dd')).reduce((sum, o) => sum + o.amount, 0)
         : 0;
 
-    const generateTimeSeries = (start: Date, end: Date): RevenueDataPoint[] => {
+    const generateTimeSeries = (start: Date, end: Date): (RevenueDataPoint & ClientDataPoint)[] => {
+        let clientsAtStartDate = allClients.filter(c => c.clientSince < format(start, 'yyyy-MM-dd')).length;
+        
         return eachDayOfInterval({ start, end }).map(day => {
             const dayStr = format(day, 'yyyy-MM-dd');
             const revenue = allOrders
@@ -598,7 +607,19 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
             const expenses = allExpenses
                 .filter(e => e.date === dayStr)
                 .reduce((sum, e) => sum + e.amount, 0);
-            return { date: dayStr, revenue, netProfit: revenue - expenses, note: notesByDate[dayStr] || [] };
+            
+            const newClientsToday = allClients.filter(c => c.clientSince === dayStr).length;
+            const clientsAtDayStart = clientsAtStartDate;
+            clientsAtStartDate += newClientsToday;
+
+            return { 
+                date: dayStr, 
+                revenue, 
+                netProfit: revenue - expenses,
+                newClients: newClientsToday,
+                clientsAtStart: clientsAtDayStart,
+                note: notesByDate[dayStr] || []
+            };
         });
     };
 
@@ -611,7 +632,7 @@ export async function getGrowthMetrics(from: string, to: string, sources?: strin
         clientGrowth: { value: P1_metrics.clientsAtStart > 0 ? (P2_metrics.newClients / P1_metrics.clientsAtStart) * 100 : P2_metrics.newClients > 0 ? 100 : 0, previousValue: P0_metrics.clientsAtStart > 0 ? (P1_metrics.newClients / P0_metrics.clientsAtStart) * 100 : P1_metrics.newClients > 0 ? 100 : 0 },
         timeSeries: {
             currentPeriod: generateTimeSeries(P2_from, P2_to),
-            previousPeriod: generateTimeSeries(P1_from, P1_to),
+            previousPeriod: [], // Not needed for sequential growth chart
         }
     };
 }
@@ -1226,6 +1247,7 @@ export async function getYearlyStats(year: number): Promise<SingleYearData> {
     
 
     
+
 
 
 

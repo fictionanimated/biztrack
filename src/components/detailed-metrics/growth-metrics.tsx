@@ -13,6 +13,7 @@ import { type GrowthMetricData, type RevenueDataPoint } from "@/lib/services/ana
 
 const GrowthMetricsChart = lazy(() => import("@/components/detailed-metrics/growth-metrics-chart"));
 const NetProfitGrowthChart = lazy(() => import("@/components/detailed-metrics/net-profit-growth-chart"));
+const ClientGrowthRateChart = lazy(() => import("@/components/detailed-metrics/client-growth-rate-chart"));
 
 
 interface GrowthMetricsProps {
@@ -135,16 +136,26 @@ export function GrowthMetrics({ date, selectedSources, previousPeriodLabel }: Gr
       <CardContent>
         {renderContent()}
       </CardContent>
-       {showChart && growthMetricsData?.timeSeries && (
+       {showChart && growthMetricsData?.timeSeries && currentPeriodTimeSeries && (
         <CardContent className="space-y-6">
             <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
                 <GrowthMetricsChart
-                    timeSeries={currentPeriodTimeSeries ? currentPeriodTimeSeries.map(d => ({ date: d.date, value: d.revenue, note: d.note })) : []}
+                    timeSeries={currentPeriodTimeSeries.map(d => ({ date: d.date, value: d.revenue, note: d.note }))}
                 />
             </Suspense>
              <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
                 <NetProfitGrowthChart
-                     timeSeries={currentPeriodTimeSeries ? currentPeriodTimeSeries.map(d => ({ date: d.date, value: d.netProfit, note: d.note })) : []}
+                     timeSeries={currentPeriodTimeSeries.map(d => ({ date: d.date, value: d.netProfit, note: d.note }))}
+                />
+            </Suspense>
+            <Suspense fallback={<Skeleton className="h-[400px] w-full" />}>
+                <ClientGrowthRateChart
+                    timeSeries={currentPeriodTimeSeries.map(d => ({ 
+                        date: d.date, 
+                        newClients: d.newClients,
+                        clientsAtStart: d.clientsAtStart, 
+                        note: d.note 
+                    }))}
                 />
             </Suspense>
         </CardContent>
