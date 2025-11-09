@@ -51,6 +51,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { orderFormSchema, cancellationReasonsList, type OrderFormValues } from "@/lib/data/orders-data";
@@ -63,13 +64,6 @@ const TopClientsChart = lazy(() => import("./top-clients-chart"));
 const IncomeChart = lazy(() => import("./income-chart"));
 
 const incomeSourceNames = initialIncomeSources.map(s => s.name);
-
-// A more robust date parsing function to avoid performance issues.
-const parseDateString = (dateString: string): Date => {
-  const [year, month, day] = dateString.split('-').map(Number);
-  // In JavaScript's Date, months are 0-indexed (0 for January, 11 for December)
-  return new Date(year, month - 1, day);
-};
 
 interface DashboardClientProps extends DashboardData {
     initialMonthlyTargets: Record<string, number>;
@@ -94,8 +88,8 @@ export function DashboardClient({
     const fromParam = searchParams.get('from');
     const toParam = searchParams.get('to');
     if (fromParam && toParam) {
-        const from = new Date(fromParam.replace(/-/g, '/'));
-        const to = new Date(toParam.replace(/-/g, '/'));
+        const from = toZonedTime(fromParam, 'UTC');
+        const to = toZonedTime(toParam, 'UTC');
         if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
             return { from, to };
         }
@@ -202,7 +196,7 @@ export function DashboardClient({
       form.reset({
           id: orderToEdit.id,
           username: orderToEdit.clientUsername,
-          date: parseDateString(orderToEdit.date),
+          date: toZonedTime(orderToEdit.date, 'UTC'),
           amount: orderToEdit.amount,
           source: orderToEdit.source,
           gig: orderToEdit.gig,
@@ -666,7 +660,7 @@ export function DashboardClient({
                                             <FormItem>
                                                 <FormLabel>Other Reason</FormLabel>
                                                 <FormControl>
-                                                    <Textarea placeholder="If other, please specify reason for cancellation..." {...field} />
+                                                    <Textarea placeholder="If other, please specify reason for cancellation..." {...field} value={field.value ?? ''} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>

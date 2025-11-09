@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useMemo, useState, useEffect } from 'react';
@@ -13,6 +12,7 @@ import {
     format,
     isSameDay,
 } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import { cn } from '@/lib/utils';
 import type { BusinessNote } from "@/lib/data/business-notes-data";
 
@@ -21,11 +21,12 @@ interface CalendarViewProps {
     notes: BusinessNote[];
     onDateClick: (date: Date) => void;
     onNoteClick: (note: BusinessNote) => void;
+    timezone: string;
 }
 
 const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-export default function CalendarView({ currentDate, notes, onDateClick, onNoteClick }: CalendarViewProps) {
+export default function CalendarView({ currentDate, notes, onDateClick, onNoteClick, timezone }: CalendarViewProps) {
     const daysInMonth = useMemo(() => {
         const start = startOfWeek(startOfMonth(currentDate));
         const end = endOfWeek(endOfMonth(currentDate));
@@ -35,8 +36,7 @@ export default function CalendarView({ currentDate, notes, onDateClick, onNoteCl
     const notesByDate = useMemo(() => {
         const map = new Map<string, BusinessNote[]>();
         notes.forEach(note => {
-            const noteDate = new Date(note.date);
-            const dateKey = format(noteDate, 'yyyy-MM-dd');
+            const dateKey = format(note.date, 'yyyy-MM-dd');
             if (!map.has(dateKey)) {
                 map.set(dateKey, []);
             }
@@ -50,7 +50,7 @@ export default function CalendarView({ currentDate, notes, onDateClick, onNoteCl
         setIsClient(true);
     }, []);
 
-    const today = useMemo(() => new Date(), []);
+    const today = useMemo(() => toZonedTime(new Date(), timezone), [timezone]);
 
     return (
         <div className="flex-1 grid grid-cols-7 grid-rows-[auto_repeat(6,minmax(0,1fr))] border-l summary-calendar">

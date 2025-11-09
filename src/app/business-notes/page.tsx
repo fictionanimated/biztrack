@@ -1,11 +1,11 @@
 
-
 "use client";
 
 import { useState, useMemo, useEffect, lazy, Suspense, memo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addMonths, subMonths } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 import { ChevronLeft, ChevronRight, CalendarIcon, Loader2, Database } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -72,6 +72,7 @@ const BusinessNotesPageComponent = () => {
   const [editingNote, setEditingNote] = useState<BusinessNote | null>(null);
   const [deletingNote, setDeletingNote] = useState<BusinessNote | null>(null);
   const [visibleNotesCount, setVisibleNotesCount] = useState(10);
+  const [timezone, setTimezone] = useState('UTC');
   const { toast } = useToast();
   
   const form = useForm<NoteFormValues>({
@@ -83,24 +84,34 @@ const BusinessNotesPageComponent = () => {
     }
   });
 
-  const fetchNotes = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/business-notes');
-      if (!res.ok) throw new Error('Failed to fetch notes from the server.');
-      const data = await res.json();
-      setNotes(data.map((note: BusinessNote & {date: string}) => ({...note, date: new Date(note.date)})));
-    } catch (e) {
-      console.error(e);
-      setError('Could not connect to the database or fetch data. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchNotes();
+    const fetchInitialData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const [notesRes, settingsRes] = await Promise.all([
+          fetch('/api/business-notes'),
+          fetch('/api/settings')
+        ]);
+        
+        if (!notesRes.ok) throw new Error('Failed to fetch notes.');
+        if (!settingsRes.ok) throw new Error('Failed to fetch settings.');
+        
+        const notesData = await notesRes.json();
+        const settingsData = await settingsRes.json();
+        const tz = settingsData.timezone || 'UTC';
+        setTimezone(tz);
+        
+        setNotes(notesData.map((note: BusinessNote & {date: string}) => ({...note, date: toZonedTime(note.date, tz)})));
+        
+      } catch (e) {
+        console.error(e);
+        setError('Could not connect to the database or fetch data. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchInitialData();
   }, []);
 
   const handleDateClick = (date: Date) => {
@@ -113,7 +124,7 @@ const BusinessNotesPageComponent = () => {
   const handleNoteClick = (note: BusinessNote) => {
     setEditingNote(note);
     setSelectedDate(null);
-    form.reset({ date: new Date(note.date), title: note.title, content: note.content });
+    form.reset({ date: note.date, title: note.title, content: note.content });
     setDialogOpen(true);
   }
 
@@ -150,7 +161,9 @@ const BusinessNotesPageComponent = () => {
         }
 
         const savedNote = await response.json();
-        savedNote.date = new Date(savedNote.date);
+        const savedNoteDate = toZonedTime(savedNote.date, timezone);
+        savedNote.date = savedNoteDate;
+
 
         if (editingNote) {
             setNotes(notes.map(n => n.id === editingNote.id ? savedNote : n));
@@ -208,7 +221,7 @@ const BusinessNotesPageComponent = () => {
   }, [editingNote, selectedDate, form]);
 
   const sortedNotes = useMemo(() => {
-    return [...notes].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return [...notes].sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [notes]);
 
   return (
@@ -253,6 +266,7 @@ const BusinessNotesPageComponent = () => {
                   notes={notes}
                   onDateClick={handleDateClick}
                   onNoteClick={handleNoteClick}
+                  timezone={timezone}
               />
             )}
           </Suspense>
@@ -265,7 +279,7 @@ const BusinessNotesPageComponent = () => {
                 <CardHeader className="flex flex-row items-start justify-between pb-2">
                   <div>
                     <CardTitle className="text-base font-medium">{note.title}</CardTitle>
-                    <CardDescription>{format(new Date(note.date), 'PPP')}</CardDescription>
+                    <CardDescription>{format(note.date, 'PPP')}</CardDescription>
                   </div>
                    <div className="flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => handleNoteClick(note)}>Edit</Button>

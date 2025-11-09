@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { type RecentOrder } from "@/lib/placeholder-data";
 import { Badge } from "../ui/badge";
 import { format } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
 import { Button } from "../ui/button";
 import { MoreHorizontal, Edit } from "lucide-react";
 
@@ -48,7 +49,7 @@ export default function RecentOrders({ orders, onEditOrder }: RecentOrdersProps)
               </div>
             </TableCell>
             <TableCell>
-                {format(new Date(order.date.replace(/-/g, '/')), "PPP")}
+                {format(toZonedTime(order.date, 'UTC'), "PPP")}
             </TableCell>
             <TableCell>{order.source}</TableCell>
             <TableCell>
