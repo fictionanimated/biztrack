@@ -18,36 +18,6 @@ async function getUsersCollection() {
   return db.collection<Omit<User, '_id'>>('users');
 }
 
-/**
- * Seeds the initial user if they don't exist.
- * This is a one-time operation for development setup.
- */
-export async function seedInitialUser() {
-    const collection = await getUsersCollection();
-    const username = process.env.INITIAL_ADMIN_USERNAME;
-    const password = process.env.INITIAL_ADMIN_PASSWORD;
-
-    if (!username || !password) {
-        console.warn("Initial admin user credentials not found in .env file. Skipping seed.");
-        return;
-    }
-
-    try {
-        const userExists = await collection.findOne({ username });
-
-        if (!userExists) {
-            console.log(`Initial user "${username}" not found. Creating...`);
-            const passwordHash = await hash(password, 10);
-            await collection.insertOne({
-                username,
-                passwordHash,
-            });
-            console.log(`User "${username}" created successfully.`);
-        }
-    } catch (error) {
-        console.error("Error during initial user seeding:", error);
-    }
-}
 
 export async function findUserByUsername(username: string): Promise<User | null> {
     const collection = await getUsersCollection();

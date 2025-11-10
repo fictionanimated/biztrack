@@ -1,18 +1,32 @@
-// This file is DEPRECATED and is no longer used.
-// The initial user is now seeded automatically in the `userService.ts` file.
-// You can safely delete this file.
 
 import { hash } from 'bcryptjs';
 import { createUser } from '../lib/services/userService';
 import clientPromise from '../lib/mongodb';
+import 'dotenv/config';
 
 async function main() {
-  console.log("This script is deprecated. User seeding is now automatic.");
-  console.log("You can safely delete this file: src/scripts/create-user.ts");
+  const username = process.env.INITIAL_ADMIN_USERNAME;
+  const password = process.env.INITIAL_ADMIN_PASSWORD;
 
-  // Keep the client connection logic to avoid breaking if someone runs it.
+  if (!username || !password) {
+      console.error("ERROR: Please set INITIAL_ADMIN_USERNAME and INITIAL_ADMIN_PASSWORD in your .env file.");
+      process.exit(1);
+  }
+
+  console.log(`Attempting to create user: ${username}...`);
+
   try {
-  } catch (error) {
+    const passwordHash = await hash(password, 10);
+    const user = await createUser(username, passwordHash);
+    console.log("✅ User created successfully!");
+    console.log(`   ID: ${user._id}`);
+    console.log(`   Username: ${user.username}`);
+  } catch (error: any) {
+    if (error.message.includes("already exists")) {
+        console.warn(`⚠️  Warning: ${error.message}`);
+    } else {
+        console.error("❌ An unexpected error occurred:", error);
+    }
   } finally {
     const client = await clientPromise;
     await client.close();
